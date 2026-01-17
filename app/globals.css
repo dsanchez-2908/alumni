@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 263 70% 10%;
+    
+    --card: 0 0% 100%;
+    --card-foreground: 263 70% 10%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 263 70% 10%;
+    
+    /* Indigo/Violeta como color principal */
+    --primary: 263 70% 50%;
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 270 60% 95%;
+    --secondary-foreground: 263 70% 20%;
+    
+    --muted: 270 60% 95%;
+    --muted-foreground: 263 30% 45%;
+    
+    --accent: 270 60% 90%;
+    --accent-foreground: 263 70% 20%;
+    
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    
+    --border: 270 30% 85%;
+    --input: 270 30% 85%;
+    --ring: 263 70% 50%;
+    
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 263 50% 5%;
+    --foreground: 0 0% 98%;
+    
+    --card: 263 50% 8%;
+    --card-foreground: 0 0% 98%;
+    
+    --popover: 263 50% 8%;
+    --popover-foreground: 0 0% 98%;
+    
+    --primary: 263 70% 60%;
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 270 30% 15%;
+    --secondary-foreground: 0 0% 98%;
+    
+    --muted: 270 30% 15%;
+    --muted-foreground: 263 30% 65%;
+    
+    --accent: 270 30% 20%;
+    --accent-foreground: 0 0% 98%;
+    
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    
+    --border: 270 30% 20%;
+    --input: 270 30% 20%;
+    --ring: 263 70% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
