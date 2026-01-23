@@ -30,7 +30,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
-import { PlusCircle, Pencil, Trash2, Calendar, Users, Eye } from 'lucide-react';
+import { PlusCircle, Pencil, Trash2, Calendar, Users, Eye, Search } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface Taller {
   cdTaller: number;
@@ -79,6 +80,7 @@ interface Personal {
 
 export default function TalleresPage() {
   const router = useRouter();
+  const { success, error } = useToast();
   const [talleres, setTalleres] = useState<Taller[]>([]);
   const [tiposTaller, setTiposTaller] = useState<TipoTaller[]>([]);
   const [personal, setPersonal] = useState<Personal[]>([]);
@@ -86,6 +88,10 @@ export default function TalleresPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [currentId, setCurrentId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Filtros
+  const [searchTerm, setSearchTerm] = useState('');
+  const [estadoFilter, setEstadoFilter] = useState('Todos');
 
   const [formData, setFormData] = useState({
     nuAnioTaller: new Date().getFullYear(),
@@ -253,15 +259,15 @@ export default function TalleresPage() {
       });
 
       if (response.ok) {
-        alert(isEditing ? 'Taller actualizado correctamente' : 'Taller creado correctamente');
+        success(isEditing ? 'Taller actualizado correctamente' : 'Taller creado correctamente');
         setIsDialogOpen(false);
         fetchTalleres();
       } else {
-        const error = await response.json();
-        alert(error.error || 'Ocurrió un error');
+        const errorData = await response.json();
+        error(errorData.error || 'Ocurrió un error');
       }
-    } catch (error) {
-      alert('Error de conexión');
+    } catch (err) {
+      error('Error de conexión');
     } finally {
       setLoading(false);
     }
@@ -276,14 +282,14 @@ export default function TalleresPage() {
       });
 
       if (response.ok) {
-        alert('Taller eliminado correctamente');
+        success('Taller eliminado correctamente');
         fetchTalleres();
       } else {
-        const error = await response.json();
-        alert(error.error || 'No se pudo eliminar el taller');
+        const errorData = await response.json();
+        error(errorData.error || 'No se pudo eliminar el taller');
       }
-    } catch (error) {
-      alert('Error de conexión');
+    } catch (err) {
+      error('Error de conexión');
     }
   };
 
@@ -303,6 +309,17 @@ export default function TalleresPage() {
     return dias.join(', ') || 'Sin horarios';
   };
 
+  // Filtrar talleres
+  const filteredTalleres = talleres.filter((taller) => {
+    const matchesSearch = searchTerm === '' || 
+      taller.dsNombreTaller.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      taller.nombrePersonal.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesEstado = estadoFilter === 'Todos' || taller.dsEstado === estadoFilter;
+    
+    return matchesSearch && matchesEstado;
+  });
+
   return (
     <div className="container mx-auto py-8">
       <Card>
@@ -321,6 +338,31 @@ export default function TalleresPage() {
           </div>
         </CardHeader>
         <CardContent>
+          {/* Filtros */}
+          <div className="flex gap-4 mb-6">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Buscar por taller o profesor..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <Select value={estadoFilter} onValueChange={setEstadoFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Todos">Todos los estados</SelectItem>
+                <SelectItem value="Activo">Activo</SelectItem>
+                <SelectItem value="Inactivo">Inactivo</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <Table>
             <TableHeader>
               <TableRow>
@@ -335,14 +377,16 @@ export default function TalleresPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {talleres.length === 0 ? (
+              {filteredTalleres.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center text-gray-500">
-                    No hay talleres registrados
+                    {searchTerm || estadoFilter !== 'Todos' 
+                      ? 'No se encontraron talleres con los filtros aplicados'
+                      : 'No hay talleres registrados'}
                   </TableCell>
                 </TableRow>
               ) : (
-                talleres.map((taller) => (
+                filteredTalleres.map((taller) => (
                   <TableRow key={taller.cdTaller}>
                     <TableCell className="font-medium">{taller.nuAnioTaller}</TableCell>
                     <TableCell>{taller.dsNombreTaller}</TableCell>

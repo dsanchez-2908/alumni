@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
-import { executeQuery } from '@/lib/db-utils';
+import pool from '@/lib/db';
 import { registrarTraza } from '@/lib/db-utils';
 
 interface Alumno {
@@ -39,9 +39,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    // Obtener alumnos con grupos familiares y talleres inscritos
-    const alumnos = await executeQuery<Alumno>(
-      `SELECT 
+    // Obtener parámetro de búsqueda
+    const searchParams = request.nextUrl.searchParams;
+    const search = searchParams.get('search');
+
+    // Construir query con filtro opcional
+    let query = `SELECT 
         a.cdAlumno,
         CONCAT(a.dsNombre, ' ', a.dsApellido) as dsNombreCompleto,
         a.dsNombre,
@@ -71,18 +74,31 @@ export async function GET(request: NextRequest) {
        FROM TD_ALUMNOS a
        LEFT JOIN TR_ALUMNO_GRUPO_FAMILIAR agf ON a.cdAlumno = agf.cdAlumno
        LEFT JOIN TD_GRUPOS_FAMILIARES gf ON agf.cdGrupoFamiliar = gf.cdGrupoFamiliar
-       LEFT JOIN tr_inscripcion_alumno ia ON a.cdAlumno = ia.cdAlumno AND ia.cdEstado = 1
-       LEFT JOIN TD_TALLERES t ON ia.cdTaller = t.cdTaller
+       LEFT JOIN tr_alumno_taller at ON a.cdAlumno = at.cdAlumno AND at.feBaja IS NULL
+       LEFT JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
        LEFT JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
-       WHERE a.cdEstado IN (1, 2)
+       WHERE a.cdEstado IN (1, 2)`;
+
+    const params: any[] = [];
+
+    // Agregar filtro de búsqueda si existe
+    if (search) {
+      query += ` AND (a.dsNombre LIKE ? OR a.dsApellido LIKE ? OR a.dsDNI LIKE ?)`;
+      const searchPattern = `%${search}%`;
+      params.push(searchPattern, searchPattern, searchPattern);
+    }
+
+    query += `
        GROUP BY a.cdAlumno, a.dsNombre, a.dsApellido, a.dsDNI, a.dsSexo, a.feNacimiento,
                 a.dsDomicilio, a.dsTelefonoCelular, a.dsTelefonoFijo, a.dsMail, agf.cdGrupoFamiliar,
                 gf.dsNombreGrupo, a.cdEstado, a.feAlta
-       ORDER BY a.dsNombre, a.dsApellido ASC`
-    );
+       ORDER BY a.dsNombre, a.dsApellido ASC`;
+
+    const [alumnos] = await pool.execute<any[]>(query, params);
+
 
     // Obtener grupos familiares para el dropdown
-    const gruposFamiliares = await executeQuery<GrupoFamiliar>(
+    const [gruposFamiliares] = await pool.execute<any[]>(
       `SELECT 
         gf.cdGrupoFamiliar,
         gf.dsNombreGrupo,
@@ -96,11 +112,7 @@ export async function GET(request: NextRequest) {
     );
 
     // Obtener talleres activos para inscripción
-    const talleres = await executeQuery<{
-      cdTaller: number;
-      dsTaller: string;
-      dsProfesor: string | null;
-    }>(
+    const [talleres] = await pool.execute<any[]>(
       `SELECT 
         t.cdTaller,
         tt.dsNombreTaller as dsTaller,
@@ -145,6 +157,16 @@ export async function POST(request: NextRequest) {
       dsTelefonoCelular,
       dsTelefonoFijo,
       dsMail,
+      dsNombreCompletoContacto1,
+      dsParentescoContacto1,
+      dsDNIContacto1,
+      dsTelefonoContacto1,
+      dsMailContacto1,
+      dsNombreCompletoContacto2,
+      dsParentescoContacto2,
+      dsDNIContacto2,
+      dsTelefonoContacto2,
+      dsMailContacto2,
       cdGrupoFamiliar,
       talleres = [],
     } = body;
@@ -158,7 +180,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validar que el DNI no esté duplicado
-    const existeDNI = await executeQuery(
+    const [existeDNI] = await pool.execute<any[]>(
       'SELECT cdAlumno FROM TD_ALUMNOS WHERE dsDNI = ? AND cdEstado = 1',
       [dsDNI]
     );
@@ -180,7 +202,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Insertar alumno
-    const result = await executeQuery(
+    const [result] = await pool.execute<any>(
       `INSERT INTO TD_ALUMNOS (
         dsNombre,
         dsApellido,
@@ -191,10 +213,20 @@ export async function POST(request: NextRequest) {
         dsTelefonoCelular,
         dsTelefonoFijo,
         dsMail,
+        dsNombreCompletoContacto1,
+        dsParentescoContacto1,
+        dsDNIContacto1,
+        dsTelefonoContacto1,
+        dsMailContacto1,
+        dsNombreCompletoContacto2,
+        dsParentescoContacto2,
+        dsDNIContacto2,
+        dsTelefonoContacto2,
+        dsMailContacto2,
         cdEstado,
         feAlta,
         feModificacion
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())`,
       [
         dsNombre,
         dsApellido,
@@ -205,6 +237,16 @@ export async function POST(request: NextRequest) {
         dsTelefonoCelular || null,
         dsTelefonoFijo || null,
         dsMail || null,
+        dsNombreCompletoContacto1 || null,
+        dsParentescoContacto1 || null,
+        dsDNIContacto1 || null,
+        dsTelefonoContacto1 || null,
+        dsMailContacto1 || null,
+        dsNombreCompletoContacto2 || null,
+        dsParentescoContacto2 || null,
+        dsDNIContacto2 || null,
+        dsTelefonoContacto2 || null,
+        dsMailContacto2 || null,
       ]
     );
 
@@ -212,7 +254,7 @@ export async function POST(request: NextRequest) {
 
     // Asociar con grupo familiar si se proporcionó
     if (cdGrupoFamiliar) {
-      await executeQuery(
+      await pool.execute(
         `INSERT INTO TR_ALUMNO_GRUPO_FAMILIAR (
           cdAlumno,
           cdGrupoFamiliar,
@@ -225,7 +267,7 @@ export async function POST(request: NextRequest) {
     // Inscribir en talleres si se seleccionaron
     if (talleres.length > 0) {
       const inscripcionesPromises = talleres.map((cdTaller: number) =>
-        executeQuery(
+        pool.execute(
           `INSERT INTO tr_inscripcion_alumno (
             cdAlumno,
             cdTaller,

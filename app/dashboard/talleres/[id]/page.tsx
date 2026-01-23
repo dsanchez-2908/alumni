@@ -27,7 +27,12 @@ import {
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, UserPlus, Search, UserCheck, UserX, Calendar, Users, ClipboardCheck } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ArrowLeft, UserPlus, Search, UserCheck, UserX, Calendar, Users, ClipboardCheck, FileSpreadsheet, FileText } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface Taller {
   cdTaller: number;
@@ -83,6 +88,7 @@ interface AlumnoDisponible {
 export default function TallerDetallePage() {
   const params = useParams();
   const router = useRouter();
+  const { success, error, warning } = useToast();
   const cdTaller = parseInt(params.id as string);
 
   const [taller, setTaller] = useState<Taller | null>(null);
@@ -91,6 +97,10 @@ export default function TallerDetallePage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Filtros para tabla de inscritos
+  const [searchInscritos, setSearchInscritos] = useState('');
+  const [estadoFilter, setEstadoFilter] = useState('Todos');
 
   useEffect(() => {
     fetchTaller();
@@ -123,7 +133,7 @@ export default function TallerDetallePage() {
 
   const searchAlumnos = async () => {
     if (searchTerm.length < 2) {
-      alert('Ingresa al menos 2 caracteres para buscar');
+      warning('Ingresa al menos 2 caracteres para buscar');
       return;
     }
 
@@ -169,17 +179,17 @@ export default function TallerDetallePage() {
       });
 
       if (response.ok) {
-        alert('Alumno inscrito exitosamente');
+        success('Alumno inscrito exitosamente');
         setIsDialogOpen(false);
         setSearchTerm('');
         setAlumnosDisponibles([]);
         fetchAlumnosInscritos();
       } else {
-        const error = await response.json();
-        alert(error.error || 'Error al inscribir alumno');
+        const errorData = await response.json();
+        error(errorData.error || 'Error al inscribir alumno');
       }
-    } catch (error) {
-      alert('Error de conexión');
+    } catch (err) {
+      error('Error de conexión');
     }
   };
 
@@ -195,14 +205,14 @@ export default function TallerDetallePage() {
       });
 
       if (response.ok) {
-        alert(`Alumno ${activo ? 'reactivado' : 'dado de baja'} exitosamente`);
+        success(`Alumno ${activo ? 'reactivado' : 'dado de baja'} exitosamente`);
         fetchAlumnosInscritos();
       } else {
-        const error = await response.json();
-        alert(error.error || 'Error al cambiar estado');
+        const errorData = await response.json();
+        error(errorData.error || 'Error al cambiar estado');
       }
-    } catch (error) {
-      alert('Error de conexión');
+    } catch (err) {
+      error('Error de conexión');
     }
   };
 
@@ -231,6 +241,70 @@ export default function TallerDetallePage() {
       }
     });
     return dias.join(' | ');
+  };
+
+  // Filtrar alumnos inscritos
+  const filteredAlumnos = alumnosInscritos.filter((alumno) => {
+    const matchesSearch = searchInscritos === '' || 
+      alumno.dsNombre.toLowerCase().includes(searchInscritos.toLowerCase()) ||
+      alumno.dsApellido.toLowerCase().includes(searchInscritos.toLowerCase()) ||
+      alumno.dsDNI.includes(searchInscritos);
+    
+    const matchesEstado = estadoFilter === 'Todos' || alumno.estado === estadoFilter;
+    
+    return matchesSearch && matchesEstado;
+  });
+
+  // Exportar a Excel
+  const exportToExcel = () => {
+    const data = filteredAlumnos.map((alumno) => ({
+      Apellido: alumno.dsApellido,
+      Nombre: alumno.dsNombre,
+      DNI: alumno.dsDNI,
+      'Fecha Nacimiento': new Date(alumno.feNacimiento).toLocaleDateString('es-AR'),
+      'Fecha Inscripción': new Date(alumno.feInscripcion).toLocaleDateString('es-AR'),
+      Estado: alumno.estado,
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Alumnos');
+    
+    const fileName = `Alumnos_${taller?.dsNombreTaller}_${new Date().toLocaleDateString('es-AR').replace(/\//g, '-')}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+  };
+
+  // Exportar a PDF
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    
+    // Título
+    doc.setFontSize(16);
+    doc.text(`Listado de Alumnos - ${taller?.dsNombreTaller}`, 14, 20);
+    
+    // Subtítulo
+    doc.setFontSize(10);
+    doc.text(`Año: ${taller?.nuAnioTaller} | Profesor: ${taller?.nombrePersonal}`, 14, 28);
+    doc.text(`Fecha: ${new Date().toLocaleDateString('es-AR')}`, 14, 34);
+    
+    // Tabla
+    autoTable(doc, {
+      startY: 40,
+      head: [['Apellido', 'Nombre', 'DNI', 'Fecha Nac.', 'Fecha Insc.', 'Estado']],
+      body: filteredAlumnos.map((alumno) => [
+        alumno.dsApellido,
+        alumno.dsNombre,
+        alumno.dsDNI,
+        new Date(alumno.feNacimiento).toLocaleDateString('es-AR'),
+        new Date(alumno.feInscripcion).toLocaleDateString('es-AR'),
+        alumno.estado,
+      ]),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [79, 70, 229] },
+    });
+    
+    const fileName = `Alumnos_${taller?.dsNombreTaller}_${new Date().toLocaleDateString('es-AR').replace(/\//g, '-')}.pdf`;
+    doc.save(fileName);
   };
 
   if (!taller) {
@@ -329,13 +403,56 @@ export default function TallerDetallePage() {
                 Gestiona los alumnos inscritos en este taller
               </CardDescription>
             </div>
-            <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
-              <UserPlus className="h-4 w-4" />
-              Inscribir Alumno
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={exportToExcel}
+                variant="outline"
+                disabled={filteredAlumnos.length === 0}
+              >
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                Exportar Excel
+              </Button>
+              <Button
+                onClick={exportToPDF}
+                variant="outline"
+                disabled={filteredAlumnos.length === 0}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                Exportar PDF
+              </Button>
+              <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
+                <UserPlus className="h-4 w-4" />
+                Inscribir Alumno
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
+          {/* Filtros */}
+          <div className="flex gap-4 mb-6">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Buscar por nombre, apellido o DNI..."
+                  value={searchInscritos}
+                  onChange={(e) => setSearchInscritos(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <Select value={estadoFilter} onValueChange={setEstadoFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Todos">Todos los estados</SelectItem>
+                <SelectItem value="Activo">Activo</SelectItem>
+                <SelectItem value="Inactivo">Inactivo</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <Table>
             <TableHeader>
               <TableRow>
@@ -348,14 +465,16 @@ export default function TallerDetallePage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {alumnosInscritos.length === 0 ? (
+              {filteredAlumnos.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center text-gray-500">
-                    No hay alumnos inscritos
+                    {searchInscritos || estadoFilter !== 'Todos'
+                      ? 'No se encontraron alumnos con los filtros aplicados'
+                      : 'No hay alumnos inscritos'}
                   </TableCell>
                 </TableRow>
               ) : (
-                alumnosInscritos.map((alumno) => (
+                filteredAlumnos.map((alumno) => (
                   <TableRow key={alumno.id}>
                     <TableCell className="font-medium">{alumno.dsApellido}</TableCell>
                     <TableCell>{alumno.dsNombre}</TableCell>

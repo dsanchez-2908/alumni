@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { LogIn, AlertCircle } from 'lucide-react';
+import Image from 'next/image';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -49,9 +50,16 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo y título */}
         <div className="text-center mb-8">
-          <h1 className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600 mb-2">
-            Alumni
-          </h1>
+          <div className="flex justify-center mb-4">
+            <Image
+              src="/images/logo-indigo-completo.png"
+              alt="Indigo Teatro"
+              width={250}
+              height={250}
+              priority
+              className="drop-shadow-lg"
+            />
+          </div>
           <p className="text-gray-600 text-lg">
             Sistema de Gestión de Talleres
           </p>

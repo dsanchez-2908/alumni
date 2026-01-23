@@ -49,6 +49,8 @@ interface Usuario {
   roles: string;
   rolesIds: string;
   feAlta: string;
+  cdPersonal: number | null;
+  nombrePersonal: string | null;
 }
 
 interface Rol {
@@ -61,11 +63,17 @@ interface Estado {
   dsEstado: string;
 }
 
+interface Personal {
+  cdPersonal: number;
+  dsNombreCompleto: string;
+}
+
 export default function UsuariosPage() {
   const { data: session } = useSession();
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [roles, setRoles] = useState<Rol[]>([]);
   const [estados, setEstados] = useState<Estado[]>([]);
+  const [personal, setPersonal] = useState<Personal[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -80,6 +88,7 @@ export default function UsuariosPage() {
     dsUsuario: '',
     dsClave: '',
     cdEstado: 1,
+    cdPersonal: null as number | null,
     roles: [] as number[],
   });
 
@@ -92,11 +101,16 @@ export default function UsuariosPage() {
 
   const fetchData = async () => {
     try {
-      const response = await fetch('/api/usuarios');
-      const data = await response.json();
-      setUsuarios(data.users);
-      setRoles(data.roles);
-      setEstados(data.estados);
+      const [usuariosRes, personalRes] = await Promise.all([
+        fetch('/api/usuarios'),
+        fetch('/api/personal')
+      ]);
+      const usuariosData = await usuariosRes.json();
+      const personalData = await personalRes.json();
+      setUsuarios(usuariosData.users);
+      setRoles(usuariosData.roles);
+      setEstados(usuariosData.estados);
+      setPersonal(personalData.personal || []);
       setLoading(false);
     } catch (error) {
       console.error('Error al cargar datos:', error);
@@ -113,6 +127,7 @@ export default function UsuariosPage() {
         dsUsuario: usuario.dsUsuario,
         dsClave: '',
         cdEstado: usuario.cdEstado,
+        cdPersonal: usuario.cdPersonal,
         roles: usuario.rolesIds ? usuario.rolesIds.split(',').map(Number) : [],
       });
     } else {
@@ -123,6 +138,7 @@ export default function UsuariosPage() {
         dsUsuario: '',
         dsClave: '',
         cdEstado: 1,
+        cdPersonal: null,
         roles: [],
       });
     }
@@ -297,6 +313,7 @@ export default function UsuariosPage() {
               <TableRow>
                 <TableHead>Nombre Completo</TableHead>
                 <TableHead>Usuario</TableHead>
+                <TableHead>Profesor</TableHead>
                 <TableHead>Roles</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Fecha Alta</TableHead>
@@ -310,6 +327,15 @@ export default function UsuariosPage() {
                     {usuario.dsNombreCompleto}
                   </TableCell>
                   <TableCell>{usuario.dsUsuario}</TableCell>
+                  <TableCell>
+                    {usuario.nombrePersonal ? (
+                      <span className="text-sm text-gray-700">
+                        {usuario.nombrePersonal}
+                      </span>
+                    ) : (
+                      <span className="text-sm text-gray-400">-</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <span className="text-sm text-indigo-600">
                       {usuario.roles || 'Sin roles'}
@@ -437,6 +463,30 @@ export default function UsuariosPage() {
                         value={estado.cdEstado.toString()}
                       >
                         {estado.dsEstado}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="cdPersonal">Profesor (opcional)</Label>
+                <Select
+                  value={formData.cdPersonal?.toString() || '0'}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, cdPersonal: value === '0' ? null : parseInt(value) })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Ninguno" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">Ninguno</SelectItem>
+                    {personal.map((p) => (
+                      <SelectItem
+                        key={p.cdPersonal}
+                        value={p.cdPersonal.toString()}
+                      >
+                        {p.dsNombreCompleto}
                       </SelectItem>
                     ))}
                   </SelectContent>

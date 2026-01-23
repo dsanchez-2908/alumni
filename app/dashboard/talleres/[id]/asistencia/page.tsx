@@ -23,6 +23,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Save, Calendar } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface AlumnoAsistencia {
   inscripcionId: number;
@@ -45,6 +46,7 @@ export default function AsistenciaPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { success, error, warning } = useToast();
   const cdTaller = params?.id as string;
   const fromRegistro = searchParams.get('from') === 'registro';
 
@@ -158,7 +160,7 @@ export default function AsistenciaPage() {
     if (!diasClase.includes(diaSemana)) {
       const diasNombres = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
       const diasClaseNombres = diasClase.map(d => diasNombres[d]).join(', ');
-      alert(`La fecha seleccionada no es un día de clase. Este taller tiene clase los días: ${diasClaseNombres}`);
+      warning(`La fecha seleccionada no es un día de clase. Este taller tiene clase los días: ${diasClaseNombres}`);
       return;
     }
 
@@ -181,7 +183,7 @@ export default function AsistenciaPage() {
       });
 
       if (response.ok) {
-        alert('Asistencia guardada exitosamente');
+        success('Asistencia guardada exitosamente');
         // Volver a la pantalla de origen
         if (fromRegistro) {
           router.push('/dashboard/registro-asistencia');
@@ -189,12 +191,12 @@ export default function AsistenciaPage() {
           router.push(`/dashboard/talleres/${cdTaller}`);
         }
       } else {
-        const error = await response.json();
-        alert(`Error: ${error.error}`);
+        const errorData = await response.json();
+        error(`Error: ${errorData.error}`);
       }
-    } catch (error) {
-      console.error('Error al guardar asistencia:', error);
-      alert('Error al guardar asistencia');
+    } catch (err) {
+      console.error('Error al guardar asistencia:', err);
+      error('Error al guardar asistencia');
     } finally {
       setSaving(false);
     }

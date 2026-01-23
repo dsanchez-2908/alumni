@@ -245,10 +245,10 @@ export default function AlumnosPage() {
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">
-          Gestión de Alumnos
+          Consulta de Alumnos
         </h1>
         <p className="text-gray-600 mt-2">
-          Administra alumnos, grupos familiares e inscripciones
+          Visualiza y administra la información de los alumnos
         </p>
       </div>
 
@@ -274,7 +274,7 @@ export default function AlumnosPage() {
       <Card>
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row gap-4 justify-between">
-            <div className="relative flex-1 max-w-md">
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input
                 placeholder="Buscar alumno, documento, grupo familiar..."
@@ -283,13 +283,6 @@ export default function AlumnosPage() {
                 className="pl-10"
               />
             </div>
-            <Button
-              onClick={() => handleOpenDialog()}
-              className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700"
-            >
-              <UserPlus className="mr-2 h-4 w-4" />
-              Nuevo Alumno
-            </Button>
           </div>
         </CardContent>
       </Card>

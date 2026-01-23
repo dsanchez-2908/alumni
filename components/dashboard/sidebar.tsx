@@ -3,6 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { 
   LayoutDashboard, 
   Users, 
@@ -13,79 +14,121 @@ import {
   FileText,
   Settings,
   ChevronRight,
+  ChevronDown,
   LogOut,
   Menu,
-  X
+  X,
+  UsersRound
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 
-interface MenuItem {
+interface SubMenuItem {
   title: string;
   href: string;
-  icon: React.ReactNode;
   roles?: string[];
 }
 
-const menuItems: MenuItem[] = [
+interface MenuCategory {
+  title: string;
+  icon: React.ReactNode;
+  href?: string;
+  roles?: string[];
+  subItems?: SubMenuItem[];
+}
+
+const menuCategories: MenuCategory[] = [
   {
     title: 'Dashboard',
     href: '/dashboard',
     icon: <LayoutDashboard className="h-5 w-5" />,
   },
   {
-    title: 'Usuarios',
-    href: '/dashboard/usuarios',
-    icon: <Users className="h-5 w-5" />,
-    roles: ['Administrador', 'Supervisor'],
-  },
-  {
-    title: 'Personal',
-    href: '/dashboard/personal',
-    icon: <GraduationCap className="h-5 w-5" />,
+    title: 'Configuración',
+    icon: <Settings className="h-5 w-5" />,
     roles: ['Administrador', 'Supervisor', 'Operador'],
-  },
-  {
-    title: 'Tipo de Talleres',
-    href: '/dashboard/tipo-talleres',
-    icon: <BookOpen className="h-5 w-5" />,
-    roles: ['Administrador', 'Supervisor', 'Operador'],
-  },
-  {
-    title: 'Talleres',
-    href: '/dashboard/talleres',
-    icon: <BookOpen className="h-5 w-5" />,
-    roles: ['Administrador', 'Supervisor', 'Operador', 'Profesor'],
+    subItems: [
+      {
+        title: 'Usuarios',
+        href: '/dashboard/usuarios',
+        roles: ['Administrador', 'Supervisor'],
+      },
+      {
+        title: 'Tipo de Talleres',
+        href: '/dashboard/tipo-talleres',
+        roles: ['Administrador', 'Supervisor', 'Operador'],
+      },
+      {
+        title: 'Personal',
+        href: '/dashboard/personal',
+        roles: ['Administrador', 'Supervisor', 'Operador'],
+      },
+      {
+        title: 'Talleres',
+        href: '/dashboard/talleres',
+        roles: ['Administrador', 'Supervisor', 'Operador', 'Profesor'],
+      },
+      {
+        title: 'Registro de Precios',
+        href: '/dashboard/precios',
+        roles: ['Administrador', 'Supervisor'],
+      },
+    ],
   },
   {
     title: 'Alumnos',
-    href: '/dashboard/alumnos',
-    icon: <Users className="h-5 w-5" />,
-  },
-  {
-    title: 'Grupos Familiares',
-    href: '/dashboard/grupos-familiares',
-    icon: <Users className="h-5 w-5" />,
+    icon: <UsersRound className="h-5 w-5" />,
     roles: ['Administrador', 'Supervisor', 'Operador'],
+    subItems: [
+      {
+        title: 'Nuevo Alumno',
+        href: '/dashboard/alumnos/nuevo',
+      },
+      {
+        title: 'Consulta de Alumnos',
+        href: '/dashboard/alumnos',
+      },
+      {
+        title: 'Grupos Familiares',
+        href: '/dashboard/grupos-familiares',
+        roles: ['Administrador', 'Supervisor', 'Operador'],
+      },
+    ],
   },
   {
-    title: 'Registro Asistencia',
-    href: '/dashboard/registro-asistencia',
+    title: 'Faltas',
     icon: <UserCheck className="h-5 w-5" />,
     roles: ['Administrador', 'Supervisor', 'Operador', 'Profesor'],
-  },
-  {
-    title: 'Consulta Faltas',
-    href: '/dashboard/faltas',
-    icon: <UserCheck className="h-5 w-5" />,
-    roles: ['Administrador', 'Supervisor', 'Operador', 'Profesor'],
+    subItems: [
+      {
+        title: 'Registro Asistencia',
+        href: '/dashboard/registro-asistencia',
+        roles: ['Administrador', 'Supervisor', 'Operador', 'Profesor'],
+      },
+      {
+        title: 'Consulta de Faltas',
+        href: '/dashboard/faltas',
+        roles: ['Administrador', 'Supervisor', 'Operador', 'Profesor'],
+      },
+    ],
   },
   {
     title: 'Pagos',
-    href: '/dashboard/pagos',
     icon: <DollarSign className="h-5 w-5" />,
     roles: ['Administrador', 'Supervisor', 'Operador'],
+    subItems: [
+      {
+        title: 'Registro de Pagos',
+        href: '/dashboard/registro-pagos',
+        roles: ['Administrador', 'Supervisor', 'Operador'],
+      },
+      {
+        title: 'Consulta de Pagos',
+        href: '/dashboard/pagos',
+        roles: ['Administrador', 'Supervisor', 'Operador'],
+      },
+    ],
   },
   {
     title: 'Reportes',
@@ -99,13 +142,22 @@ export function DashboardSidebar() {
   const { data: session } = useSession();
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
 
   const userRoles = session?.user?.roles || [];
 
-  const filteredMenuItems = menuItems.filter(item => {
-    if (!item.roles) return true;
-    return item.roles.some(role => userRoles.includes(role));
-  });
+  const hasAccess = (roles?: string[]) => {
+    if (!roles) return true;
+    return roles.some(role => userRoles.includes(role));
+  };
+
+  const toggleCategory = (title: string) => {
+    setExpandedCategories(prev =>
+      prev.includes(title)
+        ? prev.filter(cat => cat !== title)
+        : [...prev, title]
+    );
+  };
 
   const handleLogout = async () => {
     await signOut({ callbackUrl: '/login' });
@@ -115,10 +167,17 @@ export function DashboardSidebar() {
     <>
       {/* Logo */}
       <div className="p-6 border-b border-indigo-100">
-        <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">
-          Alumni
-        </h1>
-        <p className="text-sm text-gray-600 mt-1">Gestión de Talleres</p>
+        <div className="flex items-center justify-center mb-2">
+          <Image
+            src="/images/logo-indigo.png"
+            alt="Indigo Teatro"
+            width={140}
+            height={70}
+            priority
+            className="drop-shadow-md"
+          />
+        </div>
+        <p className="text-sm text-gray-600 mt-1 text-center">Gestión de Talleres</p>
       </div>
 
       {/* Usuario info */}
@@ -140,23 +199,77 @@ export function DashboardSidebar() {
 
       {/* Menu items */}
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {filteredMenuItems.map((item) => {
-          const isActive = pathname === item.href;
+        {menuCategories.map((category) => {
+          if (!hasAccess(category.roles)) return null;
+
+          // Si es un item simple (sin subItems), mostrar como antes
+          if (!category.subItems) {
+            const isActive = pathname === category.href;
+            return (
+              <Link
+                key={category.title}
+                href={category.href || '#'}
+                onClick={() => setIsOpen(false)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                  isActive
+                    ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md'
+                    : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-700'
+                }`}
+              >
+                {category.icon}
+                <span className="flex-1 font-medium">{category.title}</span>
+                {isActive && <ChevronRight className="h-4 w-4" />}
+              </Link>
+            );
+          }
+
+          // Si tiene subItems, mostrar categoría colapsable
+          const isExpanded = expandedCategories.includes(category.title);
+          const hasActiveChild = category.subItems.some(item => pathname === item.href);
+          
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setIsOpen(false)}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
-                isActive
-                  ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md'
-                  : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-700'
-              }`}
-            >
-              {item.icon}
-              <span className="flex-1 font-medium">{item.title}</span>
-              {isActive && <ChevronRight className="h-4 w-4" />}
-            </Link>
+            <div key={category.title} className="space-y-1">
+              <button
+                onClick={() => toggleCategory(category.title)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                  hasActiveChild
+                    ? 'bg-indigo-50 text-indigo-600'
+                    : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-700'
+                }`}
+              >
+                {category.icon}
+                <span className="flex-1 font-medium text-left">{category.title}</span>
+                {isExpanded ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </button>
+              {isExpanded && (
+                <div className="ml-4 space-y-1">
+                  {category.subItems
+                    .filter(subItem => hasAccess(subItem.roles))
+                    .map((subItem) => {
+                      const isActive = pathname === subItem.href;
+                      return (
+                        <Link
+                          key={subItem.href}
+                          href={subItem.href}
+                          onClick={() => setIsOpen(false)}
+                          className={`flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all ${
+                            isActive
+                              ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md'
+                              : 'text-gray-600 hover:bg-indigo-50 hover:text-indigo-600'
+                          }`}
+                        >
+                          <span className="flex-1">{subItem.title}</span>
+                          {isActive && <ChevronRight className="h-4 w-4" />}
+                        </Link>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
           );
         })}
       </nav>

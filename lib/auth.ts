@@ -93,6 +93,7 @@ export async function getAllUsers() {
         u.dsNombreCompleto,
         u.dsUsuario,
         u.cdPersonal,
+        p.dsNombreCompleto as nombrePersonal,
         u.feAlta,
         e.dsEstado,
         e.cdEstado,
@@ -100,9 +101,11 @@ export async function getAllUsers() {
         GROUP_CONCAT(r.cdRol) as rolesIds
       FROM TD_USUARIOS u
       INNER JOIN TD_ESTADOS e ON u.cdEstado = e.cdEstado
+      LEFT JOIN TD_PERSONAL p ON u.cdPersonal = p.cdPersonal
       LEFT JOIN TR_USUARIO_ROL ur ON u.cdUsuario = ur.cdUsuario
       LEFT JOIN TD_ROLES r ON ur.cdRol = r.cdRol
-      GROUP BY u.cdUsuario
+      GROUP BY u.cdUsuario, u.dsNombreCompleto, u.dsUsuario, u.cdPersonal, 
+               p.dsNombreCompleto, u.feAlta, e.dsEstado, e.cdEstado
       ORDER BY u.feAlta DESC`
     );
 
