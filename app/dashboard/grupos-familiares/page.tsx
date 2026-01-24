@@ -37,6 +37,7 @@ import {
   CheckCircle,
   Users,
 } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 interface GrupoFamiliar {
   cdGrupoFamiliar: number;
@@ -75,6 +76,13 @@ export default function GruposFamiliaresPage() {
   });
 
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false,
+    title: '',
+    description: '',
+    onConfirm: () => {},
+  });
 
   useEffect(() => {
     fetchData();
@@ -156,8 +164,15 @@ export default function GruposFamiliaresPage() {
   };
 
   const handleDelete = async (cdGrupoFamiliar: number) => {
-    if (!confirm('¿Estás seguro de desactivar este grupo familiar?')) return;
+    setConfirmDialog({
+      open: true,
+      title: 'Desactivar Grupo Familiar',
+      description: '¿Estás seguro de que deseas desactivar este grupo familiar? Esta acción no se puede deshacer.',
+      onConfirm: () => deleteConfirmado(cdGrupoFamiliar),
+    });
+  };
 
+  const deleteConfirmado = async (cdGrupoFamiliar: number) => {
     try {
       const response = await fetch(`/api/grupos-familiares/${cdGrupoFamiliar}`, {
         method: 'DELETE',
@@ -514,6 +529,15 @@ export default function GruposFamiliaresPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onOpenChange={(open) => setConfirmDialog({ ...confirmDialog, open })}
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        onConfirm={confirmDialog.onConfirm}
+        variant="destructive"
+      />
     </div>
   );
 }

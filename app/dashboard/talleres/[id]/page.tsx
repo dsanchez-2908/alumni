@@ -28,8 +28,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, UserPlus, Search, UserCheck, UserX, Calendar, Users, ClipboardCheck, FileSpreadsheet, FileText } from 'lucide-react';
+import { ArrowLeft, UserPlus, Search, UserCheck, UserX, Calendar, Users, ClipboardCheck, FileSpreadsheet, FileText, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -102,6 +103,15 @@ export default function TallerDetallePage() {
   const [searchInscritos, setSearchInscritos] = useState('');
   const [estadoFilter, setEstadoFilter] = useState('Todos');
 
+  // Estados para diálogos de confirmación
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false,
+    title: '',
+    description: '',
+    onConfirm: () => {},
+    variant: 'default' as 'default' | 'destructive',
+  });
+
   useEffect(() => {
     fetchTaller();
     fetchAlumnosInscritos();
@@ -169,8 +179,16 @@ export default function TallerDetallePage() {
   };
 
   const handleInscribirAlumno = async (cdAlumno: number) => {
-    if (!confirm('¿Confirmar inscripción del alumno?')) return;
+    setConfirmDialog({
+      open: true,
+      title: 'Confirmar inscripción',
+      description: '¿Estás seguro de inscribir este alumno al taller?',
+      variant: 'default',
+      onConfirm: () => inscribirAlumnoConfirmado(cdAlumno),
+    });
+  };
 
+  const inscribirAlumnoConfirmado = async (cdAlumno: number) => {
     try {
       const response = await fetch(`/api/talleres/${cdTaller}/alumnos`, {
         method: 'POST',
@@ -195,8 +213,17 @@ export default function TallerDetallePage() {
 
   const handleCambiarEstado = async (id: number, activo: boolean) => {
     const accion = activo ? 'reactivar' : 'dar de baja';
-    if (!confirm(`¿Confirmar ${accion} al alumno?`)) return;
+    setConfirmDialog({
+      open: true,
+      title: `${activo ? 'Reactivar' : 'Dar de baja'} alumno`,
+      description: `¿Estás seguro de ${accion} este alumno?`,
+      variant: activo ? 'default' : 'destructive',
+      onConfirm: () => cambiarEstadoConfirmado(id, activo),
+    });
+  };
 
+  const cambiarEstadoConfirmado = async (id: number, activo: boolean) => {
+    const accion = activo ? 'reactivar' : 'dar de baja';
     try {
       const response = await fetch(`/api/talleres/${cdTaller}/alumnos/${id}`, {
         method: 'PUT',
@@ -210,6 +237,36 @@ export default function TallerDetallePage() {
       } else {
         const errorData = await response.json();
         error(errorData.error || 'Error al cambiar estado');
+      }
+    } catch (err) {
+      error('Error de conexión');
+    }
+  };
+
+  const handleFinalizarTaller = () => {
+    setConfirmDialog({
+      open: true,
+      title: 'Finalizar Taller',
+      description: '¿Estás seguro de finalizar este taller? Esto marcará el taller y todos sus alumnos activos como finalizados. Esta acción es permanente.',
+      variant: 'destructive',
+      onConfirm: finalizarTallerConfirmado,
+    });
+  };
+
+  const finalizarTallerConfirmado = async () => {
+    try {
+      const response = await fetch(`/api/talleres/${cdTaller}/finalizar`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        success(`Taller finalizado exitosamente. ${data.alumnosFinalizados} alumno(s) finalizados.`);
+        fetchTaller();
+        fetchAlumnosInscritos();
+      } else {
+        const errorData = await response.json();
+        error(errorData.error || 'Error al finalizar taller');
       }
     } catch (err) {
       error('Error de conexión');
@@ -420,10 +477,22 @@ export default function TallerDetallePage() {
                 <FileText className="mr-2 h-4 w-4" />
                 Exportar PDF
               </Button>
-              <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
-                <UserPlus className="h-4 w-4" />
-                Inscribir Alumno
-              </Button>
+              {taller?.dsEstado === 'Activo' && (
+                <>
+                  <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
+                    <UserPlus className="h-4 w-4" />
+                    Inscribir Alumno
+                  </Button>
+                  <Button 
+                    onClick={handleFinalizarTaller} 
+                    variant="outline"
+                    className="gap-2 border-green-600 text-green-600 hover:bg-green-50"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    Finalizar Taller
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -592,6 +661,16 @@ export default function TallerDetallePage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Diálogo de confirmación */}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onOpenChange={(open) => setConfirmDialog({ ...confirmDialog, open })}
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        onConfirm={confirmDialog.onConfirm}
+        variant={confirmDialog.variant}
+      />
     </div>
   );
 }

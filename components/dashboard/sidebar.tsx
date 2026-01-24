@@ -97,7 +97,7 @@ const menuCategories: MenuCategory[] = [
     ],
   },
   {
-    title: 'Faltas',
+    title: 'Asistencia',
     icon: <UserCheck className="h-5 w-5" />,
     roles: ['Administrador', 'Supervisor', 'Operador', 'Profesor'],
     subItems: [
@@ -107,7 +107,12 @@ const menuCategories: MenuCategory[] = [
         roles: ['Administrador', 'Supervisor', 'Operador', 'Profesor'],
       },
       {
-        title: 'Consulta de Faltas',
+        title: 'Consulta de Asistencia',
+        href: '/dashboard/consulta-asistencia',
+        roles: ['Administrador', 'Supervisor', 'Operador', 'Profesor'],
+      },
+      {
+        title: 'Historial de Asistencia',
         href: '/dashboard/faltas',
         roles: ['Administrador', 'Supervisor', 'Operador', 'Profesor'],
       },

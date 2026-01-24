@@ -39,6 +39,7 @@ import {
   AlertCircle,
   CheckCircle,
 } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 interface Usuario {
   cdUsuario: number;
@@ -94,6 +95,14 @@ export default function UsuariosPage() {
 
   const [newPassword, setNewPassword] = useState('');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Estado para diálogo de confirmación
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false,
+    title: '',
+    description: '',
+    onConfirm: () => {},
+  });
 
   useEffect(() => {
     fetchData();
@@ -174,8 +183,15 @@ export default function UsuariosPage() {
   };
 
   const handleDelete = async (cdUsuario: number) => {
-    if (!confirm('¿Estás seguro de desactivar este usuario?')) return;
+    setConfirmDialog({
+      open: true,
+      title: 'Desactivar usuario',
+      description: '¿Estás seguro de desactivar este usuario?',
+      onConfirm: () => deleteUsuarioConfirmado(cdUsuario),
+    });
+  };
 
+  const deleteUsuarioConfirmado = async (cdUsuario: number) => {
     try {
       const response = await fetch(`/api/usuarios/${cdUsuario}`, {
         method: 'DELETE',
@@ -573,6 +589,16 @@ export default function UsuariosPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Diálogo de confirmación */}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onOpenChange={(open) => setConfirmDialog({ ...confirmDialog, open })}
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        onConfirm={confirmDialog.onConfirm}
+        variant="destructive"
+      />
     </div>
   );
 }

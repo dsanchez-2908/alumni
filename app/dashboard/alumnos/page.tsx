@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -38,7 +39,9 @@ import {
   CheckCircle,
   Users,
   Calendar,
+  Eye,
 } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 interface Alumno {
   cdAlumno: number;
@@ -74,6 +77,7 @@ interface Taller {
 }
 
 export default function AlumnosPage() {
+  const router = useRouter();
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
   const [gruposFamiliares, setGruposFamiliares] = useState<GrupoFamiliar[]>([]);
   const [talleres, setTalleres] = useState<Taller[]>([]);
@@ -99,6 +103,13 @@ export default function AlumnosPage() {
   });
 
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false,
+    title: '',
+    description: '',
+    onConfirm: () => {},
+  });
 
   useEffect(() => {
     fetchData();
@@ -195,8 +206,15 @@ export default function AlumnosPage() {
   };
 
   const handleDelete = async (cdAlumno: number) => {
-    if (!confirm('¿Estás seguro de desactivar este alumno?')) return;
+    setConfirmDialog({
+      open: true,
+      title: 'Desactivar Alumno',
+      description: '¿Estás seguro de que deseas desactivar este alumno? Esta acción no se puede deshacer.',
+      onConfirm: () => deleteConfirmado(cdAlumno),
+    });
+  };
 
+  const deleteConfirmado = async (cdAlumno: number) => {
     try {
       const response = await fetch(`/api/alumnos/${cdAlumno}`, {
         method: 'DELETE',
@@ -403,6 +421,13 @@ export default function AlumnosPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => router.push(`/dashboard/alumnos/${alumno.cdAlumno}`)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
                       <Button
                         size="sm"
                         variant="outline"
@@ -685,6 +710,15 @@ export default function AlumnosPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onOpenChange={(open) => setConfirmDialog({ ...confirmDialog, open })}
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        onConfirm={confirmDialog.onConfirm}
+        variant="destructive"
+      />
     </div>
   );
 }

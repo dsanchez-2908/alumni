@@ -19,15 +19,15 @@ export async function PUT(
     const { activo } = await request.json();
 
     if (activo) {
-      // Reactivar alumno
+      // Reactivar alumno (cdEstado = 1)
       await pool.execute(
-        'UPDATE tr_alumno_taller SET feBaja = NULL WHERE id = ?',
+        'UPDATE tr_alumno_taller SET cdEstado = 1, feBaja = NULL WHERE id = ?',
         [id]
       );
     } else {
-      // Dar de baja alumno
+      // Dar de baja alumno (cdEstado = 2)
       await pool.execute(
-        'UPDATE tr_alumno_taller SET feBaja = NOW() WHERE id = ?',
+        'UPDATE tr_alumno_taller SET cdEstado = 2, feBaja = NOW() WHERE id = ?',
         [id]
       );
     }

@@ -22,17 +22,20 @@ export async function GET(
         at.id,
         at.cdAlumno,
         at.cdTaller,
+        at.cdEstado,
         at.feInscripcion,
         at.feBaja,
+        at.feFinalizacion,
         a.dsNombre,
         a.dsApellido,
         a.dsDNI,
         a.feNacimiento,
-        CASE WHEN at.feBaja IS NULL THEN 'Activo' ELSE 'Inactivo' END as estado
+        e.dsEstado as estado
       FROM tr_alumno_taller at
       INNER JOIN TD_ALUMNOS a ON at.cdAlumno = a.cdAlumno
+      INNER JOIN TD_ESTADOS e ON at.cdEstado = e.cdEstado
       WHERE at.cdTaller = ?
-      ORDER BY at.feBaja IS NULL DESC, a.dsApellido, a.dsNombre`,
+      ORDER BY at.cdEstado, a.dsApellido, a.dsNombre`,
       [cdTaller]
     );
 
@@ -69,15 +72,15 @@ export async function POST(
 
     // Verificar si ya está inscrito
     const [existing] = await pool.execute<any[]>(
-      'SELECT id, feBaja FROM tr_alumno_taller WHERE cdAlumno = ? AND cdTaller = ?',
+      'SELECT id, cdEstado FROM tr_alumno_taller WHERE cdAlumno = ? AND cdTaller = ?',
       [cdAlumno, cdTaller]
     );
 
     if (existing.length > 0) {
-      // Si existe pero está dado de baja, reactivarlo
-      if (existing[0].feBaja) {
+      // Si existe pero está inactivo (cdEstado = 2), reactivarlo
+      if (existing[0].cdEstado === 2) {
         await pool.execute(
-          'UPDATE tr_alumno_taller SET feBaja = NULL WHERE id = ?',
+          'UPDATE tr_alumno_taller SET cdEstado = 1, feBaja = NULL WHERE id = ?',
           [existing[0].id]
         );
 
@@ -100,7 +103,7 @@ export async function POST(
 
     // Inscribir nuevo alumno
     const [result] = await pool.execute<any>(
-      'INSERT INTO tr_alumno_taller (cdAlumno, cdTaller) VALUES (?, ?)',
+      'INSERT INTO tr_alumno_taller (cdAlumno, cdTaller, cdEstado) VALUES (?, ?, 1)',
       [cdAlumno, cdTaller]
     );
 

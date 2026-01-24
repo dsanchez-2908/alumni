@@ -37,6 +37,7 @@ import {
   CheckCircle,
   BookOpen,
 } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 interface TipoTaller {
   cdTipoTaller: number;
@@ -66,6 +67,13 @@ export default function TipoTalleresPage() {
   });
 
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false,
+    title: '',
+    description: '',
+    onConfirm: () => {},
+  });
 
   useEffect(() => {
     fetchData();
@@ -141,8 +149,15 @@ export default function TipoTalleresPage() {
   };
 
   const handleDelete = async (cdTipoTaller: number) => {
-    if (!confirm('¿Estás seguro de desactivar este tipo de taller?')) return;
+    setConfirmDialog({
+      open: true,
+      title: 'Desactivar Tipo de Taller',
+      description: '¿Estás seguro de que deseas desactivar este tipo de taller? Esta acción no se puede deshacer.',
+      onConfirm: () => deleteConfirmado(cdTipoTaller),
+    });
+  };
 
+  const deleteConfirmado = async (cdTipoTaller: number) => {
     try {
       const response = await fetch(`/api/tipo-talleres/${cdTipoTaller}`, {
         method: 'DELETE',
@@ -413,6 +428,15 @@ export default function TipoTalleresPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onOpenChange={(open) => setConfirmDialog({ ...confirmDialog, open })}
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        onConfirm={confirmDialog.onConfirm}
+        variant="destructive"
+      />
     </div>
   );
 }

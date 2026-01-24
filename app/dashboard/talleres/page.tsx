@@ -32,6 +32,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { PlusCircle, Pencil, Trash2, Calendar, Users, Eye, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 interface Taller {
   cdTaller: number;
@@ -91,7 +92,14 @@ export default function TalleresPage() {
 
   // Filtros
   const [searchTerm, setSearchTerm] = useState('');
-  const [estadoFilter, setEstadoFilter] = useState('Todos');
+  const [estadoFilter, setEstadoFilter] = useState('Activo');
+
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false,
+    title: '',
+    description: '',
+    onConfirm: () => {},
+  });
 
   const [formData, setFormData] = useState({
     nuAnioTaller: new Date().getFullYear(),
@@ -274,8 +282,15 @@ export default function TalleresPage() {
   };
 
   const handleDelete = async (cdTaller: number) => {
-    if (!confirm('¿Está seguro de eliminar este taller?')) return;
+    setConfirmDialog({
+      open: true,
+      title: 'Eliminar Taller',
+      description: '¿Está seguro de eliminar este taller? Esta acción eliminará también las inscripciones y registros de asistencia asociados.',
+      onConfirm: () => deleteConfirmado(cdTaller),
+    });
+  };
 
+  const deleteConfirmado = async (cdTaller: number) => {
     try {
       const response = await fetch(`/api/talleres/${cdTaller}`, {
         method: 'DELETE',
@@ -357,8 +372,9 @@ export default function TalleresPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="Todos">Todos los estados</SelectItem>
-                <SelectItem value="Activo">Activo</SelectItem>
+                <SelectItem value="Activo">Activos</SelectItem>
                 <SelectItem value="Inactivo">Inactivo</SelectItem>
+                <SelectItem value="Finalizado">Finalizados</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -382,7 +398,7 @@ export default function TalleresPage() {
                   <TableCell colSpan={8} className="text-center text-gray-500">
                     {searchTerm || estadoFilter !== 'Todos' 
                       ? 'No se encontraron talleres con los filtros aplicados'
-                      : 'No hay talleres registrados'}
+                      : 'No hay talleres activos registrados'}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -641,6 +657,15 @@ export default function TalleresPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onOpenChange={(open) => setConfirmDialog({ ...confirmDialog, open })}
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        onConfirm={confirmDialog.onConfirm}
+        variant="destructive"
+      />
     </div>
   );
 }

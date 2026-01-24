@@ -38,6 +38,7 @@ import {
   CheckCircle,
   GraduationCap,
 } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 interface Personal {
   cdPersonal: number;
@@ -80,6 +81,13 @@ export default function PersonalPage() {
   });
 
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false,
+    title: '',
+    description: '',
+    onConfirm: () => {},
+  });
 
   useEffect(() => {
     fetchData();
@@ -158,8 +166,15 @@ export default function PersonalPage() {
   };
 
   const handleDelete = async (cdPersonal: number) => {
-    if (!confirm('¿Estás seguro de desactivar este personal?')) return;
+    setConfirmDialog({
+      open: true,
+      title: 'Desactivar Personal',
+      description: '¿Estás seguro de que deseas desactivar este personal? Esta acción no se puede deshacer.',
+      onConfirm: () => deleteConfirmado(cdPersonal),
+    });
+  };
 
+  const deleteConfirmado = async (cdPersonal: number) => {
     try {
       const response = await fetch(`/api/personal/${cdPersonal}`, {
         method: 'DELETE',
@@ -511,6 +526,15 @@ export default function PersonalPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onOpenChange={(open) => setConfirmDialog({ ...confirmDialog, open })}
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        onConfirm={confirmDialog.onConfirm}
+        variant="destructive"
+      />
     </div>
   );
 }

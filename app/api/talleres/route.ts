@@ -59,7 +59,7 @@ export async function GET() {
       INNER JOIN td_tipo_talleres tt ON t.cdTipoTaller = tt.cdTipoTaller
       INNER JOIN TD_PERSONAL p ON t.cdPersonal = p.cdPersonal
       LEFT JOIN tr_alumno_taller at ON t.cdTaller = at.cdTaller
-      WHERE t.cdEstado IN (1, 2)
+      WHERE t.cdEstado IN (1, 2, 4)
       GROUP BY t.cdTaller
       ORDER BY t.nuAnioTaller DESC, tt.dsNombreTaller, t.cdTaller
     `);

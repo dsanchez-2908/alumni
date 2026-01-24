@@ -22,13 +22,14 @@ export async function GET(
       SELECT 
         f.cdFalta,
         f.feFalta,
+        f.snPresente,
         f.dsObservacion,
         f.feRegistro,
         t.nuAnioTaller,
         tt.dsNombreTaller,
         p.dsNombreCompleto as nombreProfesor,
         u.dsNombreCompleto as nombreUsuarioRegistro
-      FROM TD_FALTAS f
+      FROM td_asistencias f
       INNER JOIN TD_TALLERES t ON f.cdTaller = t.cdTaller
       INNER JOIN td_tipo_talleres tt ON t.cdTipoTaller = tt.cdTipoTaller
       LEFT JOIN TD_PERSONAL p ON t.cdPersonal = p.cdPersonal

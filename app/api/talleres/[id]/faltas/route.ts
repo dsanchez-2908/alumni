@@ -35,10 +35,11 @@ export async function GET(
         a.dsApellido,
         a.dsDNI,
         f.cdFalta,
+        f.snPresente,
         f.dsObservacion
       FROM tr_alumno_taller at
       INNER JOIN TD_ALUMNOS a ON at.cdAlumno = a.cdAlumno
-      LEFT JOIN TD_FALTAS f ON at.cdAlumno = f.cdAlumno 
+      LEFT JOIN td_asistencias f ON at.cdAlumno = f.cdAlumno 
         AND at.cdTaller = f.cdTaller 
         AND f.feFalta = ?
       WHERE at.cdTaller = ? 
@@ -82,13 +83,13 @@ export async function POST(
 
     // Primero, eliminar todas las faltas existentes para esta fecha y taller
     await pool.execute(
-      'DELETE FROM TD_FALTAS WHERE cdTaller = ? AND feFalta = ?',
+      'DELETE FROM td_asistencias WHERE cdTaller = ? AND feFalta = ?',
       [cdTaller, fecha]
     );
 
     // Insertar las nuevas faltas
     if (faltas.length > 0) {
-      const placeholders = faltas.map(() => '(?, ?, ?, ?, ?)').join(',');
+      const placeholders = faltas.map(() => '(?, ?, ?, ?, ?, ?)').join(',');
       const values: any[] = [];
       
       faltas.forEach(falta => {
@@ -96,13 +97,14 @@ export async function POST(
           cdTaller,
           falta.cdAlumno,
           fecha,
+          0,  // snPresente = 0 (ausente)
           falta.dsObservacion || null,
           cdUsuario
         );
       });
 
       await pool.execute(
-        `INSERT INTO TD_FALTAS (cdTaller, cdAlumno, feFalta, dsObservacion, cdUsuarioRegistro) 
+        `INSERT INTO td_asistencias (cdTaller, cdAlumno, feFalta, snPresente, dsObservacion, cdUsuarioRegistro) 
          VALUES ${placeholders}`,
         values
       );
