@@ -103,19 +103,24 @@ export async function POST(request: NextRequest) {
 
     // Recolectar emails para enviar el recibo
     try {
-      const emails: string[] = [];
+      const emailsSet = new Set<string>(); // Usar Set para evitar duplicados
 
-      // Obtener emails del alumno principal y sus contactos
-      const [alumnoData] = await connection.execute<any[]>(
-        'SELECT dsMail, dsMailContacto1, dsMailContacto2 FROM TD_ALUMNOS WHERE cdAlumno = ?',
-        [cdAlumnoPrincipal]
-      );
+      // Obtener todos los cdAlumno únicos del pago
+      const alumnosEnPago = [...new Set(items.map((item: any) => item.cdAlumno))];
 
-      if (alumnoData.length > 0) {
-        const alumno = alumnoData[0];
-        if (alumno.dsMail) emails.push(alumno.dsMail);
-        if (alumno.dsMailContacto1) emails.push(alumno.dsMailContacto1);
-        if (alumno.dsMailContacto2) emails.push(alumno.dsMailContacto2);
+      // Obtener emails de TODOS los alumnos involucrados en el pago
+      for (const cdAlumno of alumnosEnPago) {
+        const [alumnoData] = await connection.execute<any[]>(
+          'SELECT dsMail, dsMailContacto1, dsMailContacto2 FROM TD_ALUMNOS WHERE cdAlumno = ?',
+          [cdAlumno]
+        );
+
+        if (alumnoData.length > 0) {
+          const alumno = alumnoData[0];
+          if (alumno.dsMail && alumno.dsMail.trim()) emailsSet.add(alumno.dsMail.trim());
+          if (alumno.dsMailContacto1 && alumno.dsMailContacto1.trim()) emailsSet.add(alumno.dsMailContacto1.trim());
+          if (alumno.dsMailContacto2 && alumno.dsMailContacto2.trim()) emailsSet.add(alumno.dsMailContacto2.trim());
+        }
       }
 
       // Si tiene grupo familiar, obtener emails del grupo
@@ -127,10 +132,13 @@ export async function POST(request: NextRequest) {
 
         if (grupoData.length > 0) {
           const grupo = grupoData[0];
-          if (grupo.dsMailContacto) emails.push(grupo.dsMailContacto);
-          if (grupo.dsMailContacto2) emails.push(grupo.dsMailContacto2);
+          if (grupo.dsMailContacto && grupo.dsMailContacto.trim()) emailsSet.add(grupo.dsMailContacto.trim());
+          if (grupo.dsMailContacto2 && grupo.dsMailContacto2.trim()) emailsSet.add(grupo.dsMailContacto2.trim());
         }
       }
+
+      // Convertir Set a Array
+      const emails = Array.from(emailsSet);
 
       // Si hay emails, generar PDF y enviar
       if (emails.length > 0) {

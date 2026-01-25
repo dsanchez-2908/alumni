@@ -45,14 +45,21 @@ export async function GET(
 
     const taller = tallerRows[0];
     
-    // Determinar fecha de inicio (la mayor entre feInicioTaller y feInscripcion)
-    const fechaInicioTaller = new Date(taller.feInicioTaller);
-    const fechaInscripcion = new Date(taller.feInscripcion);
-    const fechaInicio = fechaInicioTaller > fechaInscripcion ? fechaInicioTaller : fechaInscripcion;
+    // Usar fecha de inicio del taller para generar el calendario
+    // La fecha de inscripción del alumno no afecta las fechas de clase del taller
+    const fechaInicioTallerStr = taller.feInicioTaller instanceof Date 
+      ? taller.feInicioTaller.toISOString().split('T')[0] 
+      : String(taller.feInicioTaller).split('T')[0];
+    
+    const fechaInicio = new Date(fechaInicioTallerStr + 'T12:00:00Z');
     
     // Determinar fecha de fin (hoy o fecha de baja si existe)
-    const fechaFin = taller.feBaja ? new Date(taller.feBaja) : new Date();
-    fechaFin.setHours(0, 0, 0, 0);
+    const hoyStr = new Date().toISOString().split('T')[0];
+    const fechaFin = taller.feBaja 
+      ? new Date((taller.feBaja instanceof Date 
+          ? taller.feBaja.toISOString().split('T')[0] 
+          : String(taller.feBaja).split('T')[0]) + 'T12:00:00Z')
+      : new Date(hoyStr + 'T12:00:00Z');
 
     // Días de la semana que tiene clase (0=Domingo, 6=Sábado)
     const diasClase: number[] = [];

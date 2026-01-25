@@ -81,28 +81,45 @@ export async function POST(
 
     const cdUsuario = (session.user as any).cdUsuario;
 
-    // Primero, eliminar todas las faltas existentes para esta fecha y taller
+    // Obtener todos los alumnos activos del taller
+    const [alumnos] = await pool.execute<any[]>(
+      `SELECT a.cdAlumno
+       FROM tr_alumno_taller at
+       INNER JOIN TD_ALUMNOS a ON at.cdAlumno = a.cdAlumno
+       WHERE at.cdTaller = ? 
+         AND at.feBaja IS NULL`,
+      [cdTaller]
+    );
+
+    // Primero, eliminar todas las asistencias existentes para esta fecha y taller
     await pool.execute(
       'DELETE FROM td_asistencias WHERE cdTaller = ? AND feFalta = ?',
       [cdTaller, fecha]
     );
 
-    // Insertar las nuevas faltas
-    if (faltas.length > 0) {
-      const placeholders = faltas.map(() => '(?, ?, ?, ?, ?, ?)').join(',');
-      const values: any[] = [];
-      
-      faltas.forEach(falta => {
-        values.push(
-          cdTaller,
-          falta.cdAlumno,
-          fecha,
-          0,  // snPresente = 0 (ausente)
-          falta.dsObservacion || null,
-          cdUsuario
-        );
-      });
+    // Crear un Set con los cdAlumno que faltaron para búsqueda rápida
+    const alumnosAusentes = new Set(faltas.map(f => f.cdAlumno));
 
+    // Preparar datos para insertar TODOS los alumnos
+    const placeholders = alumnos.map(() => '(?, ?, ?, ?, ?, ?)').join(',');
+    const values: any[] = [];
+    
+    alumnos.forEach((alumno: any) => {
+      const faltaInfo = faltas.find(f => f.cdAlumno === alumno.cdAlumno);
+      const snPresente = alumnosAusentes.has(alumno.cdAlumno) ? 0 : 1;
+      
+      values.push(
+        cdTaller,
+        alumno.cdAlumno,
+        fecha,
+        snPresente,  // 0 = ausente, 1 = presente
+        faltaInfo?.dsObservacion || null,
+        cdUsuario
+      );
+    });
+
+    // Insertar asistencia de TODOS los alumnos
+    if (values.length > 0) {
       await pool.execute(
         `INSERT INTO td_asistencias (cdTaller, cdAlumno, feFalta, snPresente, dsObservacion, cdUsuarioRegistro) 
          VALUES ${placeholders}`,
@@ -110,12 +127,14 @@ export async function POST(
       );
     }
 
+    const totalPresentes = alumnos.length - faltas.length;
+
     await registrarTraza({
-      dsProceso: 'Faltas',
+      dsProceso: 'Asistencias',
       dsAccion: 'Agregar',
       cdUsuario,
       cdElemento: cdTaller,
-      dsDetalle: `Asistencia registrada para ${fecha}: ${faltas.length} faltas`,
+      dsDetalle: `Asistencia registrada para ${fecha}: ${totalPresentes} presentes, ${faltas.length} ausentes`,
     });
 
     return NextResponse.json(

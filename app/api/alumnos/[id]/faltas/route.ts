@@ -35,6 +35,7 @@ export async function GET(
       LEFT JOIN TD_PERSONAL p ON t.cdPersonal = p.cdPersonal
       LEFT JOIN TD_USUARIOS u ON f.cdUsuarioRegistro = u.cdUsuario
       WHERE f.cdAlumno = ?
+        AND f.snPresente = 0
     `;
 
     const params_query: any[] = [cdAlumno];
