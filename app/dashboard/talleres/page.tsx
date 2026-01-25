@@ -77,6 +77,7 @@ interface TipoTaller {
 interface Personal {
   cdPersonal: number;
   dsNombreCompleto: string;
+  talleresIds: string | null;
 }
 
 export default function TalleresPage() {
@@ -140,6 +141,15 @@ export default function TalleresPage() {
     { key: 'Sabado', label: 'Sábado' },
     { key: 'Domingo', label: 'Domingo' },
   ];
+
+  // Filtrar profesores según el tipo de taller seleccionado
+  const profesoresFiltrados = formData.cdTipoTaller === 0
+    ? personal // Si no hay tipo seleccionado, mostrar todos
+    : personal.filter((p) => {
+        if (!p.talleresIds) return false;
+        const talleresArray = p.talleresIds.split(',').map(id => parseInt(id.trim()));
+        return talleresArray.includes(formData.cdTipoTaller);
+      });
 
   useEffect(() => {
     fetchTalleres();
@@ -502,9 +512,21 @@ export default function TalleresPage() {
                   <Label htmlFor="cdTipoTaller">Tipo de Taller *</Label>
                   <Select
                     value={formData.cdTipoTaller.toString()}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, cdTipoTaller: parseInt(value) })
-                    }
+                    onValueChange={(value) => {
+                      const newTipoTaller = parseInt(value);
+                      // Resetear profesor si el nuevo tipo no es compatible
+                      const profesorActualValido = formData.cdPersonal === 0 || personal.find(p => {
+                        if (!p.talleresIds) return false;
+                        const talleresArray = p.talleresIds.split(',').map(id => parseInt(id.trim()));
+                        return p.cdPersonal === formData.cdPersonal && (newTipoTaller === 0 || talleresArray.includes(newTipoTaller));
+                      });
+                      
+                      setFormData({ 
+                        ...formData, 
+                        cdTipoTaller: newTipoTaller,
+                        cdPersonal: profesorActualValido ? formData.cdPersonal : 0
+                      });
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar" />
@@ -527,19 +549,25 @@ export default function TalleresPage() {
                     onValueChange={(value) =>
                       setFormData({ ...formData, cdPersonal: parseInt(value) })
                     }
+                    disabled={formData.cdTipoTaller === 0}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar" />
+                      <SelectValue placeholder={formData.cdTipoTaller === 0 ? "Primero seleccione tipo de taller" : "Seleccionar"} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="0">Seleccionar</SelectItem>
-                      {personal.map((p) => (
+                      {profesoresFiltrados.map((p) => (
                         <SelectItem key={p.cdPersonal} value={p.cdPersonal.toString()}>
                           {p.dsNombreCompleto}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {formData.cdTipoTaller !== 0 && profesoresFiltrados.length === 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      No hay profesores asignados a este tipo de taller
+                    </p>
+                  )}
                 </div>
               </div>
 
