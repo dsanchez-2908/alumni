@@ -21,11 +21,21 @@ import {
 } from '@/components/ui/select';
 import { ArrowLeft, UserPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
 
 interface GrupoFamiliar {
   cdGrupoFamiliar: number;
   dsNombreGrupo: string;
   cantidadMiembros: number;
+  miembros: string;
+}
+
+interface Taller {
+  cdTaller: number;
+  dsNombreTaller: string;
+  nombrePersonal: string | null;
+  nuAnioTaller: number;
 }
 
 export default function NuevoAlumnoPage() {
@@ -33,14 +43,20 @@ export default function NuevoAlumnoPage() {
   const { success, error } = useToast();
   const [loading, setLoading] = useState(false);
   const [gruposFamiliares, setGruposFamiliares] = useState<GrupoFamiliar[]>([]);
+  const [talleres, setTalleres] = useState<Taller[]>([]);
 
   const [formData, setFormData] = useState({
     dsNombre: '',
     dsApellido: '',
     dsDNI: '',
     dsSexo: '',
+    dsNombreLlamar: '',
     feNacimiento: '',
     dsDomicilio: '',
+    // Nuevos campos
+    snDiscapacidad: 'NO',
+    dsObservacionesDiscapacidad: '',
+    dsObservaciones: '',
     // Datos de contacto del alumno (opcionales)
     dsTelefonoCelular: '',
     dsTelefonoFijo: '',
@@ -58,10 +74,12 @@ export default function NuevoAlumnoPage() {
     dsTelefonoContacto2: '',
     dsMailContacto2: '',
     cdGrupoFamiliar: '',
+    talleres: [] as number[],
   });
 
   useEffect(() => {
     fetchGruposFamiliares();
+    fetchTalleres();
   }, []);
 
   const fetchGruposFamiliares = async () => {
@@ -69,7 +87,9 @@ export default function NuevoAlumnoPage() {
       const response = await fetch('/api/grupos-familiares');
       if (response.ok) {
         const data = await response.json();
-        setGruposFamiliares(Array.isArray(data) ? data : []);
+        // El API devuelve { grupos: [...] }
+        const grupos = data.grupos || [];
+        setGruposFamiliares(Array.isArray(grupos) ? grupos : []);
       } else {
         setGruposFamiliares([]);
       }
@@ -77,6 +97,36 @@ export default function NuevoAlumnoPage() {
       console.error('Error al cargar grupos familiares:', err);
       setGruposFamiliares([]);
     }
+  };
+
+  const fetchTalleres = async () => {
+    try {
+      const response = await fetch('/api/talleres');
+      if (response.ok) {
+        const data = await response.json();
+        // Filtrar solo talleres activos
+        const talleresActivos = data.filter((t: any) => t.dsEstado === 'Activo');
+        setTalleres(talleresActivos);
+      }
+    } catch (err) {
+      console.error('Error al cargar talleres:', err);
+    }
+  };
+
+  const handleTallerToggle = (cdTaller: number) => {
+    setFormData(prev => {
+      const talleres = prev.talleres.includes(cdTaller)
+        ? prev.talleres.filter(id => id !== cdTaller)
+        : [...prev.talleres, cdTaller];
+      return { ...prev, talleres };
+    });
+  };
+
+  const handleChange = (field: string, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -108,10 +158,6 @@ export default function NuevoAlumnoPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   return (
@@ -191,6 +237,16 @@ export default function NuevoAlumnoPage() {
             </div>
 
             <div>
+              <Label htmlFor="dsNombreLlamar">Nombre a Llamar</Label>
+              <Input
+                id="dsNombreLlamar"
+                value={formData.dsNombreLlamar}
+                onChange={(e) => handleChange('dsNombreLlamar', e.target.value)}
+                placeholder="Opcional - Apodo o diminutivo"
+              />
+            </div>
+
+            <div>
               <Label htmlFor="feNacimiento">Fecha de Nacimiento *</Label>
               <Input
                 id="feNacimiento"
@@ -231,6 +287,65 @@ export default function NuevoAlumnoPage() {
                   ))}
                 </SelectContent>
               </Select>
+              
+              {/* Mostrar miembros del grupo seleccionado */}
+              {formData.cdGrupoFamiliar && formData.cdGrupoFamiliar !== '0' && (() => {
+                const grupoSeleccionado = gruposFamiliares.find(
+                  g => g.cdGrupoFamiliar.toString() === formData.cdGrupoFamiliar
+                );
+                return grupoSeleccionado && grupoSeleccionado.miembros ? (
+                  <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <p className="text-sm font-medium text-gray-700 mb-2">Miembros del grupo:</p>
+                    <div className="space-y-1">
+                      {grupoSeleccionado.miembros.split(',').map((miembro, idx) => (
+                        <div key={idx} className="text-sm text-gray-600">
+                          • {miembro.trim()}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null;
+              })()}
+            </div>
+
+            <div>
+              <Label htmlFor="snDiscapacidad">¿Tiene alguna discapacidad?</Label>
+              <Select
+                value={formData.snDiscapacidad}
+                onValueChange={(value) => handleChange('snDiscapacidad', value)}
+              >
+                <SelectTrigger id="snDiscapacidad">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="NO">No</SelectItem>
+                  <SelectItem value="SI">Sí</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {formData.snDiscapacidad === 'SI' && (
+              <div>
+                <Label htmlFor="dsObservacionesDiscapacidad">Observaciones de Discapacidad</Label>
+                <Textarea
+                  id="dsObservacionesDiscapacidad"
+                  value={formData.dsObservacionesDiscapacidad}
+                  onChange={(e) => handleChange('dsObservacionesDiscapacidad', e.target.value)}
+                  placeholder="Describir la discapacidad y consideraciones especiales"
+                  rows={3}
+                />
+              </div>
+            )}
+
+            <div className={formData.snDiscapacidad === 'SI' ? '' : 'col-span-2'}>
+              <Label htmlFor="dsObservaciones">Observaciones Generales</Label>
+              <Textarea
+                id="dsObservaciones"
+                value={formData.dsObservaciones}
+                onChange={(e) => handleChange('dsObservaciones', e.target.value)}
+                placeholder="Cualquier información adicional relevante"
+                rows={3}
+              />
             </div>
           </CardContent>
         </Card>
@@ -398,6 +513,44 @@ export default function NuevoAlumnoPage() {
                 placeholder="Opcional"
               />
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Talleres */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Inscripción a Talleres</CardTitle>
+            <CardDescription>
+              Selecciona los talleres a los que deseas inscribir al alumno (opcional)
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {talleres.length === 0 ? (
+              <p className="text-gray-500 text-sm">No hay talleres activos disponibles</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-3 max-h-64 overflow-y-auto border rounded-lg p-4">
+                {talleres.map((taller) => (
+                  <div key={taller.cdTaller} className="flex items-start space-x-2">
+                    <Checkbox
+                      id={`taller-${taller.cdTaller}`}
+                      checked={formData.talleres.includes(taller.cdTaller)}
+                      onChange={() => handleTallerToggle(taller.cdTaller)}
+                    />
+                    <label
+                      htmlFor={`taller-${taller.cdTaller}`}
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                    >
+                      {taller.dsNombreTaller} - {taller.nuAnioTaller}
+                      {taller.nombrePersonal && (
+                        <span className="block text-xs text-gray-500 font-normal mt-1">
+                          Prof: {taller.nombrePersonal}
+                        </span>
+                      )}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 

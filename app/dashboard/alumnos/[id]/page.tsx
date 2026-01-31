@@ -27,8 +27,21 @@ import {
   Phone,
   MapPin,
   CreditCard,
+  FileText,
+  Plus,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
 
 interface AlumnoDetalle {
   alumno: any;
@@ -55,11 +68,18 @@ const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'O
 
 export default function AlumnoDetallePage({ params }: { params: { id: string } }) {
   const router = useRouter();
+  const { success, error } = useToast();
   const [data, setData] = useState<AlumnoDetalle | null>(null);
   const [loading, setLoading] = useState(true);
+  const [novedades, setNovedades] = useState<any[]>([]);
+  const [loadingNovedades, setLoadingNovedades] = useState(false);
+  const [isNovedadDialogOpen, setIsNovedadDialogOpen] = useState(false);
+  const [nuevaNovedad, setNuevaNovedad] = useState('');
+  const [savingNovedad, setSavingNovedad] = useState(false);
 
   useEffect(() => {
     fetchDetalle();
+    fetchNovedades();
   }, [params.id]);
 
   const fetchDetalle = async () => {
@@ -75,6 +95,64 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchNovedades = async () => {
+    try {
+      setLoadingNovedades(true);
+      const response = await fetch(`/api/alumnos/${params.id}/novedades`);
+      if (response.ok) {
+        const result = await response.json();
+        setNovedades(result.novedades || []);
+      }
+    } catch (err) {
+      console.error('Error al cargar novedades:', err);
+    } finally {
+      setLoadingNovedades(false);
+    }
+  };
+
+  const handleGuardarNovedad = async () => {
+    if (!nuevaNovedad.trim()) {
+      error('La novedad no puede estar vacía');
+      return;
+    }
+
+    try {
+      setSavingNovedad(true);
+      const response = await fetch(`/api/alumnos/${params.id}/novedades`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dsNovedad: nuevaNovedad }),
+      });
+
+      if (response.ok) {
+        success('Novedad registrada exitosamente');
+        setNuevaNovedad('');
+        setIsNovedadDialogOpen(false);
+        fetchNovedades();
+      } else {
+        const data = await response.json();
+        error(data.error || 'Error al registrar novedad');
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      error('Error al registrar novedad');
+    } finally {
+      setSavingNovedad(false);
+    }
+  };
+
+  const formatFechaHora = (fecha: string) => {
+    if (!fecha) return '-';
+    const date = new Date(fecha);
+    return date.toLocaleString('es-AR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
   const formatFecha = (fecha: string) => {
@@ -219,6 +297,7 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
             )}
           </TabsTrigger>
           <TabsTrigger value="asistencias">Asistencias</TabsTrigger>
+          <TabsTrigger value="novedades">Novedades</TabsTrigger>
         </TabsList>
 
         {/* Tab: Datos Personales */}
@@ -230,120 +309,198 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
                 Información Personal
               </CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Nombre Completo</label>
-                <p className="text-base">{alumno.dsNombre} {alumno.dsApellido}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">DNI</label>
-                <p className="text-base">{alumno.dsDNI}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Sexo</label>
-                <p className="text-base">{alumno.dsSexo}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Fecha de Nacimiento</label>
-                <p className="text-base">{formatFecha(alumno.feNacimiento)} ({alumno.edad} años)</p>
-              </div>
-              {alumno.dsDomicilio && (
-                <div className="md:col-span-2">
-                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
-                    Domicilio
-                  </label>
-                  <p className="text-base">{alumno.dsDomicilio}</p>
-                </div>
-              )}
-              {alumno.dsTelefonoCelular && (
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <Phone className="h-4 w-4" />
-                    Celular
-                  </label>
-                  <p className="text-base">{alumno.dsTelefonoCelular}</p>
-                </div>
-              )}
-              {alumno.dsTelefonoFijo && (
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <Phone className="h-4 w-4" />
-                    Teléfono Fijo
-                  </label>
-                  <p className="text-base">{alumno.dsTelefonoFijo}</p>
-                </div>
-              )}
-              {alumno.dsMail && (
-                <div className="md:col-span-2">
-                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <Mail className="h-4 w-4" />
-                    Email
-                  </label>
-                  <p className="text-base">{alumno.dsMail}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Grupo Familiar */}
-          {grupoFamiliar && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Grupo Familiar
-                </CardTitle>
-                <CardDescription>{grupoFamiliar.dsNombreGrupo}</CardDescription>
-              </CardHeader>
-              <CardContent>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Columna 1 - Datos Básicos */}
                 <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {grupoFamiliar.dsMailContacto && (
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">Email Contacto</label>
-                        <p className="text-base">{grupoFamiliar.dsMailContacto}</p>
-                      </div>
-                    )}
-                    {grupoFamiliar.dsMailContacto2 && (
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">Email Contacto 2</label>
-                        <p className="text-base">{grupoFamiliar.dsMailContacto2}</p>
-                      </div>
-                    )}
-                    {grupoFamiliar.dsTelefonoContacto && (
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">Teléfono Contacto</label>
-                        <p className="text-base">{grupoFamiliar.dsTelefonoContacto}</p>
-                      </div>
-                    )}
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Nombre Completo</label>
+                    <p className="text-base">{alumno.dsNombre} {alumno.dsApellido}</p>
                   </div>
-
-                  {miembrosGrupo.length > 0 && (
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">DNI</label>
+                    <p className="text-base">{alumno.dsDNI}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Sexo</label>
+                    <p className="text-base">{alumno.dsSexo}</p>
+                  </div>
+                  {alumno.dsNombreLlamar && (
                     <div>
-                      <h4 className="font-medium mb-2">Otros Miembros</h4>
-                      <div className="space-y-2">
-                        {miembrosGrupo.map((miembro: any) => (
-                          <div
-                            key={miembro.cdAlumno}
-                            className="flex items-center justify-between p-3 bg-muted rounded-lg cursor-pointer hover:bg-muted/80"
-                            onClick={() => router.push(`/dashboard/alumnos/${miembro.cdAlumno}`)}
-                          >
-                            <div>
-                              <p className="font-medium">{miembro.dsNombreCompleto}</p>
-                              <p className="text-sm text-muted-foreground">
-                                DNI: {miembro.dsDNI} - {miembro.edad} años
-                              </p>
-                            </div>
-                            <Badge variant={miembro.dsEstado === 'Activo' ? 'default' : 'secondary'}>
-                              {miembro.dsEstado}
-                            </Badge>
-                          </div>
-                        ))}
-                      </div>
+                      <label className="text-sm font-medium text-muted-foreground">Nombre a Llamar</label>
+                      <p className="text-base">{alumno.dsNombreLlamar}</p>
+                    </div>
+                  )}
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Fecha de Nacimiento</label>
+                    <p className="text-base">{formatFecha(alumno.feNacimiento)} ({alumno.edad} años)</p>
+                  </div>
+                  {alumno.dsDomicilio && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                        <MapPin className="h-4 w-4" />
+                        Domicilio
+                      </label>
+                      <p className="text-base">{alumno.dsDomicilio}</p>
+                    </div>
+                  )}
+                  {alumno.dsTelefonoCelular && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                        <Phone className="h-4 w-4" />
+                        Celular
+                      </label>
+                      <p className="text-base">{alumno.dsTelefonoCelular}</p>
+                    </div>
+                  )}
+                  {alumno.dsMail && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                        <Mail className="h-4 w-4" />
+                        Email
+                      </label>
+                      <p className="text-base">{alumno.dsMail}</p>
                     </div>
                   )}
                 </div>
+
+                {/* Columna 2 - Observaciones y Grupo Familiar */}
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Discapacidad</label>
+                    <p className="text-base">
+                      {alumno.snDiscapacidad === 'SI' ? (
+                        <Badge variant="destructive">Sí</Badge>
+                      ) : (
+                        <Badge variant="secondary">No</Badge>
+                      )}
+                    </p>
+                  </div>
+                  {alumno.snDiscapacidad === 'SI' && alumno.dsObservacionesDiscapacidad && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Observaciones de Discapacidad</label>
+                      <p className="text-sm whitespace-pre-line bg-red-50 p-3 rounded-lg border border-red-200">{alumno.dsObservacionesDiscapacidad}</p>
+                    </div>
+                  )}
+                  {alumno.dsObservaciones && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Observaciones Generales</label>
+                      <p className="text-sm whitespace-pre-line bg-gray-50 p-3 rounded-lg border border-gray-200">{alumno.dsObservaciones}</p>
+                    </div>
+                  )}
+                  {grupoFamiliar && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        Grupo Familiar
+                      </label>
+                      <p className="text-base font-medium mb-2">{grupoFamiliar.dsNombreGrupo}</p>
+                      {miembrosGrupo.length > 0 && (
+                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                          <p className="text-xs font-medium text-muted-foreground mb-2">Miembros:</p>
+                          <div className="space-y-1">
+                            {miembrosGrupo.map((miembro: any) => (
+                              <div key={miembro.cdAlumno} className="text-sm flex items-center justify-between">
+                                <span>• {miembro.dsNombreCompleto}</span>
+                                {miembro.cdAlumno === alumno.cdAlumno && (
+                                  <Badge variant="outline" className="text-xs">Actual</Badge>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Datos de Contacto 1 */}
+          {(alumno.dsNombreCompletoContacto1 || alumno.dsTelefonoContacto1 || alumno.dsMailContacto1) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Phone className="h-5 w-5" />
+                  Contacto de Emergencia 1
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {alumno.dsNombreCompletoContacto1 && (
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Nombre Completo</label>
+                    <p className="text-base">{alumno.dsNombreCompletoContacto1}</p>
+                  </div>
+                )}
+                {alumno.dsParentescoContacto1 && (
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Parentesco</label>
+                    <p className="text-base">{alumno.dsParentescoContacto1}</p>
+                  </div>
+                )}
+                {alumno.dsDNIContacto1 && (
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">DNI</label>
+                    <p className="text-base">{alumno.dsDNIContacto1}</p>
+                  </div>
+                )}
+                {alumno.dsTelefonoContacto1 && (
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Teléfono</label>
+                    <p className="text-base">{alumno.dsTelefonoContacto1}</p>
+                  </div>
+                )}
+                {alumno.dsMailContacto1 && (
+                  <div className="md:col-span-2">
+                    <label className="text-sm font-medium text-muted-foreground">Email</label>
+                    <p className="text-base">{alumno.dsMailContacto1}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Datos de Contacto 2 */}
+          {(alumno.dsNombreCompletoContacto2 || alumno.dsTelefonoContacto2 || alumno.dsMailContacto2) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Phone className="h-5 w-5" />
+                  Contacto de Emergencia 2
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {alumno.dsNombreCompletoContacto2 && (
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Nombre Completo</label>
+                    <p className="text-base">{alumno.dsNombreCompletoContacto2}</p>
+                  </div>
+                )}
+                {alumno.dsParentescoContacto2 && (
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Parentesco</label>
+                    <p className="text-base">{alumno.dsParentescoContacto2}</p>
+                  </div>
+                )}
+                {alumno.dsDNIContacto2 && (
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">DNI</label>
+                    <p className="text-base">{alumno.dsDNIContacto2}</p>
+                  </div>
+                )}
+                {alumno.dsTelefonoContacto2 && (
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Teléfono</label>
+                    <p className="text-base">{alumno.dsTelefonoContacto2}</p>
+                  </div>
+                )}
+                {alumno.dsMailContacto2 && (
+                  <div className="md:col-span-2">
+                    <label className="text-sm font-medium text-muted-foreground">Email</label>
+                    <p className="text-base">{alumno.dsMailContacto2}</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
@@ -515,7 +672,7 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
                 Pagos Pendientes
               </CardTitle>
               <CardDescription>
-                Períodos con clases tomadas sin pagar - Total Adeudado: {formatMoneda(resumen.montoPendienteTotal)}
+                Detalle mensual de deudas pendientes
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -526,42 +683,50 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
                   <p className="text-muted-foreground">Todas las clases están pagas</p>
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Taller</TableHead>
-                      <TableHead className="text-right">Meses Transcurridos</TableHead>
-                      <TableHead className="text-right">Meses Pagados</TableHead>
-                      <TableHead className="text-right">Meses Adeudados</TableHead>
-                      <TableHead className="text-right">Precio/Mes</TableHead>
-                      <TableHead className="text-right">Total Adeudado</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pagosPendientes.map((pendiente, idx) => {
-                      const mesesDebe = pendiente.mesesTranscurridos - pendiente.mesesPagados;
-                      const totalDebe = mesesDebe * pendiente.precioPorClase;
-                      
-                      return (
+                <>
+                  <div className="mb-4 p-4 bg-red-50 rounded-lg border border-red-200">
+                    <p className="text-lg font-bold text-red-700">
+                      Total Adeudado: {formatMoneda(resumen.montoPendienteTotal)}
+                    </p>
+                    <p className="text-sm text-red-600">
+                      {resumen.totalPagosPendientes} {resumen.totalPagosPendientes === 1 ? 'período pendiente' : 'períodos pendientes'}
+                    </p>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Alumno</TableHead>
+                        <TableHead>Taller</TableHead>
+                        <TableHead>Período</TableHead>
+                        <TableHead className="text-right">Monto</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {pagosPendientes.map((pendiente, idx) => (
                         <TableRow key={idx}>
-                          <TableCell className="font-medium">
+                          <TableCell>
+                            <div className="font-medium">{pendiente.nombreAlumno}</div>
+                            {pendiente.cdAlumno !== alumno.cdAlumno && (
+                              <Badge variant="outline" className="mt-1 text-xs">Grupo Familiar</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
                             {pendiente.dsNombreTaller}
                             <span className="text-muted-foreground text-sm ml-1">
                               ({pendiente.nuAnioTaller})
                             </span>
                           </TableCell>
-                          <TableCell className="text-right">{pendiente.mesesTranscurridos}</TableCell>
-                          <TableCell className="text-right text-green-600">{pendiente.mesesPagados}</TableCell>
-                          <TableCell className="text-right font-bold">{mesesDebe}</TableCell>
-                          <TableCell className="text-right">{formatMoneda(pendiente.precioPorClase)}</TableCell>
+                          <TableCell>
+                            {pendiente.mesNombre} {pendiente.anio}
+                          </TableCell>
                           <TableCell className="text-right font-bold text-red-600">
-                            {formatMoneda(totalDebe)}
+                            {formatMoneda(pendiente.monto)}
                           </TableCell>
                         </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </>
               )}
             </CardContent>
           </Card>
@@ -625,7 +790,108 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Tab: Novedades */}
+        <TabsContent value="novedades">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Novedades del Alumno
+                  </CardTitle>
+                  <CardDescription>
+                    Registro de novedades y observaciones importantes
+                  </CardDescription>
+                </div>
+                <Button onClick={() => setIsNovedadDialogOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Agregar Novedad
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadingNovedades ? (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">Cargando novedades...</p>
+                </div>
+              ) : novedades.length === 0 ? (
+                <div className="text-center py-8">
+                  <FileText className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                  <p className="text-lg font-medium">No hay novedades registradas</p>
+                  <p className="text-muted-foreground">Agregá la primera novedad para este alumno</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[180px]">Fecha y Hora</TableHead>
+                      <TableHead className="w-[200px]">Usuario</TableHead>
+                      <TableHead>Novedad</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {novedades.map((novedad) => (
+                      <TableRow key={novedad.cdNovedad}>
+                        <TableCell className="font-medium">
+                          {formatFechaHora(novedad.feAlta)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            {novedad.nombreCompleto || novedad.nombreUsuario}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <p className="text-sm whitespace-pre-line">{novedad.dsNovedad}</p>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      {/* Dialog para agregar novedad */}
+      <Dialog open={isNovedadDialogOpen} onOpenChange={setIsNovedadDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Agregar Novedad</DialogTitle>
+            <DialogDescription>
+              Registrá una novedad u observación importante sobre el alumno
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="novedad">Novedad</Label>
+            <Textarea
+              id="novedad"
+              value={nuevaNovedad}
+              onChange={(e) => setNuevaNovedad(e.target.value)}
+              placeholder="Escribí la novedad..."
+              rows={6}
+              className="mt-2"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsNovedadDialogOpen(false);
+                setNuevaNovedad('');
+              }}
+              disabled={savingNovedad}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleGuardarNovedad} disabled={savingNovedad}>
+              {savingNovedad ? 'Guardando...' : 'Guardar Novedad'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -137,9 +137,15 @@ const menuCategories: MenuCategory[] = [
   },
   {
     title: 'Reportes',
-    href: '/dashboard/reportes',
     icon: <FileText className="h-5 w-5" />,
     roles: ['Administrador', 'Supervisor'],
+    subItems: [
+      {
+        title: 'Asistencia por Taller',
+        href: '/dashboard/reportes/asistencia-por-taller',
+        roles: ['Administrador', 'Supervisor'],
+      },
+    ],
   },
 ];
 

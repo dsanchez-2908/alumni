@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -37,6 +38,7 @@ import {
   AlertCircle,
   CheckCircle,
   GraduationCap,
+  Eye,
 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
@@ -48,6 +50,11 @@ interface Personal {
   dsDomicilio: string;
   dsTelefono: string;
   dsMail: string;
+  dsDni: string;
+  dsCuil: string;
+  dsEntidad: string;
+  dsCbuCvu: string;
+  dsObservaciones: string;
   dsEstado: string;
   cdEstado: number;
   talleres: string;
@@ -68,6 +75,8 @@ export default function PersonalPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentId, setCurrentId] = useState<number | null>(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [viewingPersonal, setViewingPersonal] = useState<Personal | null>(null);
 
   const [formData, setFormData] = useState({
     dsNombreCompleto: '',
@@ -76,6 +85,11 @@ export default function PersonalPage() {
     dsDomicilio: '',
     dsTelefono: '',
     dsMail: '',
+    dsDni: '',
+    dsCuil: '',
+    dsEntidad: '',
+    dsCbuCvu: '',
+    dsObservaciones: '',
     talleres: [] as number[],
     cdEstado: 1,
   });
@@ -117,6 +131,11 @@ export default function PersonalPage() {
         dsDomicilio: pers.dsDomicilio || '',
         dsTelefono: pers.dsTelefono || '',
         dsMail: pers.dsMail || '',
+        dsDni: pers.dsDni || '',
+        dsCuil: pers.dsCuil || '',
+        dsEntidad: pers.dsEntidad || '',
+        dsCbuCvu: pers.dsCbuCvu || '',
+        dsObservaciones: pers.dsObservaciones || '',
         talleres: pers.talleresIds ? pers.talleresIds.split(',').map(Number) : [],
         cdEstado: pers.cdEstado,
       });
@@ -130,6 +149,11 @@ export default function PersonalPage() {
         dsDomicilio: '',
         dsTelefono: '',
         dsMail: '',
+        dsDni: '',
+        dsCuil: '',
+        dsEntidad: '',
+        dsCbuCvu: '',
+        dsObservaciones: '',
         talleres: [],
         cdEstado: 1,
       });
@@ -200,6 +224,11 @@ export default function PersonalPage() {
         ? prev.talleres.filter((t) => t !== cdTipoTaller)
         : [...prev.talleres, cdTipoTaller],
     }));
+  };
+
+  const handleViewPersonal = (pers: Personal) => {
+    setViewingPersonal(pers);
+    setIsViewDialogOpen(true);
   };
 
   const filteredPersonal = personal.filter(
@@ -332,6 +361,14 @@ export default function PersonalPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleViewPersonal(pers)}
+                        className="text-blue-600 hover:text-blue-700"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
                       <Button
                         size="sm"
                         variant="outline"
@@ -488,6 +525,68 @@ export default function PersonalPage() {
                 />
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="dsDni">DNI</Label>
+                  <Input
+                    id="dsDni"
+                    value={formData.dsDni}
+                    onChange={(e) =>
+                      setFormData({ ...formData, dsDni: e.target.value })
+                    }
+                    placeholder="12345678"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="dsCuil">CUIL</Label>
+                  <Input
+                    id="dsCuil"
+                    value={formData.dsCuil}
+                    onChange={(e) =>
+                      setFormData({ ...formData, dsCuil: e.target.value })
+                    }
+                    placeholder="20-12345678-9"
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="dsEntidad">Entidad</Label>
+                <Input
+                  id="dsEntidad"
+                  value={formData.dsEntidad}
+                  onChange={(e) =>
+                    setFormData({ ...formData, dsEntidad: e.target.value })
+                  }
+                  placeholder="Nombre de la entidad bancaria"
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="dsCbuCvu">CBU/CVU</Label>
+                <Input
+                  id="dsCbuCvu"
+                  value={formData.dsCbuCvu}
+                  onChange={(e) =>
+                    setFormData({ ...formData, dsCbuCvu: e.target.value })
+                  }
+                  placeholder="0000003100010000000000"
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="dsObservaciones">Observaciones</Label>
+                <Textarea
+                  id="dsObservaciones"
+                  value={formData.dsObservaciones}
+                  onChange={(e) =>
+                    setFormData({ ...formData, dsObservaciones: e.target.value })
+                  }
+                  placeholder="Observaciones adicionales..."
+                  rows={3}
+                />
+              </div>
+
               {isEditing && (
                 <div className="grid gap-2">
                   <Label htmlFor="cdEstado">Estado</Label>
@@ -524,6 +623,182 @@ export default function PersonalPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Ver Detalles */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5 text-blue-600" />
+              Detalles del Personal
+            </DialogTitle>
+            <DialogDescription>
+              Información completa del registro
+            </DialogDescription>
+          </DialogHeader>
+          {viewingPersonal && (
+            <div className="grid gap-6 py-4">
+              {/* Información Básica */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">
+                  Información Básica
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-gray-600 text-sm">Nombre Completo</Label>
+                    <p className="font-medium text-gray-900 mt-1">
+                      {viewingPersonal.dsNombreCompleto}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-gray-600 text-sm">Tipo de Personal</Label>
+                    <p className="mt-1">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          viewingPersonal.dsTipoPersonal === 'Profesor'
+                            ? 'bg-indigo-100 text-indigo-800'
+                            : 'bg-purple-100 text-purple-800'
+                        }`}
+                      >
+                        {viewingPersonal.dsTipoPersonal}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+                {viewingPersonal.dsTipoPersonal === 'Profesor' ? (
+                  <div>
+                    <Label className="text-gray-600 text-sm">Talleres que Dicta</Label>
+                    <p className="font-medium text-gray-900 mt-1">
+                      {viewingPersonal.talleres || 'Sin talleres'}
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <Label className="text-gray-600 text-sm">Descripción del Puesto</Label>
+                    <p className="font-medium text-gray-900 mt-1">
+                      {viewingPersonal.dsDescripcionPuesto || '-'}
+                    </p>
+                  </div>
+                )}
+                <div>
+                  <Label className="text-gray-600 text-sm">Estado</Label>
+                  <p className="mt-1">
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        viewingPersonal.dsEstado === 'Activo'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}
+                    >
+                      {viewingPersonal.dsEstado}
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Datos de Contacto */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">
+                  Datos de Contacto
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-gray-600 text-sm">Teléfono</Label>
+                    <p className="font-medium text-gray-900 mt-1">
+                      {viewingPersonal.dsTelefono || '-'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-gray-600 text-sm">Email</Label>
+                    <p className="font-medium text-gray-900 mt-1">
+                      {viewingPersonal.dsMail || '-'}
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-gray-600 text-sm">Domicilio</Label>
+                  <p className="font-medium text-gray-900 mt-1">
+                    {viewingPersonal.dsDomicilio || '-'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Datos Personales */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">
+                  Datos Personales
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-gray-600 text-sm">DNI</Label>
+                    <p className="font-medium text-gray-900 mt-1">
+                      {viewingPersonal.dsDni || '-'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-gray-600 text-sm">CUIL</Label>
+                    <p className="font-medium text-gray-900 mt-1">
+                      {viewingPersonal.dsCuil || '-'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Datos Bancarios */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">
+                  Datos Bancarios
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-gray-600 text-sm">Entidad</Label>
+                    <p className="font-medium text-gray-900 mt-1">
+                      {viewingPersonal.dsEntidad || '-'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-gray-600 text-sm">CBU/CVU</Label>
+                    <p className="font-medium text-gray-900 mt-1 font-mono text-sm">
+                      {viewingPersonal.dsCbuCvu || '-'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Observaciones */}
+              {viewingPersonal.dsObservaciones && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">
+                    Observaciones
+                  </h3>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-gray-900 whitespace-pre-wrap">
+                      {viewingPersonal.dsObservaciones}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Metadata */}
+              <div className="space-y-2 pt-4 border-t">
+                <div className="text-xs text-gray-500">
+                  <span className="font-medium">Fecha de Creación:</span>{' '}
+                  {new Date(viewingPersonal.feCreacion).toLocaleString('es-AR')}
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              type="button"
+              onClick={() => setIsViewDialogOpen(false)}
+              className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700"
+            >
+              Cerrar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

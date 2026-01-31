@@ -70,7 +70,7 @@ export async function POST(
     }
 
     const cdTaller = parseInt(params.id);
-    const { fecha, faltas } = await request.json();
+    const { fecha, faltas, esFeriado } = await request.json();
 
     if (!fecha || !Array.isArray(faltas)) {
       return NextResponse.json(
@@ -106,13 +106,18 @@ export async function POST(
     
     alumnos.forEach((alumno: any) => {
       const faltaInfo = faltas.find(f => f.cdAlumno === alumno.cdAlumno);
-      const snPresente = alumnosAusentes.has(alumno.cdAlumno) ? 0 : 1;
+      let snPresente = alumnosAusentes.has(alumno.cdAlumno) ? 0 : 1;
+      
+      // Si es feriado y el alumno está ausente, usar 3 en lugar de 0
+      if (esFeriado && snPresente === 0) {
+        snPresente = 3;
+      }
       
       values.push(
         cdTaller,
         alumno.cdAlumno,
         fecha,
-        snPresente,  // 0 = ausente, 1 = presente
+        snPresente,  // 0 = ausente, 1 = presente, 3 = feriado
         faltaInfo?.dsObservacion || null,
         cdUsuario
       );
@@ -134,7 +139,9 @@ export async function POST(
       dsAccion: 'Agregar',
       cdUsuario,
       cdElemento: cdTaller,
-      dsDetalle: `Asistencia registrada para ${fecha}: ${totalPresentes} presentes, ${faltas.length} ausentes`,
+      dsDetalle: esFeriado 
+        ? `Feriado registrado para ${fecha}: ${alumnos.length} alumnos marcados como ausentes por feriado`
+        : `Asistencia registrada para ${fecha}: ${totalPresentes} presentes, ${faltas.length} ausentes`,
     });
 
     return NextResponse.json(

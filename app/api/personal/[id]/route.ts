@@ -42,7 +42,8 @@ export async function PUT(
     await connection.execute(
       `UPDATE TD_PERSONAL 
        SET dsNombreCompleto = ?, dsTipoPersonal = ?, dsDescripcionPuesto = ?, 
-           dsDomicilio = ?, dsTelefono = ?, dsMail = ?, cdEstado = ?
+           dsDomicilio = ?, dsTelefono = ?, dsMail = ?, dsDni = ?, dsCuil = ?, 
+           dsEntidad = ?, dsCbuCvu = ?, dsObservaciones = ?, cdEstado = ?
        WHERE cdPersonal = ?`,
       [
         data.dsNombreCompleto,
@@ -51,6 +52,11 @@ export async function PUT(
         data.dsDomicilio || null,
         data.dsTelefono || null,
         data.dsMail || null,
+        data.dsDni || null,
+        data.dsCuil || null,
+        data.dsEntidad || null,
+        data.dsCbuCvu || null,
+        data.dsObservaciones || null,
         data.cdEstado,
         cdPersonal,
       ]

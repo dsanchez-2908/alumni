@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Search, Calendar, Check, X, Edit } from 'lucide-react';
+import { Loader2, Search, Calendar, Check, X, Edit, AlertTriangle } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -384,11 +384,13 @@ export default function ConsultaAsistenciaPage() {
                                       ? 'border-gray-300 bg-gray-50'
                                       : asistencia.snPresente === 1
                                       ? 'border-green-500 bg-green-50 cursor-default'
+                                      : asistencia.snPresente === 3
+                                      ? 'border-orange-500 bg-orange-50 cursor-pointer hover:shadow-md'
                                       : 'border-red-500 bg-red-50 cursor-pointer hover:shadow-md'
                                   }
                                 `}
                                 onClick={() => {
-                                  if (asistencia && asistencia.snPresente === 0) {
+                                  if (asistencia && (asistencia.snPresente === 0 || asistencia.snPresente === 3)) {
                                     abrirEdicionObservacion(fecha, asistencia);
                                   }
                                 }}
@@ -404,6 +406,13 @@ export default function ConsultaAsistenciaPage() {
                                     </Badge>
                                   ) : asistencia.snPresente === 1 ? (
                                     <Check className="h-5 w-5 text-green-600" />
+                                  ) : asistencia.snPresente === 3 ? (
+                                    <div className="flex items-center gap-1">
+                                      <AlertTriangle className="h-5 w-5 text-orange-600" />
+                                      {asistencia.dsObservacion && (
+                                        <Edit className="h-3 w-3 text-gray-600" />
+                                      )}
+                                    </div>
                                   ) : (
                                     <div className="flex items-center gap-1">
                                       <X className="h-5 w-5 text-red-600" />
@@ -433,6 +442,10 @@ export default function ConsultaAsistenciaPage() {
                 <span>Ausente</span>
               </div>
               <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-orange-600" />
+                <span>Feriado</span>
+              </div>
+              <div className="flex items-center gap-2">
                 <Badge variant="outline" className="text-xs">
                   N/R
                 </Badge>
@@ -440,7 +453,7 @@ export default function ConsultaAsistenciaPage() {
               </div>
               <div className="flex items-center gap-2">
                 <Edit className="h-4 w-4 text-gray-600" />
-                <span>Click en ausente para ver/editar observación</span>
+                <span>Click en ausente/feriado para ver/editar observación</span>
               </div>
             </div>
           </CardContent>

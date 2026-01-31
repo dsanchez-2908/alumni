@@ -34,36 +34,44 @@ export async function GET(
 
     const alumnoData = alumno[0];
 
-    // 2. Grupo familiar (si tiene)
+    // 2. Grupo familiar (si tiene) - usando TR_ALUMNO_GRUPO_FAMILIAR
     let grupoFamiliar = null;
     let miembrosGrupo = [];
     
-    if (alumnoData.cdGrupoFamiliar) {
+    const [grupoRelacion] = await pool.execute<any[]>(
+      `SELECT cdGrupoFamiliar FROM TR_ALUMNO_GRUPO_FAMILIAR WHERE cdAlumno = ?`,
+      [cdAlumno]
+    );
+
+    if (grupoRelacion.length > 0) {
+      const cdGrupoFamiliar = grupoRelacion[0].cdGrupoFamiliar;
+      
       const [grupo] = await pool.execute<any[]>(
         `SELECT 
           gf.*,
-          (SELECT COUNT(*) FROM TD_ALUMNOS WHERE cdGrupoFamiliar = gf.cdGrupoFamiliar AND cdEstado != 3) as cantidadMiembros
+          (SELECT COUNT(*) FROM TR_ALUMNO_GRUPO_FAMILIAR WHERE cdGrupoFamiliar = gf.cdGrupoFamiliar) as cantidadMiembros
         FROM TD_GRUPOS_FAMILIARES gf
         WHERE gf.cdGrupoFamiliar = ?`,
-        [alumnoData.cdGrupoFamiliar]
+        [cdGrupoFamiliar]
       );
 
       if (grupo.length > 0) {
         grupoFamiliar = grupo[0];
 
-        // Otros miembros del grupo
+        // Todos los miembros del grupo (incluyendo el actual)
         const [miembros] = await pool.execute<any[]>(
           `SELECT 
-            cdAlumno,
-            CONCAT(dsNombre, ' ', dsApellido) as dsNombreCompleto,
-            dsDNI,
-            TIMESTAMPDIFF(YEAR, feNacimiento, CURDATE()) as edad,
+            a.cdAlumno,
+            CONCAT(a.dsNombre, ' ', a.dsApellido) as dsNombreCompleto,
+            a.dsDNI,
+            TIMESTAMPDIFF(YEAR, a.feNacimiento, CURDATE()) as edad,
             e.dsEstado
-          FROM TD_ALUMNOS a
+          FROM TR_ALUMNO_GRUPO_FAMILIAR agf
+          INNER JOIN TD_ALUMNOS a ON agf.cdAlumno = a.cdAlumno
           INNER JOIN TD_ESTADOS e ON a.cdEstado = e.cdEstado
-          WHERE cdGrupoFamiliar = ? AND cdAlumno != ? AND a.cdEstado != 3
-          ORDER BY dsApellido, dsNombre`,
-          [alumnoData.cdGrupoFamiliar, cdAlumno]
+          WHERE agf.cdGrupoFamiliar = ? AND a.cdEstado != 3
+          ORDER BY a.dsApellido, a.dsNombre`,
+          [cdGrupoFamiliar]
         );
         miembrosGrupo = miembros;
       }
@@ -134,36 +142,116 @@ export async function GET(
       [cdAlumno]
     );
 
-    // 6. Pagos pendientes (talleres activos del alumno)
-    const [pagosPendientes] = await pool.execute<any[]>(
+    // 6. Pagos pendientes detallados por mes (del alumno y su grupo familiar)
+    // Primero obtenemos los talleres activos y generamos los meses esperados
+    const [inscripciones] = await pool.execute<any[]>(
       `SELECT 
+        a.cdAlumno,
+        CONCAT(a.dsNombre, ' ', a.dsApellido) as nombreAlumno,
         t.cdTaller,
         tt.dsNombreTaller,
         t.nuAnioTaller,
-        tp.nuPrecioCompletoEfectivo as precioPorClase,
-        at.feInscripcion,
         (
-          SELECT COUNT(DISTINCT DATE(p.fePago))
-          FROM TD_PAGOS p
-          INNER JOIN TD_PAGOS_DETALLE pd ON p.cdPago = pd.cdPago
-          WHERE pd.cdAlumno = ?
-          AND pd.cdTaller = t.cdTaller
-        ) as mesesPagados,
-        TIMESTAMPDIFF(MONTH, at.feInscripcion, CURDATE()) + 1 as mesesTranscurridos
+          SELECT tp.nuPrecioCompletoEfectivo 
+          FROM TD_PRECIOS_TALLERES tp
+          WHERE tp.cdTipoTaller = tt.cdTipoTaller
+          AND tp.feInicioVigencia <= CURDATE()
+          AND tp.cdEstado = 1
+          ORDER BY tp.feInicioVigencia DESC
+          LIMIT 1
+        ) as precio,
+        MIN(at.feInscripcion) as feInscripcion
       FROM tr_alumno_taller at
+      INNER JOIN TD_ALUMNOS a ON at.cdAlumno = a.cdAlumno
       INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
       INNER JOIN td_tipo_talleres tt ON t.cdTipoTaller = tt.cdTipoTaller
-      INNER JOIN TD_PRECIOS_TALLERES tp ON tt.cdTipoTaller = tp.cdTipoTaller 
-        AND tp.feInicioVigencia <= CURDATE()
-        AND tp.cdEstado = 1
-      WHERE at.cdAlumno = ?
+      LEFT JOIN TR_ALUMNO_GRUPO_FAMILIAR agf ON a.cdAlumno = agf.cdAlumno
+      WHERE (
+        a.cdAlumno = ? 
+        OR agf.cdGrupoFamiliar = (
+          SELECT cdGrupoFamiliar 
+          FROM TR_ALUMNO_GRUPO_FAMILIAR 
+          WHERE cdAlumno = ?
+        )
+      )
       AND at.cdEstado = 1
       AND t.cdEstado = 1
-      GROUP BY t.cdTaller, tt.dsNombreTaller, t.nuAnioTaller, tp.nuPrecioCompletoEfectivo, at.feInscripcion
-      HAVING mesesTranscurridos > mesesPagados
-      ORDER BY tt.dsNombreTaller`,
+      AND a.cdEstado != 3
+      GROUP BY a.cdAlumno, t.cdTaller, tt.cdTipoTaller, tt.dsNombreTaller, t.nuAnioTaller`,
       [cdAlumno, cdAlumno]
     );
+
+    // Obtener todos los pagos ya realizados
+    const [pagosRealizadosDetalle] = await pool.execute<any[]>(
+      `SELECT 
+        pd.cdAlumno,
+        pd.cdTaller,
+        p.nuMes,
+        p.nuAnio
+      FROM TD_PAGOS p
+      INNER JOIN TD_PAGOS_DETALLE pd ON p.cdPago = pd.cdPago
+      WHERE pd.cdAlumno IN (
+        SELECT a.cdAlumno 
+        FROM TR_ALUMNO_GRUPO_FAMILIAR agf1
+        INNER JOIN TD_ALUMNOS a ON agf1.cdAlumno = a.cdAlumno
+        WHERE agf1.cdGrupoFamiliar = (
+          SELECT cdGrupoFamiliar 
+          FROM TR_ALUMNO_GRUPO_FAMILIAR 
+          WHERE cdAlumno = ?
+        )
+        UNION
+        SELECT ? as cdAlumno
+      )`,
+      [cdAlumno, cdAlumno]
+    );
+
+    // Generar la lista de pagos pendientes por mes
+    const pagosPendientes: any[] = [];
+    const pagosSet = new Set(
+      pagosRealizadosDetalle.map((p: any) => 
+        `${p.cdAlumno}-${p.cdTaller}-${p.nuMes}-${p.nuAnio}`
+      )
+    );
+
+    const mesesNombres = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
+                          'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+    for (const inscripcion of inscripciones) {
+      const fechaInscripcion = new Date(inscripcion.feInscripcion);
+      const hoy = new Date();
+      
+      let fecha = new Date(fechaInscripcion.getFullYear(), fechaInscripcion.getMonth(), 1);
+      
+      while (fecha <= hoy) {
+        const mes = fecha.getMonth() + 1;
+        const anio = fecha.getFullYear();
+        const key = `${inscripcion.cdAlumno}-${inscripcion.cdTaller}-${mes}-${anio}`;
+        
+        if (!pagosSet.has(key)) {
+          pagosPendientes.push({
+            cdAlumno: inscripcion.cdAlumno,
+            nombreAlumno: inscripcion.nombreAlumno,
+            cdTaller: inscripcion.cdTaller,
+            dsNombreTaller: inscripcion.dsNombreTaller,
+            nuAnioTaller: inscripcion.nuAnioTaller,
+            mes: mes,
+            mesNombre: mesesNombres[mes - 1],
+            anio: anio,
+            monto: inscripcion.precio
+          });
+        }
+        
+        fecha.setMonth(fecha.getMonth() + 1);
+      }
+    }
+
+    // Ordenar por alumno, taller y fecha
+    pagosPendientes.sort((a, b) => {
+      if (a.cdAlumno !== b.cdAlumno) return a.cdAlumno - b.cdAlumno;
+      if (a.cdTaller !== b.cdTaller) return a.cdTaller - b.cdTaller;
+      if (a.anio !== b.anio) return a.anio - b.anio;
+      return a.mes - b.mes;
+    });
 
     // 7. Asistencias (últimas 100) - ahora incluye presentes y ausentes
     const [faltas] = await pool.execute<any[]>(
@@ -200,10 +288,7 @@ export async function GET(
         totalPagosRealizados: pagosRealizados.length,
         montoPagadoTotal: pagosRealizados.reduce((sum: number, p: any) => sum + parseFloat(p.nuMonto || 0), 0),
         totalPagosPendientes: pagosPendientes.length,
-        montoPendienteTotal: pagosPendientes.reduce((sum: number, p: any) => {
-          const mesesDebe = p.mesesTranscurridos - p.mesesPagados;
-          return sum + (mesesDebe * p.precioPorClase);
-        }, 0),
+        montoPendienteTotal: pagosPendientes.reduce((sum: number, p: any) => sum + parseFloat(p.monto || 0), 0),
         totalFaltas: faltas.filter((f: any) => f.snPresente === 0).length,
         totalAsistencias: faltas.filter((f: any) => f.snPresente === 1).length,
       }

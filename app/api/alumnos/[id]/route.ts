@@ -25,12 +25,26 @@ export async function GET(
         a.dsApellido,
         a.dsDNI,
         a.dsSexo,
+        a.dsNombreLlamar,
         a.feNacimiento,
         TIMESTAMPDIFF(YEAR, a.feNacimiento, CURDATE()) as edad,
         a.dsDomicilio,
         a.dsTelefonoCelular,
         a.dsTelefonoFijo,
         a.dsMail,
+        a.snDiscapacidad,
+        a.dsObservacionesDiscapacidad,
+        a.dsObservaciones,
+        a.dsNombreCompletoContacto1,
+        a.dsParentescoContacto1,
+        a.dsDNIContacto1,
+        a.dsTelefonoContacto1,
+        a.dsMailContacto1,
+        a.dsNombreCompletoContacto2,
+        a.dsParentescoContacto2,
+        a.dsDNIContacto2,
+        a.dsTelefonoContacto2,
+        a.dsMailContacto2,
         agf.cdGrupoFamiliar,
         a.cdEstado
        FROM TD_ALUMNOS a
@@ -43,11 +57,11 @@ export async function GET(
       return NextResponse.json({ error: 'Alumno no encontrado' }, { status: 404 });
     }
 
-    // Obtener talleres inscritos
+    // Obtener talleres inscritos (usar tr_alumno_taller)
     const talleres = await executeQuery(
       `SELECT cdTaller
-       FROM tr_inscripcion_alumno
-       WHERE cdAlumno = ? AND cdEstado = 1`,
+       FROM tr_alumno_taller
+       WHERE cdAlumno = ? AND cdEstado = 1 AND feBaja IS NULL`,
       [cdAlumno]
     );
 
@@ -82,11 +96,15 @@ export async function PUT(
       dsApellido,
       dsDNI,
       dsSexo,
+      dsNombreLlamar,
       feNacimiento,
       dsDomicilio,
       dsTelefonoCelular,
       dsTelefonoFijo,
       dsMail,
+      snDiscapacidad,
+      dsObservacionesDiscapacidad,
+      dsObservaciones,
       dsNombreCompletoContacto1,
       dsParentescoContacto1,
       dsDNIContacto1,
@@ -141,11 +159,15 @@ export async function PUT(
           dsApellido = ?,
           dsDNI = ?,
           dsSexo = ?,
+          dsNombreLlamar = ?,
           feNacimiento = ?,
           dsDomicilio = ?,
           dsTelefonoCelular = ?,
           dsTelefonoFijo = ?,
           dsMail = ?,
+          snDiscapacidad = ?,
+          dsObservacionesDiscapacidad = ?,
+          dsObservaciones = ?,
           dsNombreCompletoContacto1 = ?,
           dsParentescoContacto1 = ?,
           dsDNIContacto1 = ?,
@@ -164,11 +186,15 @@ export async function PUT(
           dsApellido,
           dsDNI,
           dsSexo,
+          dsNombreLlamar || null,
           feNacimiento,
           dsDomicilio || null,
           dsTelefonoCelular || null,
           dsTelefonoFijo || null,
           dsMail || null,
+          snDiscapacidad || 'NO',
+          dsObservacionesDiscapacidad || null,
+          dsObservaciones || null,
           dsNombreCompletoContacto1 || null,
           dsParentescoContacto1 || null,
           dsDNIContacto1 || null,
@@ -202,26 +228,24 @@ export async function PUT(
         );
       }
 
-      // Actualizar inscripciones: desactivar todas las existentes
+      // Actualizar inscripciones: dar de baja todas las existentes
       await connection.query(
-        `UPDATE tr_inscripcion_alumno SET cdEstado = 2, feActualizacion = NOW()
-         WHERE cdAlumno = ?`,
+        `UPDATE tr_alumno_taller SET cdEstado = 2, feBaja = NOW()
+         WHERE cdAlumno = ? AND feBaja IS NULL`,
         [cdAlumno]
       );
 
-      // Crear nuevas inscripciones
+      // Crear o reactivar inscripciones
       if (talleres.length > 0) {
         const inscripcionesPromises = talleres.map((cdTaller: number) =>
           connection.query(
-            `INSERT INTO tr_inscripcion_alumno (
+            `INSERT INTO tr_alumno_taller (
               cdAlumno,
               cdTaller,
-              feInscripcion,
               cdEstado,
-              feCreacion,
-              feActualizacion
-            ) VALUES (?, ?, NOW(), 1, NOW(), NOW())
-            ON DUPLICATE KEY UPDATE cdEstado = 1, feActualizacion = NOW()`,
+              feInscripcion
+            ) VALUES (?, ?, 1, NOW())
+            ON DUPLICATE KEY UPDATE cdEstado = 1, feBaja = NULL`,
             [cdAlumno, cdTaller]
           )
         );

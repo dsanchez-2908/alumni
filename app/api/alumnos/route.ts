@@ -152,11 +152,15 @@ export async function POST(request: NextRequest) {
       dsApellido,
       dsDNI,
       dsSexo,
+      dsNombreLlamar,
       feNacimiento,
       dsDomicilio,
       dsTelefonoCelular,
       dsTelefonoFijo,
       dsMail,
+      snDiscapacidad,
+      dsObservacionesDiscapacidad,
+      dsObservaciones,
       dsNombreCompletoContacto1,
       dsParentescoContacto1,
       dsDNIContacto1,
@@ -208,11 +212,15 @@ export async function POST(request: NextRequest) {
         dsApellido,
         dsDNI,
         dsSexo,
+        dsNombreLlamar,
         feNacimiento,
         dsDomicilio,
         dsTelefonoCelular,
         dsTelefonoFijo,
         dsMail,
+        snDiscapacidad,
+        dsObservacionesDiscapacidad,
+        dsObservaciones,
         dsNombreCompletoContacto1,
         dsParentescoContacto1,
         dsDNIContacto1,
@@ -226,17 +234,21 @@ export async function POST(request: NextRequest) {
         cdEstado,
         feAlta,
         feModificacion
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())`,
       [
         dsNombre,
         dsApellido,
         dsDNI,
         dsSexo,
+        dsNombreLlamar || null,
         feNacimiento,
         dsDomicilio || null,
         dsTelefonoCelular || null,
         dsTelefonoFijo || null,
         dsMail || null,
+        snDiscapacidad || 'NO',
+        dsObservacionesDiscapacidad || null,
+        dsObservaciones || null,
         dsNombreCompletoContacto1 || null,
         dsParentescoContacto1 || null,
         dsDNIContacto1 || null,
@@ -268,14 +280,12 @@ export async function POST(request: NextRequest) {
     if (talleres.length > 0) {
       const inscripcionesPromises = talleres.map((cdTaller: number) =>
         pool.execute(
-          `INSERT INTO tr_inscripcion_alumno (
+          `INSERT INTO tr_alumno_taller (
             cdAlumno,
             cdTaller,
-            feInscripcion,
             cdEstado,
-            feCreacion,
-            feActualizacion
-          ) VALUES (?, ?, NOW(), 1, NOW(), NOW())`,
+            feInscripcion
+          ) VALUES (?, ?, 1, NOW())`,
           [cdAlumno, cdTaller]
         )
       );

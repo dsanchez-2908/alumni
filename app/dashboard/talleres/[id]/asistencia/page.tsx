@@ -22,7 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Save, Calendar } from 'lucide-react';
+import { ArrowLeft, Save, Calendar, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface AlumnoAsistencia {
@@ -60,6 +60,7 @@ export default function AsistenciaPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [diasClase, setDiasClase] = useState<number[]>([]);
+  const [esFeriado, setEsFeriado] = useState(false);
 
   useEffect(() => {
     if (cdTaller) {
@@ -152,6 +153,22 @@ export default function AsistenciaPage() {
     }));
   };
 
+  const marcarComoFeriado = () => {
+    // Marcar todos los alumnos como ausentes
+    const todosLosAlumnos = new Set(alumnos.map(a => a.cdAlumno));
+    setFaltas(todosLosAlumnos);
+    setEsFeriado(true);
+    
+    // Agregar observación de feriado a todos
+    const obsConFeriado: Record<number, string> = {};
+    alumnos.forEach(alumno => {
+      obsConFeriado[alumno.cdAlumno] = 'Feriado';
+    });
+    setObservaciones(obsConFeriado);
+    
+    success('Todos los alumnos han sido marcados como ausentes por feriado');
+  };
+
   const guardarAsistencia = async () => {
     // Validar que la fecha sea un día de clase
     const fechaObj = new Date(fecha + 'T00:00:00');
@@ -179,6 +196,7 @@ export default function AsistenciaPage() {
         body: JSON.stringify({
           fecha,
           faltas: faltasArray,
+          esFeriado,
         }),
       });
 
@@ -222,14 +240,25 @@ export default function AsistenciaPage() {
           <ArrowLeft className="h-4 w-4" />
           Volver
         </Button>
-        <Button
-          onClick={guardarAsistencia}
-          disabled={saving}
-          className="gap-2 bg-indigo-600 hover:bg-indigo-700"
-        >
-          <Save className="h-4 w-4" />
-          {saving ? 'Guardando...' : 'Guardar Asistencia'}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={marcarComoFeriado}
+            disabled={saving || esFeriado}
+            variant="outline"
+            className="gap-2 border-orange-500 text-orange-600 hover:bg-orange-50"
+          >
+            <AlertTriangle className="h-4 w-4" />
+            {esFeriado ? 'Marcado como Feriado' : 'Marcar como Feriado'}
+          </Button>
+          <Button
+            onClick={guardarAsistencia}
+            disabled={saving}
+            className="gap-2 bg-indigo-600 hover:bg-indigo-700"
+          >
+            <Save className="h-4 w-4" />
+            {saving ? 'Guardando...' : 'Guardar Asistencia'}
+          </Button>
+        </div>
       </div>
 
       {/* Info del Taller y Fecha */}

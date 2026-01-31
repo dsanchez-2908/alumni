@@ -93,10 +93,24 @@ export default function AlumnosPage() {
     dsDNI: '',
     dsSexo: 'Masculino' as 'Masculino' | 'Femenino',
     feNacimiento: '',
+    dsNombreLlamar: '',
     dsDomicilio: '',
     dsTelefonoCelular: '',
     dsTelefonoFijo: '',
     dsMail: '',
+    snDiscapacidad: 'NO' as 'SI' | 'NO',
+    dsObservacionesDiscapacidad: '',
+    dsObservaciones: '',
+    dsNombreCompletoContacto1: '',
+    dsParentescoContacto1: '',
+    dsDNIContacto1: '',
+    dsTelefonoContacto1: '',
+    dsMailContacto1: '',
+    dsNombreCompletoContacto2: '',
+    dsParentescoContacto2: '',
+    dsDNIContacto2: '',
+    dsTelefonoContacto2: '',
+    dsMailContacto2: '',
     cdGrupoFamiliar: null as number | null,
     talleres: [] as number[],
     cdEstado: 1,
@@ -145,10 +159,24 @@ export default function AlumnosPage() {
           dsDNI: alumno.dsDNI,
           dsSexo: alumno.dsSexo as 'Masculino' | 'Femenino',
           feNacimiento: alumno.feNacimiento.split('T')[0],
+          dsNombreLlamar: data.alumno.dsNombreLlamar || '',
           dsDomicilio: alumno.dsDomicilio || '',
           dsTelefonoCelular: alumno.dsTelefonoCelular || '',
           dsTelefonoFijo: alumno.dsTelefonoFijo || '',
           dsMail: alumno.dsMail || '',
+          snDiscapacidad: data.alumno.snDiscapacidad || 'NO',
+          dsObservacionesDiscapacidad: data.alumno.dsObservacionesDiscapacidad || '',
+          dsObservaciones: data.alumno.dsObservaciones || '',
+          dsNombreCompletoContacto1: data.alumno.dsNombreCompletoContacto1 || '',
+          dsParentescoContacto1: data.alumno.dsParentescoContacto1 || '',
+          dsDNIContacto1: data.alumno.dsDNIContacto1 || '',
+          dsTelefonoContacto1: data.alumno.dsTelefonoContacto1 || '',
+          dsMailContacto1: data.alumno.dsMailContacto1 || '',
+          dsNombreCompletoContacto2: data.alumno.dsNombreCompletoContacto2 || '',
+          dsParentescoContacto2: data.alumno.dsParentescoContacto2 || '',
+          dsDNIContacto2: data.alumno.dsDNIContacto2 || '',
+          dsTelefonoContacto2: data.alumno.dsTelefonoContacto2 || '',
+          dsMailContacto2: data.alumno.dsMailContacto2 || '',
           cdGrupoFamiliar: alumno.cdGrupoFamiliar,
           talleres: data.talleresIds || [],
           cdEstado: alumno.cdEstado,
@@ -165,10 +193,24 @@ export default function AlumnosPage() {
         dsDNI: '',
         dsSexo: 'Masculino',
         feNacimiento: '',
+        dsNombreLlamar: '',
         dsDomicilio: '',
         dsTelefonoCelular: '',
         dsTelefonoFijo: '',
         dsMail: '',
+        snDiscapacidad: 'NO',
+        dsObservacionesDiscapacidad: '',
+        dsObservaciones: '',
+        dsNombreCompletoContacto1: '',
+        dsParentescoContacto1: '',
+        dsDNIContacto1: '',
+        dsTelefonoContacto1: '',
+        dsMailContacto1: '',
+        dsNombreCompletoContacto2: '',
+        dsParentescoContacto2: '',
+        dsDNIContacto2: '',
+        dsTelefonoContacto2: '',
+        dsMailContacto2: '',
         cdGrupoFamiliar: null,
         talleres: [],
         cdEstado: 1,
@@ -534,6 +576,18 @@ export default function AlumnosPage() {
                     </Select>
                   </div>
 
+                  <div className="grid gap-2">
+                    <Label htmlFor="dsNombreLlamar">Nombre a Llamar</Label>
+                    <Input
+                      id="dsNombreLlamar"
+                      value={formData.dsNombreLlamar}
+                      onChange={(e) =>
+                        setFormData({ ...formData, dsNombreLlamar: e.target.value })
+                      }
+                      placeholder="Opcional"
+                    />
+                  </div>
+
                   <div className="grid gap-2 col-span-2">
                     <Label htmlFor="feNacimiento">Fecha de Nacimiento *</Label>
                     <Input
@@ -544,6 +598,50 @@ export default function AlumnosPage() {
                         setFormData({ ...formData, feNacimiento: e.target.value })
                       }
                       required
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="snDiscapacidad">¿Tiene alguna discapacidad?</Label>
+                    <Select
+                      value={formData.snDiscapacidad}
+                      onValueChange={(value: 'SI' | 'NO') =>
+                        setFormData({ ...formData, snDiscapacidad: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="NO">No</SelectItem>
+                        <SelectItem value="SI">Sí</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {formData.snDiscapacidad === 'SI' && (
+                    <div className="grid gap-2">
+                      <Label htmlFor="dsObservacionesDiscapacidad">Observaciones de Discapacidad</Label>
+                      <Input
+                        id="dsObservacionesDiscapacidad"
+                        value={formData.dsObservacionesDiscapacidad}
+                        onChange={(e) =>
+                          setFormData({ ...formData, dsObservacionesDiscapacidad: e.target.value })
+                        }
+                        placeholder="Describir la discapacidad"
+                      />
+                    </div>
+                  )}
+
+                  <div className="grid gap-2 col-span-2">
+                    <Label htmlFor="dsObservaciones">Observaciones Generales</Label>
+                    <Input
+                      id="dsObservaciones"
+                      value={formData.dsObservaciones}
+                      onChange={(e) =>
+                        setFormData({ ...formData, dsObservaciones: e.target.value })
+                      }
+                      placeholder="Información adicional (opcional)"
                     />
                   </div>
                 </div>
@@ -599,6 +697,140 @@ export default function AlumnosPage() {
                         setFormData({ ...formData, dsDomicilio: e.target.value })
                       }
                       placeholder="Dirección completa"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Datos de Contacto 1 */}
+              <div className="border-b pb-4">
+                <h3 className="font-semibold text-lg mb-3">Datos de Contacto 1</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2 grid gap-2">
+                    <Label htmlFor="dsNombreCompletoContacto1">Nombre Completo</Label>
+                    <Input
+                      id="dsNombreCompletoContacto1"
+                      value={formData.dsNombreCompletoContacto1}
+                      onChange={(e) =>
+                        setFormData({ ...formData, dsNombreCompletoContacto1: e.target.value })
+                      }
+                      placeholder="Nombre completo del contacto"
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="dsParentescoContacto1">Parentesco</Label>
+                    <Input
+                      id="dsParentescoContacto1"
+                      value={formData.dsParentescoContacto1}
+                      onChange={(e) =>
+                        setFormData({ ...formData, dsParentescoContacto1: e.target.value })
+                      }
+                      placeholder="Ej: Madre, Padre, Tutor"
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="dsDNIContacto1">DNI</Label>
+                    <Input
+                      id="dsDNIContacto1"
+                      value={formData.dsDNIContacto1}
+                      onChange={(e) =>
+                        setFormData({ ...formData, dsDNIContacto1: e.target.value })
+                      }
+                      placeholder="DNI del contacto"
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="dsTelefonoContacto1">Teléfono</Label>
+                    <Input
+                      id="dsTelefonoContacto1"
+                      value={formData.dsTelefonoContacto1}
+                      onChange={(e) =>
+                        setFormData({ ...formData, dsTelefonoContacto1: e.target.value })
+                      }
+                      placeholder="Teléfono de contacto"
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="dsMailContacto1">Email</Label>
+                    <Input
+                      id="dsMailContacto1"
+                      type="email"
+                      value={formData.dsMailContacto1}
+                      onChange={(e) =>
+                        setFormData({ ...formData, dsMailContacto1: e.target.value })
+                      }
+                      placeholder="Email del contacto"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Datos de Contacto 2 */}
+              <div className="border-b pb-4">
+                <h3 className="font-semibold text-lg mb-3">Datos de Contacto 2</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2 grid gap-2">
+                    <Label htmlFor="dsNombreCompletoContacto2">Nombre Completo</Label>
+                    <Input
+                      id="dsNombreCompletoContacto2"
+                      value={formData.dsNombreCompletoContacto2}
+                      onChange={(e) =>
+                        setFormData({ ...formData, dsNombreCompletoContacto2: e.target.value })
+                      }
+                      placeholder="Nombre completo del segundo contacto (opcional)"
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="dsParentescoContacto2">Parentesco</Label>
+                    <Input
+                      id="dsParentescoContacto2"
+                      value={formData.dsParentescoContacto2}
+                      onChange={(e) =>
+                        setFormData({ ...formData, dsParentescoContacto2: e.target.value })
+                      }
+                      placeholder="Ej: Madre, Padre, Tutor"
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="dsDNIContacto2">DNI</Label>
+                    <Input
+                      id="dsDNIContacto2"
+                      value={formData.dsDNIContacto2}
+                      onChange={(e) =>
+                        setFormData({ ...formData, dsDNIContacto2: e.target.value })
+                      }
+                      placeholder="DNI del contacto"
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="dsTelefonoContacto2">Teléfono</Label>
+                    <Input
+                      id="dsTelefonoContacto2"
+                      value={formData.dsTelefonoContacto2}
+                      onChange={(e) =>
+                        setFormData({ ...formData, dsTelefonoContacto2: e.target.value })
+                      }
+                      placeholder="Teléfono de contacto"
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="dsMailContacto2">Email</Label>
+                    <Input
+                      id="dsMailContacto2"
+                      type="email"
+                      value={formData.dsMailContacto2}
+                      onChange={(e) =>
+                        setFormData({ ...formData, dsMailContacto2: e.target.value })
+                      }
+                      placeholder="Email del contacto"
                     />
                   </div>
                 </div>
