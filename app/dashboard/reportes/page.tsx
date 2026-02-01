@@ -15,6 +15,12 @@ export default function ReportesPage() {
       icon: <Users className="h-8 w-8 text-indigo-600" />,
       href: '/dashboard/reportes/asistencia-por-taller',
     },
+    {
+      title: 'Seguimiento de Faltas',
+      description: 'Alumnos con 2 o más faltas consecutivas que requieren contacto',
+      icon: <TrendingUp className="h-8 w-8 text-orange-600" />,
+      href: '/dashboard/reportes/alumnos-con-faltas',
+    },
   ];
 
   return (

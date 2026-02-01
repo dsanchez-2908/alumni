@@ -145,6 +145,11 @@ const menuCategories: MenuCategory[] = [
         href: '/dashboard/reportes/asistencia-por-taller',
         roles: ['Administrador', 'Supervisor'],
       },
+      {
+        title: 'Seguimiento de Faltas',
+        href: '/dashboard/reportes/alumnos-con-faltas',
+        roles: ['Administrador', 'Supervisor', 'Operador'],
+      },
     ],
   },
 ];

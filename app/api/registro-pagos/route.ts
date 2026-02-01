@@ -5,6 +5,7 @@ import pool from '@/lib/db';
 import { registrarTraza } from '@/lib/db-utils';
 import { enviarEmail } from '@/lib/email';
 import { generarPDFRecibo, getNombreMes } from '@/lib/pdf-recibo';
+import { generarEnlaceWhatsApp } from '@/lib/whatsapp-link';
 
 // POST - Registrar pago
 export async function POST(request: NextRequest) {
@@ -20,6 +21,7 @@ export async function POST(request: NextRequest) {
       cdGrupoFamiliar,
       items, // Array de items a pagar
       observacion,
+      metodoNotificacion = 'Mail', // Por defecto Mail
     } = await request.json();
 
     if (!items || items.length === 0) {
@@ -101,95 +103,111 @@ export async function POST(request: NextRequest) {
       dsDetalle: `Pago registrado por $${montoTotal} - ${items.length} items`,
     });
 
-    // Recolectar emails para enviar el recibo
+    // Preparar variables para respuesta
+    let whatsappLink: string | null = null;
+    let pdfUrl: string | null = null;
+    let pdfFilename: string | null = null;
+
+    // Recolectar datos de notificación basados en el método seleccionado
     try {
       const emailsSet = new Set<string>(); // Usar Set para evitar duplicados
+      const whatsappNumbers = new Set<string>(); // Para números de WhatsApp
 
       // Obtener todos los cdAlumno únicos del pago
       const alumnosEnPago = [...new Set(items.map((item: any) => item.cdAlumno))];
 
-      // Obtener emails de TODOS los alumnos involucrados en el pago
+      // Obtener datos de notificación de TODOS los alumnos involucrados en el pago
       for (const cdAlumno of alumnosEnPago) {
         const [alumnoData] = await connection.execute<any[]>(
-          'SELECT dsMail, dsMailContacto1, dsMailContacto2 FROM TD_ALUMNOS WHERE cdAlumno = ?',
+          'SELECT dsMailNotificacion, dsWhatsappNotificacion FROM TD_ALUMNOS WHERE cdAlumno = ?',
           [cdAlumno]
         );
 
         if (alumnoData.length > 0) {
           const alumno = alumnoData[0];
-          if (alumno.dsMail && alumno.dsMail.trim()) emailsSet.add(alumno.dsMail.trim());
-          if (alumno.dsMailContacto1 && alumno.dsMailContacto1.trim()) emailsSet.add(alumno.dsMailContacto1.trim());
-          if (alumno.dsMailContacto2 && alumno.dsMailContacto2.trim()) emailsSet.add(alumno.dsMailContacto2.trim());
-        }
-      }
-
-      // Si tiene grupo familiar, obtener emails del grupo
-      if (cdGrupoFamiliar) {
-        const [grupoData] = await connection.execute<any[]>(
-          'SELECT dsMailContacto, dsMailContacto2 FROM TD_GRUPOS_FAMILIARES WHERE cdGrupoFamiliar = ?',
-          [cdGrupoFamiliar]
-        );
-
-        if (grupoData.length > 0) {
-          const grupo = grupoData[0];
-          if (grupo.dsMailContacto && grupo.dsMailContacto.trim()) emailsSet.add(grupo.dsMailContacto.trim());
-          if (grupo.dsMailContacto2 && grupo.dsMailContacto2.trim()) emailsSet.add(grupo.dsMailContacto2.trim());
+          
+          console.log(`Alumno ${cdAlumno} - Mail: ${alumno.dsMailNotificacion}, WhatsApp: ${alumno.dsWhatsappNotificacion}`);
+          
+          // Recolectar emails si el método incluye Mail
+          if ((metodoNotificacion === 'Mail' || metodoNotificacion === 'Ambos') && 
+              alumno.dsMailNotificacion && alumno.dsMailNotificacion.trim()) {
+            emailsSet.add(alumno.dsMailNotificacion.trim());
+          }
+          
+          // Recolectar números de WhatsApp si el método incluye WhatsApp
+          if ((metodoNotificacion === 'Whatsapp' || metodoNotificacion === 'Ambos') && 
+              alumno.dsWhatsappNotificacion && alumno.dsWhatsappNotificacion.trim()) {
+            whatsappNumbers.add(alumno.dsWhatsappNotificacion.trim());
+          }
         }
       }
 
       // Convertir Set a Array
       const emails = Array.from(emailsSet);
+      const whatsappNumbersArray = Array.from(whatsappNumbers);
 
-      // Si hay emails, generar PDF y enviar
-      if (emails.length > 0) {
-        // Obtener información completa del pago para el PDF
-        const [pagoDetalles] = await connection.execute<any[]>(
-          `SELECT 
-            pd.cdPago,
-            pd.cdAlumno,
-            pd.cdTaller,
-            pd.nuMonto,
-            pd.dsTipoPago,
-            p.nuMes,
-            p.nuAnio,
-            p.fePago,
-            p.dsObservacion,
-            CONCAT(a.dsNombre, ' ', a.dsApellido) as nombreAlumno,
-            a.dsDNI,
-            tt.dsNombreTaller
-          FROM TD_PAGOS_DETALLE pd
-          INNER JOIN TD_PAGOS p ON pd.cdPago = p.cdPago
-          INNER JOIN TD_ALUMNOS a ON pd.cdAlumno = a.cdAlumno
-          INNER JOIN TD_TALLERES t ON pd.cdTaller = t.cdTaller
-          INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
-          WHERE pd.cdPago = ?`,
-          [cdPago]
-        );
+      console.log(`Método notificación: ${metodoNotificacion}`);
+      console.log(`Emails encontrados: ${emails.join(', ')}`);
+      console.log(`WhatsApps encontrados: ${whatsappNumbersArray.join(', ')}`);
 
-        if (pagoDetalles.length > 0) {
-          const primerDetalle = pagoDetalles[0];
+      // Obtener información completa del pago para generar el recibo
+      const [pagoDetalles] = await connection.execute<any[]>(
+        `SELECT 
+          pd.cdPago,
+          pd.cdAlumno,
+          pd.cdTaller,
+          pd.nuMonto,
+          pd.dsTipoPago,
+          p.nuMes,
+          p.nuAnio,
+          p.fePago,
+          p.dsObservacion,
+          CONCAT(a.dsNombre, ' ', a.dsApellido) as nombreAlumno,
+          a.dsDNI,
+          tt.dsNombreTaller
+        FROM TD_PAGOS_DETALLE pd
+        INNER JOIN TD_PAGOS p ON pd.cdPago = p.cdPago
+        INNER JOIN TD_ALUMNOS a ON pd.cdAlumno = a.cdAlumno
+        INNER JOIN TD_TALLERES t ON pd.cdTaller = t.cdTaller
+        INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
+        WHERE pd.cdPago = ?`,
+        [cdPago]
+      );
 
-          // Preparar detalles para el PDF
-          const detalles = pagoDetalles.map((detalle: any) => ({
-            nombreAlumno: detalle.nombreAlumno,
-            nombreTaller: detalle.dsNombreTaller,
-            mes: getNombreMes(detalle.nuMes),
-            anio: detalle.nuAnio,
-            monto: parseFloat(detalle.nuMonto),
-            tipoPago: detalle.dsTipoPago,
-          }));
+      if (pagoDetalles.length > 0) {
+        const primerDetalle = pagoDetalles[0];
 
-          // Generar PDF
-          const pdfBuffer = generarPDFRecibo({
-            cdPago,
-            fePago: new Date(primerDetalle.fePago).toLocaleDateString('es-AR'),
-            nombreCliente: primerDetalle.nombreAlumno,
-            dniCliente: primerDetalle.dsDNI,
-            detalles,
-            total: montoTotal,
-            observacion: primerDetalle.dsObservacion,
-          });
+        // Preparar detalles para el PDF
+        const detalles = pagoDetalles.map((detalle: any) => ({
+          nombreAlumno: detalle.nombreAlumno,
+          nombreTaller: detalle.dsNombreTaller,
+          mes: getNombreMes(detalle.nuMes),
+          anio: detalle.nuAnio,
+          monto: parseFloat(detalle.nuMonto),
+          tipoPago: detalle.dsTipoPago,
+        }));
 
+        // Generar PDF
+        const pdfBuffer = generarPDFRecibo({
+          cdPago,
+          fePago: new Date(primerDetalle.fePago).toLocaleDateString('es-AR'),
+          nombreCliente: primerDetalle.nombreAlumno,
+          dniCliente: primerDetalle.dsDNI,
+          detalles,
+          total: montoTotal,
+          observacion: primerDetalle.dsObservacion,
+        });
+
+        // Guardar PDF para WhatsApp si es necesario
+        if (metodoNotificacion === 'Whatsapp' || metodoNotificacion === 'Ambos') {
+          // Convertir PDF a base64 para poder descargarlo desde el navegador
+          const pdfBase64 = pdfBuffer.toString('base64');
+          pdfUrl = `data:application/pdf;base64,${pdfBase64}`;
+          pdfFilename = `Recibo_${cdPago.toString().padStart(6, '0')}.pdf`;
+        }
+
+        // Enviar por Email si corresponde
+        if ((metodoNotificacion === 'Mail' || metodoNotificacion === 'Ambos') && emails.length > 0) {
           // HTML del email
           const htmlEmail = `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -250,12 +268,39 @@ export async function POST(request: NextRequest) {
 
           console.log(`Email enviado exitosamente a: ${emails.join(', ')}`);
         }
+
+        // Generar enlace de WhatsApp si corresponde
+        if ((metodoNotificacion === 'Whatsapp' || metodoNotificacion === 'Ambos') && whatsappNumbersArray.length > 0) {
+          // Usar el primer número de WhatsApp (si hay más de uno, se puede ajustar)
+          const numeroWhatsApp = whatsappNumbersArray[0];
+          
+          console.log(`Generando enlace de WhatsApp para: ${numeroWhatsApp}`);
+          
+          // Crear mensaje para WhatsApp
+          const mensajeWhatsApp = `Hola! 👋
+
+Te enviamos el comprobante de pago de *Índigo Teatro*.
+
+📄 *Recibo N°:* ${cdPago.toString().padStart(6, '0')}
+📅 *Fecha:* ${new Date(primerDetalle.fePago).toLocaleDateString('es-AR')}
+💰 *Total pagado:* $${montoTotal.toFixed(2)}
+
+El PDF del recibo se descargará automáticamente en tu navegador.
+
+¡Gracias por confiar en nosotros! 🎭`;
+
+          whatsappLink = generarEnlaceWhatsApp(numeroWhatsApp, mensajeWhatsApp);
+          
+          console.log(`Enlace de WhatsApp generado: ${whatsappLink}`);
+        } else {
+          console.log(`No se generó enlace de WhatsApp - Método: ${metodoNotificacion}, Números disponibles: ${whatsappNumbersArray.length}`);
+        }
       } else {
-        console.log('No se encontraron emails para enviar el recibo');
+        console.log('No se encontraron detalles del pago para generar el recibo');
       }
-    } catch (emailError: any) {
-      console.error('Error al enviar email, pero el pago fue registrado:', emailError);
-      // No fallar si hay error en el email, el pago ya está registrado
+    } catch (notificationError: any) {
+      console.error('Error al procesar notificación, pero el pago fue registrado:', notificationError);
+      // No fallar si hay error en la notificación, el pago ya está registrado
     }
 
     return NextResponse.json(
@@ -263,6 +308,9 @@ export async function POST(request: NextRequest) {
         message: 'Pago registrado exitosamente',
         cdPago,
         montoTotal,
+        whatsappLink,
+        pdfUrl,
+        pdfFilename,
       },
       { status: 201 }
     );

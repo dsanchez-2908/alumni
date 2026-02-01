@@ -37,6 +37,8 @@ interface Alumno {
   dsApellido: string;
   dsDNI: string;
   cdGrupoFamiliar: number;
+  dsMailNotificacion?: string;
+  dsWhatsappNotificacion?: string;
 }
 
 interface ItemPago {
@@ -63,6 +65,8 @@ export default function RegistroPagosPage() {
   const [items, setItems] = useState<ItemPago[]>([]);
   const [tipoPagoGlobal, setTipoPagoGlobal] = useState<string>('');
   const [observacion, setObservacion] = useState('');
+  const [metodoNotificacion, setMetodoNotificacion] = useState<string>('Mail');
+  const [contactosNotificacion, setContactosNotificacion] = useState<{emails: string[], whatsapps: string[]}>({emails: [], whatsapps: []});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -142,9 +146,60 @@ export default function RegistroPagosPage() {
     setAlumnoSeleccionado(null);
     setItems([]);
     setObservacion('');
+    setMetodoNotificacion('Mail');
+    setContactosNotificacion({emails: [], whatsapps: []});
     setTipoPagoGlobal('');
     setAlumnos([]);
   };
+
+  // Cargar contactos de notificación cuando cambian los items
+  const cargarContactosNotificacion = async () => {
+    if (items.length === 0) return;
+
+    const alumnosEnPago = [...new Set(items.map(item => item.cdAlumno))];
+    const emails = new Set<string>();
+    const whatsapps = new Set<string>();
+
+    try {
+      for (const cdAlumno of alumnosEnPago) {
+        const response = await fetch(`/api/alumnos/${cdAlumno}`);
+        if (response.ok) {
+          const data = await response.json();
+          const alumno = data.alumno; // El endpoint retorna { alumno: {...}, talleresIds: [...] }
+          
+          console.log(`Cargando contactos del alumno ${cdAlumno}:`, {
+            mail: alumno.dsMailNotificacion,
+            whatsapp: alumno.dsWhatsappNotificacion
+          });
+          
+          if (alumno.dsMailNotificacion?.trim()) {
+            emails.add(alumno.dsMailNotificacion.trim());
+          }
+          if (alumno.dsWhatsappNotificacion?.trim()) {
+            whatsapps.add(alumno.dsWhatsappNotificacion.trim());
+          }
+        }
+      }
+      
+      console.log('Contactos cargados:', {
+        emails: Array.from(emails),
+        whatsapps: Array.from(whatsapps)
+      });
+      
+      setContactosNotificacion({
+        emails: Array.from(emails),
+        whatsapps: Array.from(whatsapps)
+      });
+    } catch (error) {
+      console.error('Error al cargar contactos:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (items.length > 0) {
+      cargarContactosNotificacion();
+    }
+  }, [items.length]);
 
   const calcularMontos = () => {
     // Lógica de cálculo según reglas:
@@ -275,11 +330,23 @@ export default function RegistroPagosPage() {
       return;
     }
 
+    // Validar que existan contactos según el método seleccionado
+    if ((metodoNotificacion === 'Mail' || metodoNotificacion === 'Ambos') && contactosNotificacion.emails.length === 0) {
+      error('No se encontró un email de notificación configurado para el alumno. Por favor, configure el campo "Mail Notificación" en los datos del alumno.');
+      return;
+    }
+
+    if ((metodoNotificacion === 'Whatsapp' || metodoNotificacion === 'Ambos') && contactosNotificacion.whatsapps.length === 0) {
+      error('No se encontró un número de WhatsApp configurado para el alumno. Por favor, configure el campo "WhatsApp Notificación" en los datos del alumno.');
+      return;
+    }
+
     setSaving(true);
     try {
       const payload = {
         cdGrupoFamiliar: alumnoSeleccionado?.cdGrupoFamiliar,
         observacion,
+        metodoNotificacion, // Agregar método de notificación
         items: itemsSeleccionados.map((item) => ({
           cdAlumno: item.cdAlumno,
           cdTaller: item.cdTaller,
@@ -302,10 +369,28 @@ export default function RegistroPagosPage() {
       if (response.ok) {
         const data = await response.json();
         success(`Pago registrado exitosamente. Total: $${data.montoTotal}`);
+        
+        // Si la respuesta incluye enlace de WhatsApp, abrirlo y descargar PDF
+        if (data.whatsappLink) {
+          // Abrir WhatsApp
+          window.open(data.whatsappLink, '_blank');
+          
+          // Descargar PDF
+          if (data.pdfUrl) {
+            const link = document.createElement('a');
+            link.href = data.pdfUrl;
+            link.download = data.pdfFilename || `Recibo_${data.cdPago}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          }
+        }
+        
         // Limpiar formulario
         setAlumnoSeleccionado(null);
         setItems([]);
         setObservacion('');
+        setMetodoNotificacion('Mail');
         setSearchTerm('');
       } else {
         const errorData = await response.json();
@@ -522,6 +607,51 @@ export default function RegistroPagosPage() {
                 className="mt-2"
                 placeholder="Notas adicionales..."
               />
+            </div>
+
+            <div className="mt-6">
+              <Label htmlFor="metodoNotificacion">Notificar a</Label>
+              <Select value={metodoNotificacion} onValueChange={setMetodoNotificacion}>
+                <SelectTrigger id="metodoNotificacion" className="mt-2">
+                  <SelectValue placeholder="Seleccione método de notificación" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Mail">Mail</SelectItem>
+                  <SelectItem value="Whatsapp">WhatsApp</SelectItem>
+                  <SelectItem value="Ambos">Ambos</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Mostrar contactos de notificación */}
+              {(metodoNotificacion === 'Mail' || metodoNotificacion === 'Ambos') && (
+                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                  <p className="text-sm font-medium text-blue-900">📧 Email de notificación:</p>
+                  {contactosNotificacion.emails.length > 0 ? (
+                    <p className="text-sm text-blue-700 mt-1">
+                      {contactosNotificacion.emails.join(', ')}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-red-600 mt-1">
+                      ⚠️ No hay email configurado. Configure el campo "Mail Notificación" en los datos del alumno.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {(metodoNotificacion === 'Whatsapp' || metodoNotificacion === 'Ambos') && (
+                <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
+                  <p className="text-sm font-medium text-green-900">📱 WhatsApp de notificación:</p>
+                  {contactosNotificacion.whatsapps.length > 0 ? (
+                    <p className="text-sm text-green-700 mt-1">
+                      {contactosNotificacion.whatsapps.join(', ')}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-red-600 mt-1">
+                      ⚠️ No hay WhatsApp configurado. Configure el campo "WhatsApp Notificación" en los datos del alumno.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="mt-6 flex justify-end">
