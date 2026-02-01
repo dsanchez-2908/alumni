@@ -504,6 +504,58 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
               </CardContent>
             </Card>
           )}
+
+          {/* Redes Sociales */}
+          {(alumno.dsInstagram || alumno.dsFacebook) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Redes Sociales
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {alumno.dsInstagram && (
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Instagram</label>
+                    <p className="text-base">{alumno.dsInstagram}</p>
+                  </div>
+                )}
+                {alumno.dsFacebook && (
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Facebook</label>
+                    <p className="text-base">{alumno.dsFacebook}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Notificación de Pago */}
+          {(alumno.dsMailNotificacion || alumno.dsWhatsappNotificacion) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Mail className="h-5 w-5" />
+                  Notificación de Pago
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {alumno.dsMailNotificacion && (
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Email</label>
+                    <p className="text-base">{alumno.dsMailNotificacion}</p>
+                  </div>
+                )}
+                {alumno.dsWhatsappNotificacion && (
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">WhatsApp</label>
+                    <p className="text-base">{alumno.dsWhatsappNotificacion}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Tab: Talleres */}

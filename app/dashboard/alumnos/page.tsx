@@ -98,6 +98,10 @@ export default function AlumnosPage() {
     dsTelefonoCelular: '',
     dsTelefonoFijo: '',
     dsMail: '',
+    dsInstagram: '',
+    dsFacebook: '',
+    dsMailNotificacion: '',
+    dsWhatsappNotificacion: '',
     snDiscapacidad: 'NO' as 'SI' | 'NO',
     dsObservacionesDiscapacidad: '',
     dsObservaciones: '',
@@ -164,6 +168,10 @@ export default function AlumnosPage() {
           dsTelefonoCelular: alumno.dsTelefonoCelular || '',
           dsTelefonoFijo: alumno.dsTelefonoFijo || '',
           dsMail: alumno.dsMail || '',
+          dsInstagram: data.alumno.dsInstagram || '',
+          dsFacebook: data.alumno.dsFacebook || '',
+          dsMailNotificacion: data.alumno.dsMailNotificacion || '',
+          dsWhatsappNotificacion: data.alumno.dsWhatsappNotificacion || '',
           snDiscapacidad: data.alumno.snDiscapacidad || 'NO',
           dsObservacionesDiscapacidad: data.alumno.dsObservacionesDiscapacidad || '',
           dsObservaciones: data.alumno.dsObservaciones || '',
@@ -198,6 +206,10 @@ export default function AlumnosPage() {
         dsTelefonoCelular: '',
         dsTelefonoFijo: '',
         dsMail: '',
+        dsInstagram: '',
+        dsFacebook: '',
+        dsMailNotificacion: '',
+        dsWhatsappNotificacion: '',
         snDiscapacidad: 'NO',
         dsObservacionesDiscapacidad: '',
         dsObservaciones: '',
@@ -646,7 +658,64 @@ export default function AlumnosPage() {
                   </div>
                 </div>
               </div>
+              {/* Redes Sociales */}
+              <div className="border-b pb-4">
+                <h3 className="font-semibold text-lg mb-3">Redes Sociales</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="dsInstagram">Instagram</Label>
+                    <Input
+                      id="dsInstagram"
+                      value={formData.dsInstagram}
+                      onChange={(e) =>
+                        setFormData({ ...formData, dsInstagram: e.target.value })
+                      }
+                      placeholder="@usuario"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="dsFacebook">Facebook</Label>
+                    <Input
+                      id="dsFacebook"
+                      value={formData.dsFacebook}
+                      onChange={(e) =>
+                        setFormData({ ...formData, dsFacebook: e.target.value })
+                      }
+                      placeholder="Nombre de usuario o URL"
+                    />
+                  </div>
+                </div>
+              </div>
 
+              {/* Notificación de Pago */}
+              <div className="border-b pb-4">
+                <h3 className="font-semibold text-lg mb-3">Notificación de Pago</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="dsMailNotificacion">Email</Label>
+                    <Input
+                      id="dsMailNotificacion"
+                      type="email"
+                      value={formData.dsMailNotificacion}
+                      onChange={(e) =>
+                        setFormData({ ...formData, dsMailNotificacion: e.target.value })
+                      }
+                      placeholder="correo@ejemplo.com"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="dsWhatsappNotificacion">WhatsApp</Label>
+                    <Input
+                      id="dsWhatsappNotificacion"
+                      value={formData.dsWhatsappNotificacion}
+                      onChange={(e) =>
+                        setFormData({ ...formData, dsWhatsappNotificacion: e.target.value })
+                      }
+                      placeholder="+54 9 11 1234-5678"
+                    />
+                  </div>
+                </div>
+              </div>
               {/* Contacto */}
               <div className="border-b pb-4">
                 <h3 className="font-semibold text-lg mb-3">Datos de Contacto</h3>

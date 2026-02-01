@@ -61,6 +61,12 @@ export default function NuevoAlumnoPage() {
     dsTelefonoCelular: '',
     dsTelefonoFijo: '',
     dsMail: '',
+    // Redes sociales
+    dsInstagram: '',
+    dsFacebook: '',
+    // Notificaciones de pago
+    dsMailNotificacion: '',
+    dsWhatsappNotificacion: '',
     // Contacto 1 (opcional)
     dsNombreCompletoContacto1: '',
     dsParentescoContacto1: '',
@@ -511,6 +517,67 @@ export default function NuevoAlumnoPage() {
                 value={formData.dsMailContacto2}
                 onChange={(e) => handleChange('dsMailContacto2', e.target.value)}
                 placeholder="Opcional"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Redes Sociales */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Redes Sociales</CardTitle>
+            <CardDescription>
+              Datos de redes sociales del alumno (opcional)
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="dsInstagram">Instagram</Label>
+              <Input
+                id="dsInstagram"
+                value={formData.dsInstagram}
+                onChange={(e) => handleChange('dsInstagram', e.target.value)}
+                placeholder="@usuario"
+              />
+            </div>
+            <div>
+              <Label htmlFor="dsFacebook">Facebook</Label>
+              <Input
+                id="dsFacebook"
+                value={formData.dsFacebook}
+                onChange={(e) => handleChange('dsFacebook', e.target.value)}
+                placeholder="Nombre de usuario o URL"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Notificación de Pago */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Notificación de Pago</CardTitle>
+            <CardDescription>
+              Datos de contacto para notificaciones de pago
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="dsMailNotificacion">Email</Label>
+              <Input
+                id="dsMailNotificacion"
+                type="email"
+                value={formData.dsMailNotificacion}
+                onChange={(e) => handleChange('dsMailNotificacion', e.target.value)}
+                placeholder="correo@ejemplo.com"
+              />
+            </div>
+            <div>
+              <Label htmlFor="dsWhatsappNotificacion">WhatsApp</Label>
+              <Input
+                id="dsWhatsappNotificacion"
+                value={formData.dsWhatsappNotificacion}
+                onChange={(e) => handleChange('dsWhatsappNotificacion', e.target.value)}
+                placeholder="+54 9 11 1234-5678"
               />
             </div>
           </CardContent>
