@@ -106,11 +106,16 @@ export async function GET(request: NextRequest) {
         }
 
         const alumnoData = alumnosMap.get(cdAlumno)!;
+        const ultimaFecha = ausenciasLista[ausenciasLista.length - 1].feFalta;
         alumnoData.talleres.push({
           cdTaller: cdTaller,
           dsNombreTaller: alumno.dsNombreTaller,
           faltasConsecutivas: maxConsecutivas,
-          ultimaFalta: ausenciasLista[ausenciasLista.length - 1].feFalta
+          ultimaFalta: ultimaFecha instanceof Date 
+            ? ultimaFecha.toISOString().split('T')[0] 
+            : typeof ultimaFecha === 'string' 
+            ? ultimaFecha.split('T')[0] 
+            : ultimaFecha
         });
         alumnoData.totalFaltasConsecutivas += maxConsecutivas;
       }
