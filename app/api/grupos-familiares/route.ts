@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import { executeQuery } from '@/lib/db-utils';
 import { registrarTraza } from '@/lib/db-utils';
+import { RowDataPacket } from 'mysql2';
 
 interface GrupoFamiliar {
   cdGrupoFamiliar: number;
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    const grupos = await executeQuery<GrupoFamiliar>(
+    const grupos = await executeQuery<GrupoFamiliar & RowDataPacket>(
       `SELECT 
         gf.cdGrupoFamiliar,
         gf.dsNombreGrupo,
