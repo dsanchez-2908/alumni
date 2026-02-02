@@ -27,8 +27,8 @@ export function generarPDFRecibo(datos: DatosRecibo): Buffer {
   const doc = new jsPDF() as any;
 
   // Configuración de colores
-  const colorPrimario = [99, 102, 241]; // Indigo
-  const colorSecundario = [139, 92, 246]; // Violet
+  const colorPrimario: [number, number, number] = [99, 102, 241]; // Indigo
+  const colorSecundario: [number, number, number] = [139, 92, 246]; // Violet
 
   // Encabezado
   doc.setFillColor(...colorPrimario);
