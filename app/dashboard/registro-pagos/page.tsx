@@ -29,7 +29,14 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Search, DollarSign, Save } from 'lucide-react';
+import { Search, DollarSign, Save, Download, MessageCircle } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface Alumno {
   cdAlumno: number;
@@ -69,6 +76,8 @@ export default function RegistroPagosPage() {
   const [contactosNotificacion, setContactosNotificacion] = useState<{emails: string[], whatsapps: string[]}>({emails: [], whatsapps: []});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [dialogAbierto, setDialogAbierto] = useState(false);
+  const [datosNotificacion, setDatosNotificacion] = useState<{whatsappLink?: string, pdfUrl?: string, pdfFilename?: string}>({});
 
   // Recalcular montos cuando cambian los items
   useEffect(() => {
@@ -370,28 +379,18 @@ export default function RegistroPagosPage() {
         const data = await response.json();
         success(`Pago registrado exitosamente. Total: $${data.montoTotal}`);
         
-        // Si la respuesta incluye enlace de WhatsApp, abrirlo y descargar PDF
-        if (data.whatsappLink) {
-          // Abrir WhatsApp
-          window.open(data.whatsappLink, '_blank');
-          
-          // Descargar PDF
-          if (data.pdfUrl) {
-            const link = document.createElement('a');
-            link.href = data.pdfUrl;
-            link.download = data.pdfFilename || `Recibo_${data.cdPago}.pdf`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-          }
+        // Si hay WhatsApp o PDF, mostrar diálogo
+        if (data.whatsappLink || data.pdfUrl) {
+          setDatosNotificacion({
+            whatsappLink: data.whatsappLink,
+            pdfUrl: data.pdfUrl,
+            pdfFilename: data.pdfFilename
+          });
+          setDialogAbierto(true);
+        } else {
+          // Si no hay notificación, limpiar directamente
+          limpiarFormulario();
         }
-        
-        // Limpiar formulario
-        setAlumnoSeleccionado(null);
-        setItems([]);
-        setObservacion('');
-        setMetodoNotificacion('Mail');
-        setSearchTerm('');
       } else {
         const errorData = await response.json();
         error(`Error: ${errorData.error}`);
@@ -425,6 +424,37 @@ export default function RegistroPagosPage() {
     'Noviembre',
     'Diciembre',
   ];
+
+  const limpiarFormulario = () => {
+    setAlumnoSeleccionado(null);
+    setItems([]);
+    setObservacion('');
+    setMetodoNotificacion('Mail');
+    setSearchTerm('');
+  };
+
+  const abrirWhatsApp = () => {
+    if (datosNotificacion.whatsappLink) {
+      window.open(datosNotificacion.whatsappLink, '_blank');
+    }
+  };
+
+  const descargarPDF = () => {
+    if (datosNotificacion.pdfUrl) {
+      const link = document.createElement('a');
+      link.href = datosNotificacion.pdfUrl;
+      link.download = datosNotificacion.pdfFilename || 'Recibo.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  const cerrarDialogYLimpiar = () => {
+    setDialogAbierto(false);
+    setDatosNotificacion({});
+    limpiarFormulario();
+  };
 
   return (
     <div className="container mx-auto py-8">
@@ -667,6 +697,71 @@ export default function RegistroPagosPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Diálogo de notificación */}
+      <Dialog open={dialogAbierto} onOpenChange={(open) => {
+        if (!open) cerrarDialogYLimpiar();
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold text-green-700">✅ Pago Registrado</DialogTitle>
+            <DialogDescription>
+              El pago se registró correctamente. Complete las siguientes acciones:
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {datosNotificacion.whatsappLink && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <MessageCircle className="h-5 w-5 text-green-600" />
+                  <p className="font-medium text-green-900">Enviar por WhatsApp</p>
+                </div>
+                <p className="text-sm text-gray-600 mb-3">
+                  Haga clic para abrir WhatsApp Web y enviar el comprobante
+                </p>
+                <Button
+                  onClick={abrirWhatsApp}
+                  className="w-full bg-green-600 hover:bg-green-700"
+                >
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                  Abrir WhatsApp Web
+                </Button>
+              </div>
+            )}
+
+            {datosNotificacion.pdfUrl && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Download className="h-5 w-5 text-blue-600" />
+                  <p className="font-medium text-blue-900">Descargar Comprobante</p>
+                </div>
+                <p className="text-sm text-gray-600 mb-3">
+                  Descargue el PDF del recibo de pago
+                </p>
+                <Button
+                  onClick={descargarPDF}
+                  variant="outline"
+                  className="w-full border-blue-300 text-blue-700 hover:bg-blue-100"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Descargar PDF
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end pt-4 border-t">
+            <Button
+              onClick={cerrarDialogYLimpiar}
+              variant="default"
+              className="bg-indigo-600 hover:bg-indigo-700"
+            >
+              Finalizar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

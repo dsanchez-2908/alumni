@@ -7,30 +7,43 @@ import {
   Users, 
   GraduationCap, 
   BookOpen, 
-  DollarSign,
+  Cake,
   TrendingUp,
-  Calendar
+  Calendar,
+  AlertCircle,
+  Clock,
+  DollarSign
 } from 'lucide-react';
 
 interface Stats {
   alumnos: number;
   talleres: number;
   profesores: number;
-  ingresos: number;
+  alumnosPagoMesActual: number;
+  alumnosPagoMesesAnteriores: number;
 }
 
-interface TallerPopular {
+interface Cumpleano {
+  tipo: string;
+  nombre: string;
+  feNacimiento: string;
+  fechaCumple: string;
+  diasFaltantes: number;
+  esHoy: boolean;
+}
+
+interface Taller {
   cdTaller: number;
-  dsTaller: string;
-  totalAlumnos: number;
+  dsNombreTaller: string;
+  nuAnioTaller: number;
+  fechasPendientes: number;
 }
 
-interface PagoReciente {
-  cdPago: number;
-  dsAlumno: string;
-  nuMonto: number;
-  fePago: string;
-  dsFormaPago: string;
+interface ProfesorPendiente {
+  cdPersonal: number;
+  dsNombreCompleto: string;
+  talleres: Taller[];
+  totalFechasPendientes: number;
 }
 
 export default function DashboardPage() {
@@ -40,10 +53,11 @@ export default function DashboardPage() {
     alumnos: 0,
     talleres: 0,
     profesores: 0,
-    ingresos: 0,
+    alumnosPagoMesActual: 0,
+    alumnosPagoMesesAnteriores: 0,
   });
-  const [talleresPopulares, setTalleresPopulares] = useState<TallerPopular[]>([]);
-  const [pagosRecientes, setPagosRecientes] = useState<PagoReciente[]>([]);
+  const [cumpleanos, setCumpleanos] = useState<Cumpleano[]>([]);
+  const [profesoresPendientes, setProfesoresPendientes] = useState<ProfesorPendiente[]>([]);
 
   useEffect(() => {
     fetchStats();
@@ -55,8 +69,8 @@ export default function DashboardPage() {
       if (response.ok) {
         const data = await response.json();
         setStats(data.totales);
-        setTalleresPopulares(data.talleresPopulares);
-        setPagosRecientes(data.pagosRecientes);
+        setCumpleanos(data.cumpleanos || []);
+        setProfesoresPendientes(data.profesoresPendientes || []);
       }
     } catch (error) {
       console.error('Error al cargar estadísticas:', error);
@@ -88,11 +102,18 @@ export default function DashboardPage() {
       color: 'from-purple-500 to-purple-600',
     },
     {
-      title: 'Ingresos del Mes',
-      value: loading ? '...' : `$${stats.ingresos.toLocaleString('es-AR')}`,
-      icon: <DollarSign className="h-8 w-8 text-emerald-600" />,
-      description: 'Pagos registrados',
-      color: 'from-emerald-500 to-emerald-600',
+      title: 'Deben Pagar - Mes Actual',
+      value: loading ? '...' : stats.alumnosPagoMesActual.toString(),
+      icon: <DollarSign className="h-8 w-8 text-amber-600" />,
+      description: 'Alumnos con pago pendiente',
+      color: 'from-amber-500 to-amber-600',
+    },
+    {
+      title: 'Deben Pagar - Meses Anteriores',
+      value: loading ? '...' : stats.alumnosPagoMesesAnteriores.toString(),
+      icon: <DollarSign className="h-8 w-8 text-red-600" />,
+      description: 'Alumnos con deuda acumulada',
+      color: 'from-red-500 to-red-600',
     },
   ];
 
@@ -121,7 +142,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
         {statsCards.map((stat, index) => (
           <Card key={index} className="border-none shadow-lg hover:shadow-xl transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -147,68 +168,107 @@ export default function DashboardPage() {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="border-indigo-100 shadow-lg">
+        {/* Próximos Cumpleaños */}
+        <Card className="border-pink-100 shadow-lg">
           <CardHeader>
-            <CardTitle className="text-xl text-gray-800">Talleres Populares</CardTitle>
-            <CardDescription>Talleres con mayor cantidad de alumnos</CardDescription>
+            <CardTitle className="text-xl text-gray-800 flex items-center gap-2">
+              <Cake className="h-5 w-5 text-pink-600" />
+              Próximos Cumpleaños
+            </CardTitle>
+            <CardDescription>Alumnos y profesores próximos a cumplir años</CardDescription>
           </CardHeader>
           <CardContent>
             {loading ? (
               <div className="text-center py-4 text-gray-500">Cargando...</div>
-            ) : talleresPopulares.length > 0 ? (
+            ) : cumpleanos.length > 0 ? (
               <div className="space-y-3">
-                {talleresPopulares.map((taller) => (
-                  <div key={taller.cdTaller} className="flex items-center justify-between p-3 bg-indigo-50 rounded-lg">
+                {cumpleanos.map((cumple, index) => (
+                  <div 
+                    key={index} 
+                    className={`flex items-center justify-between p-3 rounded-lg ${
+                      cumple.esHoy 
+                        ? 'bg-gradient-to-r from-pink-100 to-rose-100 border-2 border-pink-300' 
+                        : 'bg-pink-50'
+                    }`}
+                  >
                     <div className="flex items-center gap-3">
-                      <BookOpen className="h-5 w-5 text-indigo-600" />
+                      <Cake className={`h-5 w-5 ${cumple.esHoy ? 'text-pink-600' : 'text-pink-500'}`} />
                       <div>
-                        <p className="font-medium text-gray-800 text-sm">{taller.dsTaller}</p>
+                        <p className="font-medium text-gray-800 text-sm">
+                          {cumple.nombre}
+                          {cumple.esHoy && (
+                            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-pink-600 text-white">
+                              ¡Hoy!
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          {cumple.tipo} - {cumple.fechaCumple}
+                        </p>
                       </div>
                     </div>
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-                      {taller.totalAlumnos} alumnos
-                    </span>
+                    {!cumple.esHoy && (
+                      <span className="text-xs text-gray-600 bg-white px-2 py-1 rounded">
+                        {cumple.diasFaltantes === 0 ? 'Mañana' : `en ${cumple.diasFaltantes} día${cumple.diasFaltantes > 1 ? 's' : ''}`}
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
             ) : (
               <div className="text-center py-8 text-gray-500">
-                <p className="text-sm">No hay talleres registrados</p>
+                <Cake className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                <p className="text-sm">No hay cumpleaños próximos</p>
               </div>
             )}
           </CardContent>
         </Card>
 
-        <Card className="border-violet-100 shadow-lg">
+        {/* Profesores con Fechas Pendientes */}
+        <Card className="border-orange-100 shadow-lg">
           <CardHeader>
-            <CardTitle className="text-xl text-gray-800">Pagos Recientes</CardTitle>
-            <CardDescription>Últimos pagos registrados</CardDescription>
+            <CardTitle className="text-xl text-gray-800 flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-orange-600" />
+              Asistencias Pendientes
+            </CardTitle>
+            <CardDescription>Profesores con fechas de asistencia sin registrar</CardDescription>
           </CardHeader>
           <CardContent>
             {loading ? (
               <div className="text-center py-4 text-gray-500">Cargando...</div>
-            ) : pagosRecientes.length > 0 ? (
-              <div className="space-y-3">
-                {pagosRecientes.map((pago) => (
-                  <div key={pago.cdPago} className="flex items-center justify-between p-3 bg-violet-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <Users className="h-5 w-5 text-violet-600" />
-                      <div>
-                        <p className="font-medium text-gray-800 text-sm">{pago.dsAlumno}</p>
-                        <p className="text-xs text-gray-600">
-                          {new Date(pago.fePago).toLocaleDateString('es-AR')} - {pago.dsFormaPago}
-                        </p>
+            ) : profesoresPendientes.length > 0 ? (
+              <div className="space-y-4 max-h-96 overflow-y-auto">
+                {profesoresPendientes.map((profesor) => (
+                  <div key={profesor.cdPersonal} className="border border-orange-200 rounded-lg p-3 bg-orange-50">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <GraduationCap className="h-5 w-5 text-orange-600" />
+                        <p className="font-medium text-gray-800 text-sm">{profesor.dsNombreCompleto}</p>
                       </div>
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-600 text-white">
+                        {profesor.totalFechasPendientes} fecha{profesor.totalFechasPendientes > 1 ? 's' : ''}
+                      </span>
                     </div>
-                    <span className="font-semibold text-emerald-600">
-                      ${pago.nuMonto.toLocaleString('es-AR')}
-                    </span>
+                    <div className="ml-7 space-y-1">
+                      {profesor.talleres.map((taller) => (
+                        <div key={taller.cdTaller} className="flex items-center justify-between text-xs">
+                          <span className="text-gray-700">
+                            {taller.dsNombreTaller} ({taller.nuAnioTaller})
+                          </span>
+                          <span className="flex items-center gap-1 text-orange-700">
+                            <Clock className="h-3 w-3" />
+                            {taller.fechasPendientes}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
             ) : (
               <div className="text-center py-8 text-gray-500">
-                <p className="text-sm">No hay pagos registrados</p>
+                <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                <p className="text-sm">¡Todas las asistencias están al día!</p>
               </div>
             )}
           </CardContent>

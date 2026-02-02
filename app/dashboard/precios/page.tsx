@@ -169,8 +169,8 @@ export default function PreciosPage() {
       return;
     }
 
-    // Filtrar solo los precios que fueron completados (al menos un campo con valor)
-    const preciosCompletos = preciosForm.filter(
+    // Validar que al menos un precio fue modificado
+    const preciosModificados = preciosForm.filter(
       (p) =>
         p.nuPrecioCompletoEfectivo ||
         p.nuPrecioCompletoTransferencia ||
@@ -178,13 +178,13 @@ export default function PreciosPage() {
         p.nuPrecioDescuentoTransferencia
     );
 
-    if (preciosCompletos.length === 0) {
-      error('Debe completar al menos un precio');
+    if (preciosModificados.length === 0) {
+      error('Debe modificar al menos un precio');
       return;
     }
 
-    // Validar que los precios completados tengan todos los campos
-    const preciosIncompletos = preciosCompletos.filter(
+    // Validar que los precios modificados tengan todos los campos
+    const preciosIncompletos = preciosModificados.filter(
       (p) =>
         !p.nuPrecioCompletoEfectivo ||
         !p.nuPrecioCompletoTransferencia ||
@@ -203,15 +203,48 @@ export default function PreciosPage() {
     setSubmitting(true);
 
     try {
-      // Preparar el array de precios para enviar
-      const preciosData = preciosCompletos.map((p) => ({
-        feInicioVigencia,
-        cdTipoTaller: p.cdTipoTaller,
-        nuPrecioCompletoEfectivo: parseFloat(p.nuPrecioCompletoEfectivo),
-        nuPrecioCompletoTransferencia: parseFloat(p.nuPrecioCompletoTransferencia),
-        nuPrecioDescuentoEfectivo: parseFloat(p.nuPrecioDescuentoEfectivo),
-        nuPrecioDescuentoTransferencia: parseFloat(p.nuPrecioDescuentoTransferencia),
-      }));
+      // Preparar el array de precios para TODOS los talleres
+      // Si no se modificó, usar el precio actual
+      const preciosData = preciosForm.map((p) => {
+        // Si el taller tiene precios nuevos ingresados, usarlos
+        if (
+          p.nuPrecioCompletoEfectivo &&
+          p.nuPrecioCompletoTransferencia &&
+          p.nuPrecioDescuentoEfectivo &&
+          p.nuPrecioDescuentoTransferencia
+        ) {
+          return {
+            feInicioVigencia,
+            cdTipoTaller: p.cdTipoTaller,
+            nuPrecioCompletoEfectivo: parseFloat(p.nuPrecioCompletoEfectivo),
+            nuPrecioCompletoTransferencia: parseFloat(p.nuPrecioCompletoTransferencia),
+            nuPrecioDescuentoEfectivo: parseFloat(p.nuPrecioDescuentoEfectivo),
+            nuPrecioDescuentoTransferencia: parseFloat(p.nuPrecioDescuentoTransferencia),
+          };
+        }
+        // Si no se modificó pero tiene precio actual, copiar el precio actual
+        else if (p.precioActual) {
+          return {
+            feInicioVigencia,
+            cdTipoTaller: p.cdTipoTaller,
+            nuPrecioCompletoEfectivo: p.precioActual.nuPrecioCompletoEfectivo,
+            nuPrecioCompletoTransferencia: p.precioActual.nuPrecioCompletoTransferencia,
+            nuPrecioDescuentoEfectivo: p.precioActual.nuPrecioDescuentoEfectivo,
+            nuPrecioDescuentoTransferencia: p.precioActual.nuPrecioDescuentoTransferencia,
+          };
+        }
+        // Si no tiene precio actual, usar 0 (caso de taller nuevo)
+        else {
+          return {
+            feInicioVigencia,
+            cdTipoTaller: p.cdTipoTaller,
+            nuPrecioCompletoEfectivo: 0,
+            nuPrecioCompletoTransferencia: 0,
+            nuPrecioDescuentoEfectivo: 0,
+            nuPrecioDescuentoTransferencia: 0,
+          };
+        }
+      });
 
       const response = await fetch('/api/precios', {
         method: 'POST',
@@ -223,7 +256,7 @@ export default function PreciosPage() {
 
       if (response.ok) {
         success(
-          `${preciosCompletos.length} precio(s) registrado(s) exitosamente`
+          `${preciosData.length} precio(s) registrado(s) exitosamente para la vigencia ${new Date(feInicioVigencia).toLocaleDateString('es-AR')}`
         );
         setIsDialogOpen(false);
         setFeInicioVigencia('');
