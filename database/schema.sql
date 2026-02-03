@@ -172,7 +172,10 @@ CREATE TABLE TD_ALUMNOS (
 CREATE TABLE TD_GRUPOS_FAMILIARES (
     cdGrupoFamiliar INT AUTO_INCREMENT PRIMARY KEY,
     dsNombreGrupo VARCHAR(255),
-    feCreacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    cdEstado INT NOT NULL DEFAULT 1,
+    feCreacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    feActualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (cdEstado) REFERENCES TD_ESTADOS(cdEstado)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =============================================
@@ -247,22 +250,25 @@ CREATE TABLE TR_ALUMNO_TALLER (
     id INT AUTO_INCREMENT PRIMARY KEY,
     cdAlumno INT NOT NULL,
     cdTaller INT NOT NULL,
+    cdEstado INT NOT NULL DEFAULT 1 COMMENT '1=Activo, 2=Inactivo, 4=Finalizado',
     feInscripcion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     feBaja TIMESTAMP NULL,
     FOREIGN KEY (cdAlumno) REFERENCES TD_ALUMNOS(cdAlumno) ON DELETE CASCADE,
     FOREIGN KEY (cdTaller) REFERENCES TD_TALLERES(cdTaller) ON DELETE CASCADE,
+    FOREIGN KEY (cdEstado) REFERENCES TD_ESTADOS(cdEstado),
     UNIQUE KEY UK_Alumno_Taller_Activo (cdAlumno, cdTaller)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =============================================
--- TABLA: TD_FALTAS
--- Descripción: Registro de faltas de alumnos
+-- TABLA: TD_ASISTENCIAS
+-- Descripción: Registro de asistencias/faltas de alumnos
 -- =============================================
-CREATE TABLE TD_FALTAS (
+CREATE TABLE TD_ASISTENCIAS (
     cdFalta INT AUTO_INCREMENT PRIMARY KEY,
     cdTaller INT NOT NULL,
     cdAlumno INT NOT NULL,
     feFalta DATE NOT NULL,
+    snPresente TINYINT NOT NULL DEFAULT 1 COMMENT '0=Ausente, 1=Presente, 3=Feriado',
     dsObservacion VARCHAR(255),
     cdUsuarioRegistro INT NOT NULL,
     feRegistro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -388,7 +394,8 @@ CREATE TABLE TD_TRAZA (
 INSERT INTO TD_ESTADOS (dsEstado, dsDescripcion) VALUES
 ('Activo', 'Estado activo en el sistema'),
 ('Inactivo', 'Estado inactivo en el sistema'),
-('Baja', 'Estado de baja definitiva');
+('Baja', 'Estado de baja definitiva'),
+('Finalizado', 'Taller finalizado');
 
 -- Roles
 INSERT INTO TD_ROLES (dsRol, dsDescripcion) VALUES
