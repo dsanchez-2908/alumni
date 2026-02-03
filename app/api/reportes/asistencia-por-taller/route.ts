@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
         t.feInicioTaller,
         p.dsNombreCompleto as nombrePersonal
       FROM TD_TALLERES t
-      INNER JOIN td_tipo_talleres tt ON t.cdTipoTaller = tt.cdTipoTaller
+      INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
       LEFT JOIN TD_PERSONAL p ON t.cdPersonal = p.cdPersonal
       WHERE t.cdTaller = ? AND t.nuAnioTaller = ?`,
       [cdTaller, anio]
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
     const [diasClase] = await pool.execute<any[]>(
       `SELECT 
         COUNT(DISTINCT feFalta) as totalClases
-      FROM td_asistencias
+      FROM TD_ASISTENCIAS
       WHERE cdTaller = ? 
         AND YEAR(feFalta) = ?`,
       [cdTaller, anio]
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
         SUM(CASE WHEN snPresente = 1 THEN 1 ELSE 0 END) as totalPresentes,
         SUM(CASE WHEN snPresente = 0 THEN 1 ELSE 0 END) as totalAusentes,
         SUM(CASE WHEN snPresente = 3 THEN 1 ELSE 0 END) as totalFeriados
-      FROM td_asistencias
+      FROM TD_ASISTENCIAS
       WHERE cdTaller = ? 
         AND YEAR(feFalta) = ?`,
       [cdTaller, anio]
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
         a.dsNombre,
         a.dsApellido,
         a.dsDNI
-      FROM tr_alumno_taller at
+      FROM TR_ALUMNO_TALLER at
       INNER JOIN TD_ALUMNOS a ON at.cdAlumno = a.cdAlumno
       WHERE at.cdTaller = ?
       ORDER BY a.dsApellido, a.dsNombre`,
@@ -94,9 +94,9 @@ export async function GET(request: NextRequest) {
         SUM(CASE WHEN ast.snPresente = 0 THEN 1 ELSE 0 END) as totalAusentes,
         SUM(CASE WHEN ast.snPresente = 3 THEN 1 ELSE 0 END) as totalFeriados,
         COUNT(DISTINCT ast.feFalta) as totalRegistros
-      FROM tr_alumno_taller at
+      FROM TR_ALUMNO_TALLER at
       INNER JOIN TD_ALUMNOS a ON at.cdAlumno = a.cdAlumno
-      LEFT JOIN td_asistencias ast ON at.cdAlumno = ast.cdAlumno 
+      LEFT JOIN TD_ASISTENCIAS ast ON at.cdAlumno = ast.cdAlumno 
         AND at.cdTaller = ast.cdTaller
         AND YEAR(ast.feFalta) = ?
       WHERE at.cdTaller = ?
@@ -115,9 +115,9 @@ export async function GET(request: NextRequest) {
         SUM(CASE WHEN ast.snPresente = 1 THEN 1 ELSE 0 END) as presentes,
         SUM(CASE WHEN ast.snPresente = 0 THEN 1 ELSE 0 END) as ausentes,
         SUM(CASE WHEN ast.snPresente = 3 THEN 1 ELSE 0 END) as feriados
-      FROM tr_alumno_taller at
+      FROM TR_ALUMNO_TALLER at
       INNER JOIN TD_ALUMNOS a ON at.cdAlumno = a.cdAlumno
-      LEFT JOIN td_asistencias ast ON at.cdAlumno = ast.cdAlumno 
+      LEFT JOIN TD_ASISTENCIAS ast ON at.cdAlumno = ast.cdAlumno 
         AND at.cdTaller = ast.cdTaller
         AND YEAR(ast.feFalta) = ?
       WHERE at.cdTaller = ?

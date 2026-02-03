@@ -12,7 +12,7 @@ export async function GET() {
     }
 
     const [tipos] = await pool.execute<any[]>(
-      'SELECT * FROM td_tipo_talleres WHERE cdEstado = 1 ORDER BY dsNombreTaller'
+      'SELECT * FROM TD_TIPO_TALLERES WHERE cdEstado = 1 ORDER BY dsNombreTaller'
     );
 
     return NextResponse.json(tipos);

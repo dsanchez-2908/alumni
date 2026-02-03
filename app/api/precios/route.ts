@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
         tt.dsNombreTaller,
         u.dsNombreCompleto as nombreUsuarioAlta
       FROM TD_PRECIOS_TALLERES p
-      INNER JOIN td_tipo_talleres tt ON p.cdTipoTaller = tt.cdTipoTaller
+      INNER JOIN TD_TIPO_TALLERES tt ON p.cdTipoTaller = tt.cdTipoTaller
       LEFT JOIN TD_USUARIOS u ON p.cdUsuarioAlta = u.cdUsuario
       WHERE p.cdEstado = 1
     `;

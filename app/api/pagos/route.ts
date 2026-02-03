@@ -201,10 +201,10 @@ async function consultarPendientes(searchParams: URLSearchParams) {
         tt.dsNombreTaller,
         t.nuAnioTaller
       FROM TD_ALUMNOS a
-      INNER JOIN tr_alumno_taller at ON a.cdAlumno = at.cdAlumno
+      INNER JOIN TR_ALUMNO_TALLER at ON a.cdAlumno = at.cdAlumno
       INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
       INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
-      LEFT JOIN tr_alumno_grupo_familiar agf ON a.cdAlumno = agf.cdAlumno
+      LEFT JOIN TR_ALUMNO_GRUPO_FAMILIAR agf ON a.cdAlumno = agf.cdAlumno
       LEFT JOIN TD_GRUPOS_FAMILIARES gf ON agf.cdGrupoFamiliar = gf.cdGrupoFamiliar
       WHERE a.cdEstado = 1
         AND at.feBaja IS NULL

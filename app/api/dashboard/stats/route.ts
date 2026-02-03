@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     const [alumnosMesActualRows] = await pool.execute<any[]>(
       `SELECT COUNT(DISTINCT a.cdAlumno) as total
        FROM TD_ALUMNOS a
-       INNER JOIN tr_alumno_taller at ON a.cdAlumno = at.cdAlumno
+       INNER JOIN TR_ALUMNO_TALLER at ON a.cdAlumno = at.cdAlumno
        INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
        WHERE a.cdEstado = 1
          AND at.feBaja IS NULL
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
        FROM (
          SELECT DISTINCT a.cdAlumno, mes.mes
          FROM TD_ALUMNOS a
-         INNER JOIN tr_alumno_taller at ON a.cdAlumno = at.cdAlumno
+         INNER JOIN TR_ALUMNO_TALLER at ON a.cdAlumno = at.cdAlumno
          INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
          CROSS JOIN (
            SELECT 1 as mes UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 
@@ -167,7 +167,7 @@ export async function GET(request: NextRequest) {
         t.snJueves, t.snViernes, t.snSabado
       FROM TD_TALLERES t
       INNER JOIN TD_PERSONAL p ON t.cdPersonal = p.cdPersonal
-      INNER JOIN td_tipo_talleres tt ON t.cdTipoTaller = tt.cdTipoTaller
+      INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
       WHERE t.cdEstado IN (1, 2)
         AND p.cdEstado = 1
         AND p.dsTipoPersonal = 'Profesor'
@@ -183,7 +183,7 @@ export async function GET(request: NextRequest) {
       // Obtener fechas ya registradas
       const [registradas] = await pool.execute<any[]>(
         `SELECT DISTINCT DATE(feFalta) as fecha
-         FROM td_asistencias
+         FROM TD_ASISTENCIAS
          WHERE cdTaller = ?`,
         [taller.cdTaller]
       );

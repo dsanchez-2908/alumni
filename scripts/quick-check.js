@@ -20,7 +20,7 @@ async function quickCheck() {
         p.dsNombreCompleto
       FROM TD_TALLERES t
       INNER JOIN TD_PERSONAL p ON t.cdPersonal = p.cdPersonal
-      INNER JOIN td_tipo_talleres tt ON t.cdTipoTaller = tt.cdTipoTaller
+      INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
       WHERE p.dsNombreCompleto LIKE '%profe1%'
       ORDER BY tt.dsNombreTaller
     `);
@@ -39,7 +39,7 @@ async function quickCheck() {
         t.cdEstado
       FROM TD_TALLERES t
       INNER JOIN TD_PERSONAL p ON t.cdPersonal = p.cdPersonal
-      INNER JOIN td_tipo_talleres tt ON t.cdTipoTaller = tt.cdTipoTaller
+      INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
       WHERE t.cdEstado = 1 
         AND p.cdEstado = 1
         AND p.dsTipoPersonal = 'Profesor'

@@ -28,10 +28,10 @@ export async function GET(request: NextRequest) {
         ast.dsObservacion,
         ast.snContactado
       FROM TD_ALUMNOS a
-      INNER JOIN tr_alumno_taller at ON a.cdAlumno = at.cdAlumno
+      INNER JOIN TR_ALUMNO_TALLER at ON a.cdAlumno = at.cdAlumno
       INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
-      INNER JOIN td_tipo_talleres tt ON t.cdTipoTaller = tt.cdTipoTaller
-      INNER JOIN td_asistencias ast ON a.cdAlumno = ast.cdAlumno AND t.cdTaller = ast.cdTaller
+      INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
+      INNER JOIN TD_ASISTENCIAS ast ON a.cdAlumno = ast.cdAlumno AND t.cdTaller = ast.cdTaller
       WHERE a.cdEstado = 1
         AND at.feBaja IS NULL
         AND t.cdEstado = 1

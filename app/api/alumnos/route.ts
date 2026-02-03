@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
        FROM TD_ALUMNOS a
        LEFT JOIN TR_ALUMNO_GRUPO_FAMILIAR agf ON a.cdAlumno = agf.cdAlumno
        LEFT JOIN TD_GRUPOS_FAMILIARES gf ON agf.cdGrupoFamiliar = gf.cdGrupoFamiliar
-       LEFT JOIN tr_alumno_taller at ON a.cdAlumno = at.cdAlumno AND at.feBaja IS NULL
+       LEFT JOIN TR_ALUMNO_TALLER at ON a.cdAlumno = at.cdAlumno AND at.feBaja IS NULL
        LEFT JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
        LEFT JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
        WHERE a.cdEstado IN (1, 2)`;
@@ -292,7 +292,7 @@ export async function POST(request: NextRequest) {
     if (talleres.length > 0) {
       const inscripcionesPromises = talleres.map((cdTaller: number) =>
         pool.execute(
-          `INSERT INTO tr_alumno_taller (
+          `INSERT INTO TR_ALUMNO_TALLER (
             cdAlumno,
             cdTaller,
             cdEstado,
