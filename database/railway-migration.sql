@@ -11,9 +11,10 @@ SET FOREIGN_KEY_CHECKS = 0;
 
 -- Eliminar todas las tablas en orden inverso
 DROP TABLE IF EXISTS TD_TRAZA;
+DROP TABLE IF EXISTS TD_NOVEDADES_ALUMNO;
 DROP TABLE IF EXISTS TD_PAGOS_DETALLE;
 DROP TABLE IF EXISTS TD_PAGOS;
-DROP TABLE IF EXISTS TD_PRECIOS;
+DROP TABLE IF EXISTS TD_PRECIOS_TALLERES;
 DROP TABLE IF EXISTS TD_NOTIFICACIONES_FALTAS;
 DROP TABLE IF EXISTS TD_ASISTENCIAS;
 DROP TABLE IF EXISTS TD_FALTAS;
@@ -277,36 +278,25 @@ CREATE TABLE TD_NOTIFICACIONES_FALTAS (
     FOREIGN KEY (cdUsuarioNotifica) REFERENCES TD_USUARIOS(cdUsuario)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- TABLA: TD_PRECIOS
-CREATE TABLE TD_PRECIOS (
+-- TABLA: TD_PRECIOS_TALLERES
+CREATE TABLE TD_PRECIOS_TALLERES (
     cdPrecio INT AUTO_INCREMENT PRIMARY KEY,
-    fePrecio DATE NOT NULL,
+    cdUsuarioAlta INT NOT NULL,
+    feInicioVigencia DATE NOT NULL,
     cdTipoTaller INT NOT NULL,
-    
-    -- Precios para 1 taller
-    nuPrecioEfectivo1Taller DECIMAL(10,2) NOT NULL,
-    nuPrecioTransferencia1Taller DECIMAL(10,2) NOT NULL,
-    
-    -- Precios para 2 talleres
-    nuPrecioEfectivo2Taller DECIMAL(10,2) NOT NULL,
-    nuPrecioTransferencia2Taller DECIMAL(10,2) NOT NULL,
-    
-    -- Precios para 3 talleres
-    nuPrecioEfectivo3Taller DECIMAL(10,2) NOT NULL,
-    nuPrecioTransferencia3Taller DECIMAL(10,2) NOT NULL,
-    
-    -- Precios para 4 talleres
-    nuPrecioEfectivo4Taller DECIMAL(10,2) NOT NULL,
-    nuPrecioTransferencia4Taller DECIMAL(10,2) NOT NULL,
-    
-    -- Precios para 5 talleres
-    nuPrecioEfectivo5Taller DECIMAL(10,2) NOT NULL,
-    nuPrecioTransferencia5Taller DECIMAL(10,2) NOT NULL,
-    
-    feCreacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    nuPrecioCompletoEfectivo DECIMAL(10,2) NOT NULL,
+    nuPrecioCompletoTransferencia DECIMAL(10,2) NOT NULL,
+    nuPrecioDescuentoEfectivo DECIMAL(10,2) NOT NULL,
+    nuPrecioDescuentoTransferencia DECIMAL(10,2) NOT NULL,
+    cdEstado INT NOT NULL DEFAULT 1,
+    feAlta TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    feModificacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     
     FOREIGN KEY (cdTipoTaller) REFERENCES TD_TIPO_TALLERES(cdTipoTaller),
-    INDEX IDX_Precio_Fecha (fePrecio, cdTipoTaller)
+    FOREIGN KEY (cdUsuarioAlta) REFERENCES TD_USUARIOS(cdUsuario),
+    FOREIGN KEY (cdEstado) REFERENCES TD_ESTADOS(cdEstado),
+    INDEX IDX_Precio_Vigencia (feInicioVigencia, cdTipoTaller),
+    INDEX IDX_Precio_Estado (cdEstado)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- TABLA: TD_PAGOS
@@ -357,6 +347,23 @@ CREATE TABLE TD_TRAZA (
     INDEX IDX_Traza_Fecha (feHora),
     INDEX IDX_Traza_Usuario (cdUsuario),
     INDEX IDX_Traza_Proceso (dsProceso)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- TABLA: TD_NOVEDADES_ALUMNO
+CREATE TABLE TD_NOVEDADES_ALUMNO (
+    cdNovedad INT AUTO_INCREMENT PRIMARY KEY,
+    cdAlumno INT NOT NULL,
+    dsNovedad TEXT NOT NULL,
+    cdUsuario INT NOT NULL,
+    feAlta TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    cdEstado INT NOT NULL DEFAULT 1,
+    feModificacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (cdAlumno) REFERENCES TD_ALUMNOS(cdAlumno),
+    FOREIGN KEY (cdUsuario) REFERENCES TD_USUARIOS(cdUsuario),
+    FOREIGN KEY (cdEstado) REFERENCES TD_ESTADOS(cdEstado),
+    INDEX IDX_Novedad_Alumno (cdAlumno),
+    INDEX IDX_Novedad_Fecha (feAlta)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =============================================
