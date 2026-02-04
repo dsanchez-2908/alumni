@@ -23,6 +23,7 @@ export async function GET() {
         p.dsDomicilio,
         p.dsTelefono,
         p.dsMail,
+        p.feNacimiento,
         p.dsDni,
         p.dsCuil,
         p.dsEntidad,
@@ -99,8 +100,8 @@ export async function POST(request: Request) {
     // Insertar personal
     const [result]: any = await connection.execute(
       `INSERT INTO TD_PERSONAL 
-       (dsNombreCompleto, dsTipoPersonal, dsDescripcionPuesto, dsDomicilio, dsTelefono, dsMail, dsDni, dsCuil, dsEntidad, dsCbuCvu, dsObservaciones, cdEstado)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (dsNombreCompleto, dsTipoPersonal, dsDescripcionPuesto, dsDomicilio, dsTelefono, dsMail, feNacimiento, dsDni, dsCuil, dsEntidad, dsCbuCvu, dsObservaciones, cdEstado)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         data.dsNombreCompleto,
         data.dsTipoPersonal,
@@ -108,6 +109,7 @@ export async function POST(request: Request) {
         data.dsDomicilio || null,
         data.dsTelefono || null,
         data.dsMail || null,
+        data.feNacimiento || null,
         data.dsDni || null,
         data.dsCuil || null,
         data.dsEntidad || null,

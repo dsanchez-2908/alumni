@@ -54,7 +54,28 @@ export async function GET(request: NextRequest) {
             tt.dsNombreTaller, '|',
             pd.nuMonto, '|',
             pd.dsTipoPago, '|',
-            pd.snEsExcepcion
+            pd.snEsExcepcion, '|',
+            COALESCE(t.snLunes, 0), '|',
+            COALESCE(t.dsLunesHoraDesde, ''), '|',
+            COALESCE(t.dsLunesHoraHasta, ''), '|',
+            COALESCE(t.snMartes, 0), '|',
+            COALESCE(t.dsMartesHoraDesde, ''), '|',
+            COALESCE(t.dsMartesHoraHasta, ''), '|',
+            COALESCE(t.snMiercoles, 0), '|',
+            COALESCE(t.dsMiercolesHoraDesde, ''), '|',
+            COALESCE(t.dsMiercolesHoraHasta, ''), '|',
+            COALESCE(t.snJueves, 0), '|',
+            COALESCE(t.dsJuevesHoraDesde, ''), '|',
+            COALESCE(t.dsJuevesHoraHasta, ''), '|',
+            COALESCE(t.snViernes, 0), '|',
+            COALESCE(t.dsViernesHoraDesde, ''), '|',
+            COALESCE(t.dsViernesHoraHasta, ''), '|',
+            COALESCE(t.snSabado, 0), '|',
+            COALESCE(t.dsSabadoHoraDesde, ''), '|',
+            COALESCE(t.dsSabadoHoraHasta, ''), '|',
+            COALESCE(t.snDomingo, 0), '|',
+            COALESCE(t.dsDomingoHoraDesde, ''), '|',
+            COALESCE(t.dsDomingoHoraHasta, '')
           ) SEPARATOR ';;'
         ) as detalles
       FROM TD_PAGOS p
@@ -115,6 +136,7 @@ export async function GET(request: NextRequest) {
     const pagosFormateados = pagos.map((pago: any) => {
       const detalles = pago.detalles
         ? pago.detalles.split(';;').map((det: string) => {
+            const parts = det.split('|');
             const [
               cdPagoDetalle,
               cdAlumno,
@@ -124,7 +146,29 @@ export async function GET(request: NextRequest) {
               nuMonto,
               dsTipoPago,
               snEsExcepcion,
-            ] = det.split('|');
+              snLunes,
+              dsLunesHoraDesde,
+              dsLunesHoraHasta,
+              snMartes,
+              dsMartesHoraDesde,
+              dsMartesHoraHasta,
+              snMiercoles,
+              dsMiercolesHoraDesde,
+              dsMiercolesHoraHasta,
+              snJueves,
+              dsJuevesHoraDesde,
+              dsJuevesHoraHasta,
+              snViernes,
+              dsViernesHoraDesde,
+              dsViernesHoraHasta,
+              snSabado,
+              dsSabadoHoraDesde,
+              dsSabadoHoraHasta,
+              snDomingo,
+              dsDomingoHoraDesde,
+              dsDomingoHoraHasta,
+            ] = parts;
+            
             return {
               cdPagoDetalle: parseInt(cdPagoDetalle),
               cdAlumno: parseInt(cdAlumno),
@@ -134,6 +178,29 @@ export async function GET(request: NextRequest) {
               nuMonto: parseFloat(nuMonto),
               dsTipoPago,
               snEsExcepcion: snEsExcepcion === '1',
+              horarios: {
+                snLunes: snLunes === '1',
+                dsLunesHoraDesde,
+                dsLunesHoraHasta,
+                snMartes: snMartes === '1',
+                dsMartesHoraDesde,
+                dsMartesHoraHasta,
+                snMiercoles: snMiercoles === '1',
+                dsMiercolesHoraDesde,
+                dsMiercolesHoraHasta,
+                snJueves: snJueves === '1',
+                dsJuevesHoraDesde,
+                dsJuevesHoraHasta,
+                snViernes: snViernes === '1',
+                dsViernesHoraDesde,
+                dsViernesHoraHasta,
+                snSabado: snSabado === '1',
+                dsSabadoHoraDesde,
+                dsSabadoHoraHasta,
+                snDomingo: snDomingo === '1',
+                dsDomingoHoraDesde,
+                dsDomingoHoraHasta,
+              }
             };
           })
         : [];

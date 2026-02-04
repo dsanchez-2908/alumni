@@ -70,6 +70,7 @@ CREATE TABLE TD_PERSONAL (
     dsDomicilio VARCHAR(255),
     dsTelefono VARCHAR(50),
     dsMail VARCHAR(100),
+    feNacimiento DATE NULL,
     dsDni VARCHAR(20),
     dsCuil VARCHAR(20),
     dsEntidad VARCHAR(255),

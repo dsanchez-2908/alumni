@@ -50,6 +50,7 @@ interface Personal {
   dsDomicilio: string;
   dsTelefono: string;
   dsMail: string;
+  feNacimiento: string;
   dsDni: string;
   dsCuil: string;
   dsEntidad: string;
@@ -85,6 +86,7 @@ export default function PersonalPage() {
     dsDomicilio: '',
     dsTelefono: '',
     dsMail: '',
+    feNacimiento: '',
     dsDni: '',
     dsCuil: '',
     dsEntidad: '',
@@ -131,6 +133,7 @@ export default function PersonalPage() {
         dsDomicilio: pers.dsDomicilio || '',
         dsTelefono: pers.dsTelefono || '',
         dsMail: pers.dsMail || '',
+        feNacimiento: pers.feNacimiento ? new Date(pers.feNacimiento).toISOString().split('T')[0] : '',
         dsDni: pers.dsDni || '',
         dsCuil: pers.dsCuil || '',
         dsEntidad: pers.dsEntidad || '',
@@ -149,6 +152,7 @@ export default function PersonalPage() {
         dsDomicilio: '',
         dsTelefono: '',
         dsMail: '',
+        feNacimiento: '',
         dsDni: '',
         dsCuil: '',
         dsEntidad: '',
@@ -318,6 +322,7 @@ export default function PersonalPage() {
                 <TableHead>Nombre Completo</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Talleres/Puesto</TableHead>
+                <TableHead>Fecha Nac.</TableHead>
                 <TableHead>Teléfono</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Estado</TableHead>
@@ -345,6 +350,9 @@ export default function PersonalPage() {
                     {pers.dsTipoPersonal === 'Profesor'
                       ? pers.talleres || 'Sin talleres'
                       : pers.dsDescripcionPuesto || '-'}
+                  </TableCell>
+                  <TableCell>
+                    {pers.feNacimiento ? new Date(pers.feNacimiento).toLocaleDateString('es-AR') : '-'}
                   </TableCell>
                   <TableCell>{pers.dsTelefono || '-'}</TableCell>
                   <TableCell>{pers.dsMail || '-'}</TableCell>
@@ -392,7 +400,7 @@ export default function PersonalPage() {
               ))}
               {filteredPersonal.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                  <TableCell colSpan={8} className="text-center py-8 text-gray-500">
                     No se encontró personal
                   </TableCell>
                 </TableRow>
@@ -511,6 +519,18 @@ export default function PersonalPage() {
                     placeholder="correo@ejemplo.com"
                   />
                 </div>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="feNacimiento">Fecha de Nacimiento</Label>
+                <Input
+                  id="feNacimiento"
+                  type="date"
+                  value={formData.feNacimiento}
+                  onChange={(e) =>
+                    setFormData({ ...formData, feNacimiento: e.target.value })
+                  }
+                />
               </div>
 
               <div className="grid gap-2">
@@ -730,6 +750,16 @@ export default function PersonalPage() {
                 <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">
                   Datos Personales
                 </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-gray-600 text-sm">Fecha de Nacimiento</Label>
+                    <p className="font-medium text-gray-900 mt-1">
+                      {viewingPersonal.feNacimiento 
+                        ? new Date(viewingPersonal.feNacimiento).toLocaleDateString('es-AR')
+                        : '-'}
+                    </p>
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-gray-600 text-sm">DNI</Label>

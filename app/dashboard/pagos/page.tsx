@@ -33,8 +33,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Search, Eye, FileText, DollarSign } from 'lucide-react';
+import { Search, Eye, FileText, DollarSign, FileSpreadsheet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface PagoDetalle {
   cdPagoDetalle: number;
@@ -45,6 +48,29 @@ interface PagoDetalle {
   nuMonto: number;
   dsTipoPago: string;
   snEsExcepcion: boolean;
+  horarios?: {
+    snLunes: boolean;
+    dsLunesHoraDesde: string;
+    dsLunesHoraHasta: string;
+    snMartes: boolean;
+    dsMartesHoraDesde: string;
+    dsMartesHoraHasta: string;
+    snMiercoles: boolean;
+    dsMiercolesHoraDesde: string;
+    dsMiercolesHoraHasta: string;
+    snJueves: boolean;
+    dsJuevesHoraDesde: string;
+    dsJuevesHoraHasta: string;
+    snViernes: boolean;
+    dsViernesHoraDesde: string;
+    dsViernesHoraHasta: string;
+    snSabado: boolean;
+    dsSabadoHoraDesde: string;
+    dsSabadoHoraHasta: string;
+    snDomingo: boolean;
+    dsDomingoHoraDesde: string;
+    dsDomingoHoraHasta: string;
+  };
 }
 
 interface Pago {
@@ -142,6 +168,50 @@ export default function ConsultaPagosPage() {
     setDialogOpen(true);
   };
 
+  // Función para formatear horarios de taller (igual a la de nuevo/page.tsx)
+  const formatHorarioTaller = (horarios: any): string => {
+    if (!horarios) return '';
+    
+    const dias = [
+      { nombre: 'Lun', sn: horarios.snLunes, desde: horarios.dsLunesHoraDesde, hasta: horarios.dsLunesHoraHasta },
+      { nombre: 'Mar', sn: horarios.snMartes, desde: horarios.dsMartesHoraDesde, hasta: horarios.dsMartesHoraHasta },
+      { nombre: 'Mié', sn: horarios.snMiercoles, desde: horarios.dsMiercolesHoraDesde, hasta: horarios.dsMiercolesHoraHasta },
+      { nombre: 'Jue', sn: horarios.snJueves, desde: horarios.dsJuevesHoraDesde, hasta: horarios.dsJuevesHoraHasta },
+      { nombre: 'Vie', sn: horarios.snViernes, desde: horarios.dsViernesHoraDesde, hasta: horarios.dsViernesHoraHasta },
+      { nombre: 'Sáb', sn: horarios.snSabado, desde: horarios.dsSabadoHoraDesde, hasta: horarios.dsSabadoHoraHasta },
+      { nombre: 'Dom', sn: horarios.snDomingo, desde: horarios.dsDomingoHoraDesde, hasta: horarios.dsDomingoHoraHasta },
+    ];
+
+    const diasActivos = dias.filter((dia) => dia.sn && dia.desde && dia.hasta);
+    
+    if (diasActivos.length === 0) return '';
+
+    return diasActivos
+      .map((dia) => {
+        const horaDesde = dia.desde.substring(0, 5); // HH:MM
+        const horaHasta = dia.hasta.substring(0, 5); // HH:MM
+        return `${dia.nombre} ${horaDesde}-${horaHasta}`;
+      })
+      .join(', ');
+  };
+
+  // Función helper para obtener talleres únicos con horarios
+  const getTalleresUnicos = (pago: Pago) => {
+    if (!pago.detalles || pago.detalles.length === 0) return [];
+    
+    const talleresMap = new Map();
+    pago.detalles.forEach(det => {
+      if (!talleresMap.has(det.cdTaller)) {
+        talleresMap.set(det.cdTaller, {
+          nombreTaller: det.nombreTaller,
+          horario: formatHorarioTaller(det.horarios)
+        });
+      }
+    });
+    
+    return Array.from(talleresMap.values());
+  };
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('es-AR', {
       style: 'currency',
@@ -170,6 +240,110 @@ export default function ConsultaPagosPage() {
       return pagos.reduce((sum, pago) => sum + (pago.montoTotalEsperadoEfectivo || 0), 0);
     }
     return pagos.reduce((sum, pago) => sum + (pago.montoTotal || 0), 0);
+  };
+
+  // Exportar a Excel
+  const exportToExcel = () => {
+    const data = pagos.map((pago) => {
+      const talleres = getTalleresUnicos(pago);
+      const talleresInfo = talleres.map(t => `${t.nombreTaller} (${t.horario})`).join('; ');
+      
+      const baseData: any = {
+        Período: pago.periodo,
+        Alumno: estadoPago === 'Pagado' ? pago.alumno?.nombre : pago.nombreAlumno,
+        DNI: estadoPago === 'Pagado' ? pago.alumno?.dni : pago.dsDNI,
+        'Grupo Familiar': (estadoPago === 'Pagado' ? pago.nombreGrupoFamiliar : pago.dsNombreGrupo) || 'Individual',
+        'Talleres': talleresInfo,
+        Items: estadoPago === 'Pagado' ? pago.cantidadItems : pago.talleres?.length || 0,
+      };
+
+      if (estadoPago === 'Pagado') {
+        baseData['Fecha Pago'] = pago.fePago ? new Date(pago.fePago).toLocaleDateString('es-AR') : '';
+        baseData['Modo Pago'] = pago.tipoPagoGlobal || '';
+        baseData['Monto Total'] = pago.montoTotal || 0;
+        if (pago.observacion) {
+          baseData['Observación'] = pago.observacion;
+        }
+      } else {
+        baseData['Monto Esperado Efectivo'] = pago.montoTotalEsperadoEfectivo || 0;
+        baseData['Monto Esperado Transferencia'] = pago.montoTotalEsperadoTransferencia || 0;
+      }
+
+      return baseData;
+    });
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Pagos');
+    
+    const estado = estadoPago === 'Pagado' ? 'Pagados' : 'Pendientes';
+    const fileName = `Pagos_${estado}_${new Date().toLocaleDateString('es-AR').replace(/\//g, '-')}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+  };
+
+  // Exportar a PDF
+  const exportToPDF = () => {
+    const doc = new jsPDF({ orientation: 'landscape' });
+    
+    // Título
+    doc.setFontSize(16);
+    const estado = estadoPago === 'Pagado' ? 'Pagados' : 'Pendientes';
+    doc.text(`Reporte de Pagos ${estado}`, 14, 20);
+    
+    // Subtítulo
+    doc.setFontSize(10);
+    doc.text(`Fecha: ${new Date().toLocaleDateString('es-AR')}`, 14, 28);
+    doc.text(`Total: ${formatCurrency(calcularTotalFiltrado())}`, 14, 34);
+    
+    // Preparar datos para la tabla
+    const headers = estadoPago === 'Pagado' 
+      ? [['Fecha', 'Período', 'Alumno', 'DNI', 'Grupo Familiar', 'Talleres', 'Modo Pago', 'Monto']]
+      : [['Período', 'Alumno', 'DNI', 'Grupo Familiar', 'Talleres', 'Monto Efvo', 'Monto Transf']];
+
+    const body = pagos.map((pago) => {
+      const talleres = getTalleresUnicos(pago);
+      const talleresInfo = talleres.map(t => `${t.nombreTaller}\n${t.horario}`).join('\n');
+      
+      if (estadoPago === 'Pagado') {
+        return [
+          pago.fePago ? formatFecha(pago.fePago) : '',
+          pago.periodo,
+          pago.alumno?.nombre || '',
+          pago.alumno?.dni || '',
+          pago.nombreGrupoFamiliar || 'Individual',
+          talleresInfo,
+          pago.tipoPagoGlobal || '',
+          formatCurrency(pago.montoTotal || 0),
+        ];
+      } else {
+        return [
+          pago.periodo,
+          pago.nombreAlumno || '',
+          pago.dsDNI || '',
+          pago.dsNombreGrupo || 'Individual',
+          talleresInfo,
+          formatCurrency(pago.montoTotalEsperadoEfectivo || 0),
+          formatCurrency(pago.montoTotalEsperadoTransferencia || 0),
+        ];
+      }
+    });
+    
+    // Tabla
+    autoTable(doc, {
+      startY: 40,
+      head: headers,
+      body: body,
+      styles: { fontSize: 7, cellPadding: 2 },
+      headStyles: { fillColor: [79, 70, 229] },
+      columnStyles: {
+        [estadoPago === 'Pagado' ? 5 : 4]: { cellWidth: 45 }, // Columna Talleres más ancha
+        [estadoPago === 'Pagado' ? 7 : 5]: { halign: 'right' },
+        [estadoPago === 'Pagado' ? 7 : 6]: { halign: 'right' },
+      },
+    });
+    
+    const fileName = `Pagos_${estado}_${new Date().toLocaleDateString('es-AR').replace(/\//g, '-')}.pdf`;
+    doc.save(fileName);
   };
 
   return (
@@ -310,16 +484,26 @@ export default function ConsultaPagosPage() {
       {pagos.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span className="flex items-center gap-2">
+            <div className="flex items-center justify-between mb-4">
+              <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
                 Resultados ({pagos.length} pagos)
-              </span>
-              <div className="flex items-center gap-2 text-lg font-bold text-indigo-600">
-                <DollarSign className="h-5 w-5" />
-                Total: {formatCurrency(calcularTotalFiltrado())}
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                <Button onClick={exportToExcel} variant="outline" size="sm" disabled={pagos.length === 0}>
+                  <FileSpreadsheet className="mr-2 h-4 w-4" />
+                  Exportar Excel
+                </Button>
+                <Button onClick={exportToPDF} variant="outline" size="sm" disabled={pagos.length === 0}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  Exportar PDF
+                </Button>
               </div>
-            </CardTitle>
+            </div>
+            <div className="flex items-center gap-2 text-lg font-bold text-indigo-600">
+              <DollarSign className="h-5 w-5" />
+              Total: {formatCurrency(calcularTotalFiltrado())}
+            </div>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
@@ -331,8 +515,8 @@ export default function ConsultaPagosPage() {
                     <TableHead>Alumno</TableHead>
                     <TableHead>DNI</TableHead>
                     <TableHead>Grupo Familiar</TableHead>
+                    <TableHead>Talleres</TableHead>
                     {estadoPago === 'Pagado' && <TableHead>Modo Pago</TableHead>}
-                    <TableHead>Items</TableHead>
                     <TableHead className="text-right">
                       {estadoPago === 'Pendiente' ? 'Monto Esperado' : 'Monto Total'}
                     </TableHead>
@@ -340,69 +524,78 @@ export default function ConsultaPagosPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {pagos.map((pago, index) => (
-                    <TableRow key={pago.cdPago || `pendiente-${pago.cdAlumno}-${index}`}>
-                      {estadoPago === 'Pagado' && pago.fePago && (
-                        <TableCell>{formatFecha(pago.fePago)}</TableCell>
-                      )}
-                      <TableCell className="font-medium">
-                        {pago.periodo}
-                      </TableCell>
-                      <TableCell>
-                        {estadoPago === 'Pagado' ? pago.alumno?.nombre : pago.nombreAlumno}
-                      </TableCell>
-                      <TableCell>
-                        {estadoPago === 'Pagado' ? pago.alumno?.dni : pago.dsDNI}
-                      </TableCell>
-                      <TableCell>
-                        {(estadoPago === 'Pagado' ? pago.nombreGrupoFamiliar : pago.dsNombreGrupo) || (
-                          <span className="text-gray-400 italic">Individual</span>
+                  {pagos.map((pago, index) => {
+                    const talleres = getTalleresUnicos(pago);
+                    
+                    return (
+                      <TableRow key={pago.cdPago || `pendiente-${pago.cdAlumno}-${index}`}>
+                        {estadoPago === 'Pagado' && pago.fePago && (
+                          <TableCell>{formatFecha(pago.fePago)}</TableCell>
                         )}
-                      </TableCell>
-                      {estadoPago === 'Pagado' && pago.tipoPagoGlobal && (
-                        <TableCell>
-                          <span
-                            className={`px-2 py-1 rounded-full text-xs font-medium ${getTipoPagoBadgeColor(
-                              pago.tipoPagoGlobal
-                            )}`}
-                          >
-                            {pago.tipoPagoGlobal}
-                          </span>
+                        <TableCell className="font-medium">
+                          {pago.periodo}
                         </TableCell>
-                      )}
-                      <TableCell className="text-center">
-                        {estadoPago === 'Pagado' 
-                          ? pago.cantidadItems 
-                          : pago.talleres?.length || 0}
-                      </TableCell>
-                      <TableCell className="text-right font-bold">
-                        {estadoPago === 'Pendiente' ? (
-                          <div>
-                            <div className="text-green-600">
-                              {formatCurrency(pago.montoTotalEsperadoEfectivo || 0)}
-                              <span className="text-xs ml-1">Efvo</span>
-                            </div>
-                            <div className="text-blue-600 text-sm">
-                              {formatCurrency(pago.montoTotalEsperadoTransferencia || 0)}
-                              <span className="text-xs ml-1">Transf</span>
-                            </div>
+                        <TableCell>
+                          {estadoPago === 'Pagado' ? pago.alumno?.nombre : pago.nombreAlumno}
+                        </TableCell>
+                        <TableCell>
+                          {estadoPago === 'Pagado' ? pago.alumno?.dni : pago.dsDNI}
+                        </TableCell>
+                        <TableCell>
+                          {(estadoPago === 'Pagado' ? pago.nombreGrupoFamiliar : pago.dsNombreGrupo) || (
+                            <span className="text-gray-400 italic">Individual</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            {talleres.map((taller, idx) => (
+                              <div key={idx} className="text-sm">
+                                <div className="font-medium">{taller.nombreTaller}</div>
+                                <div className="text-xs text-indigo-600">{taller.horario}</div>
+                              </div>
+                            ))}
                           </div>
-                        ) : (
-                          formatCurrency(pago.montoTotal || 0)
+                        </TableCell>
+                        {estadoPago === 'Pagado' && pago.tipoPagoGlobal && (
+                          <TableCell>
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs font-medium ${getTipoPagoBadgeColor(
+                                pago.tipoPagoGlobal
+                              )}`}
+                            >
+                              {pago.tipoPagoGlobal}
+                            </span>
+                          </TableCell>
                         )}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => verDetalle(pago)}
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          Ver
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        <TableCell className="text-right font-bold">
+                          {estadoPago === 'Pendiente' ? (
+                            <div>
+                              <div className="text-green-600">
+                                {formatCurrency(pago.montoTotalEsperadoEfectivo || 0)}
+                                <span className="text-xs ml-1">Efvo</span>
+                              </div>
+                              <div className="text-blue-600 text-sm">
+                                {formatCurrency(pago.montoTotalEsperadoTransferencia || 0)}
+                                <span className="text-xs ml-1">Transf</span>
+                              </div>
+                            </div>
+                          ) : (
+                            formatCurrency(pago.montoTotal || 0)
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => verDetalle(pago)}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            Ver
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
