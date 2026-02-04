@@ -37,9 +37,9 @@ export async function GET(
         f.cdFalta,
         f.snPresente,
         f.dsObservacion
-      FROM tr_alumno_taller at
+      FROM TR_ALUMNO_TALLER at
       INNER JOIN TD_ALUMNOS a ON at.cdAlumno = a.cdAlumno
-      LEFT JOIN td_asistencias f ON at.cdAlumno = f.cdAlumno 
+      LEFT JOIN TD_ASISTENCIAS f ON at.cdAlumno = f.cdAlumno 
         AND at.cdTaller = f.cdTaller 
         AND f.feFalta = ?
       WHERE at.cdTaller = ? 
@@ -84,7 +84,7 @@ export async function POST(
     // Obtener todos los alumnos activos del taller
     const [alumnos] = await pool.execute<any[]>(
       `SELECT a.cdAlumno
-       FROM tr_alumno_taller at
+       FROM TR_ALUMNO_TALLER at
        INNER JOIN TD_ALUMNOS a ON at.cdAlumno = a.cdAlumno
        WHERE at.cdTaller = ? 
          AND at.feBaja IS NULL`,
@@ -93,7 +93,7 @@ export async function POST(
 
     // Primero, eliminar todas las asistencias existentes para esta fecha y taller
     await pool.execute(
-      'DELETE FROM td_asistencias WHERE cdTaller = ? AND feFalta = ?',
+      'DELETE FROM TD_ASISTENCIAS WHERE cdTaller = ? AND feFalta = ?',
       [cdTaller, fecha]
     );
 
@@ -126,7 +126,7 @@ export async function POST(
     // Insertar asistencia de TODOS los alumnos
     if (values.length > 0) {
       await pool.execute(
-        `INSERT INTO td_asistencias (cdTaller, cdAlumno, feFalta, snPresente, dsObservacion, cdUsuarioRegistro) 
+        `INSERT INTO TD_ASISTENCIAS (cdTaller, cdAlumno, feFalta, snPresente, dsObservacion, cdUsuarioRegistro) 
          VALUES ${placeholders}`,
         values
       );

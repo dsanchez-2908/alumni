@@ -29,9 +29,9 @@ export async function GET(
         tt.dsNombreTaller,
         p.dsNombreCompleto as nombreProfesor,
         u.dsNombreCompleto as nombreUsuarioRegistro
-      FROM td_asistencias f
+      FROM TD_ASISTENCIAS f
       INNER JOIN TD_TALLERES t ON f.cdTaller = t.cdTaller
-      INNER JOIN td_tipo_talleres tt ON t.cdTipoTaller = tt.cdTipoTaller
+      INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
       LEFT JOIN TD_PERSONAL p ON t.cdPersonal = p.cdPersonal
       LEFT JOIN TD_USUARIOS u ON f.cdUsuarioRegistro = u.cdUsuario
       WHERE f.cdAlumno = ?

@@ -61,10 +61,10 @@ export async function GET(
       return NextResponse.json({ error: 'Alumno no encontrado' }, { status: 404 });
     }
 
-    // Obtener talleres inscritos (usar tr_alumno_taller)
+    // Obtener talleres inscritos (usar TR_ALUMNO_TALLER)
     const talleres = await executeQuery(
       `SELECT cdTaller
-       FROM tr_alumno_taller
+       FROM TR_ALUMNO_TALLER
        WHERE cdAlumno = ? AND cdEstado = 1 AND feBaja IS NULL`,
       [cdAlumno]
     );
@@ -246,7 +246,7 @@ export async function PUT(
 
       // Actualizar inscripciones: dar de baja todas las existentes
       await connection.query(
-        `UPDATE tr_alumno_taller SET cdEstado = 2, feBaja = NOW()
+        `UPDATE TR_ALUMNO_TALLER SET cdEstado = 2, feBaja = NOW()
          WHERE cdAlumno = ? AND feBaja IS NULL`,
         [cdAlumno]
       );
@@ -255,7 +255,7 @@ export async function PUT(
       if (talleres.length > 0) {
         const inscripcionesPromises = talleres.map((cdTaller: number) =>
           connection.query(
-            `INSERT INTO tr_alumno_taller (
+            `INSERT INTO TR_ALUMNO_TALLER (
               cdAlumno,
               cdTaller,
               cdEstado,
@@ -318,7 +318,7 @@ export async function DELETE(
 
     // Desactivar inscripciones
     await executeQuery(
-      `UPDATE tr_inscripcion_alumno SET cdEstado = 2, feActualizacion = NOW()
+      `UPDATE TR_INSCRIPCION_ALUMNO SET cdEstado = 2, feActualizacion = NOW()
        WHERE cdAlumno = ?`,
       [cdAlumno]
     );

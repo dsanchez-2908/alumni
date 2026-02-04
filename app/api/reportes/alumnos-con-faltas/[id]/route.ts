@@ -66,9 +66,9 @@ export async function GET(
         ast.feFalta,
         ast.dsObservacion,
         ast.snContactado
-      FROM td_asistencias ast
+      FROM TD_ASISTENCIAS ast
       INNER JOIN TD_TALLERES t ON ast.cdTaller = t.cdTaller
-      INNER JOIN td_tipo_talleres tt ON t.cdTipoTaller = tt.cdTipoTaller
+      INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
       WHERE ast.cdAlumno = ?
         AND ast.snPresente = 0
         AND YEAR(ast.feFalta) = ?
@@ -110,7 +110,7 @@ export async function PUT(
     if (observaciones && Array.isArray(observaciones)) {
       for (const obs of observaciones) {
         await pool.execute(
-          `UPDATE td_asistencias 
+          `UPDATE TD_ASISTENCIAS 
            SET dsObservacion = ?
            WHERE cdFalta = ?`,
           [obs.dsObservacion || null, obs.cdFalta]
@@ -121,7 +121,7 @@ export async function PUT(
     // Si se marcó como contactado, actualizar todas las faltas del alumno
     if (snContactado === true) {
       await pool.execute(
-        `UPDATE td_asistencias 
+        `UPDATE TD_ASISTENCIAS 
          SET snContactado = 1
          WHERE cdAlumno = ? 
            AND snPresente = 0 

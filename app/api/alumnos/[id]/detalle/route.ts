@@ -87,9 +87,9 @@ export async function GET(
         at.feInscripcion,
         et.dsEstado as estadoEnTaller,
         at.cdEstado as cdEstadoEnTaller
-      FROM tr_alumno_taller at
+      FROM TR_ALUMNO_TALLER at
       INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
-      INNER JOIN td_tipo_talleres tt ON t.cdTipoTaller = tt.cdTipoTaller
+      INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
       INNER JOIN TD_PERSONAL p ON t.cdPersonal = p.cdPersonal
       INNER JOIN TD_ESTADOS et ON at.cdEstado = et.cdEstado
       WHERE at.cdAlumno = ? AND at.cdEstado = 1
@@ -107,9 +107,9 @@ export async function GET(
         at.feInscripcion,
         at.feFinalizacion,
         et.dsEstado as estadoEnTaller
-      FROM tr_alumno_taller at
+      FROM TR_ALUMNO_TALLER at
       INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
-      INNER JOIN td_tipo_talleres tt ON t.cdTipoTaller = tt.cdTipoTaller
+      INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
       INNER JOIN TD_PERSONAL p ON t.cdPersonal = p.cdPersonal
       INNER JOIN TD_ESTADOS et ON at.cdEstado = et.cdEstado
       WHERE at.cdAlumno = ? AND at.cdEstado = 4
@@ -135,7 +135,7 @@ export async function GET(
       INNER JOIN TD_PAGOS p ON pd.cdPago = p.cdPago
       INNER JOIN TD_ALUMNOS a ON pd.cdAlumno = a.cdAlumno
       LEFT JOIN TD_TALLERES t ON pd.cdTaller = t.cdTaller
-      LEFT JOIN td_tipo_talleres tt ON t.cdTipoTaller = tt.cdTipoTaller
+      LEFT JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
       WHERE pd.cdAlumno = ?
       ORDER BY p.fePago DESC, p.cdPago DESC, pd.cdPagoDetalle DESC
       LIMIT 50`,
@@ -161,10 +161,10 @@ export async function GET(
           LIMIT 1
         ) as precio,
         MIN(at.feInscripcion) as feInscripcion
-      FROM tr_alumno_taller at
+      FROM TR_ALUMNO_TALLER at
       INNER JOIN TD_ALUMNOS a ON at.cdAlumno = a.cdAlumno
       INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
-      INNER JOIN td_tipo_talleres tt ON t.cdTipoTaller = tt.cdTipoTaller
+      INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
       LEFT JOIN TR_ALUMNO_GRUPO_FAMILIAR agf ON a.cdAlumno = agf.cdAlumno
       WHERE (
         a.cdAlumno = ? 
@@ -263,9 +263,9 @@ export async function GET(
         t.cdTaller,
         tt.dsNombreTaller,
         t.nuAnioTaller
-      FROM td_asistencias f
+      FROM TD_ASISTENCIAS f
       INNER JOIN TD_TALLERES t ON f.cdTaller = t.cdTaller
-      INNER JOIN td_tipo_talleres tt ON t.cdTipoTaller = tt.cdTipoTaller
+      INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
       WHERE f.cdAlumno = ?
       ORDER BY f.feFalta DESC
       LIMIT 100`,

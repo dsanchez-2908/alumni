@@ -49,7 +49,7 @@ export async function GET(
     // Obtener todas las fechas que ya tienen registro
     const [registradas] = await pool.execute<any[]>(
       `SELECT DISTINCT DATE(feFalta) as fecha
-       FROM td_asistencias
+       FROM TD_ASISTENCIAS
        WHERE cdTaller = ?`,
       [cdTaller]
     );

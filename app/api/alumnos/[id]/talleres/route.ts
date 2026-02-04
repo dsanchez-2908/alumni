@@ -32,9 +32,9 @@ export async function GET(
         at.feInscripcion,
         at.feBaja,
         at.cdEstado
-      FROM tr_alumno_taller at
+      FROM TR_ALUMNO_TALLER at
       INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
-      INNER JOIN td_tipo_talleres tt ON t.cdTipoTaller = tt.cdTipoTaller
+      INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
       WHERE at.cdAlumno = ?
       ORDER BY t.nuAnioTaller DESC, tt.dsNombreTaller`,
       [cdAlumno]

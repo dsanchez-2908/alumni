@@ -31,7 +31,7 @@ export async function GET(
         a.dsDNI,
         a.feNacimiento,
         e.dsEstado as estado
-      FROM tr_alumno_taller at
+      FROM TR_ALUMNO_TALLER at
       INNER JOIN TD_ALUMNOS a ON at.cdAlumno = a.cdAlumno
       INNER JOIN TD_ESTADOS e ON at.cdEstado = e.cdEstado
       WHERE at.cdTaller = ?
@@ -72,7 +72,7 @@ export async function POST(
 
     // Verificar si ya está inscrito
     const [existing] = await pool.execute<any[]>(
-      'SELECT id, cdEstado FROM tr_alumno_taller WHERE cdAlumno = ? AND cdTaller = ?',
+      'SELECT id, cdEstado FROM TR_ALUMNO_TALLER WHERE cdAlumno = ? AND cdTaller = ?',
       [cdAlumno, cdTaller]
     );
 
@@ -80,7 +80,7 @@ export async function POST(
       // Si existe pero está inactivo (cdEstado = 2), reactivarlo
       if (existing[0].cdEstado === 2) {
         await pool.execute(
-          'UPDATE tr_alumno_taller SET cdEstado = 1, feBaja = NULL WHERE id = ?',
+          'UPDATE TR_ALUMNO_TALLER SET cdEstado = 1, feBaja = NULL WHERE id = ?',
           [existing[0].id]
         );
 
@@ -103,7 +103,7 @@ export async function POST(
 
     // Inscribir nuevo alumno
     const [result] = await pool.execute<any>(
-      'INSERT INTO tr_alumno_taller (cdAlumno, cdTaller, cdEstado) VALUES (?, ?, 1)',
+      'INSERT INTO TR_ALUMNO_TALLER (cdAlumno, cdTaller, cdEstado) VALUES (?, ?, 1)',
       [cdAlumno, cdTaller]
     );
 

@@ -26,11 +26,11 @@ export async function GET(
         t.nuAnioTaller,
         tt.cdTipoTaller,
         tt.dsNombreTaller
-      FROM tr_alumno_grupo_familiar agf
+      FROM TR_ALUMNO_GRUPO_FAMILIAR agf
       INNER JOIN TD_ALUMNOS a ON agf.cdAlumno = a.cdAlumno
-      INNER JOIN tr_alumno_taller at ON a.cdAlumno = at.cdAlumno
+      INNER JOIN TR_ALUMNO_TALLER at ON a.cdAlumno = at.cdAlumno
       INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
-      INNER JOIN td_tipo_talleres tt ON t.cdTipoTaller = tt.cdTipoTaller
+      INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
       WHERE agf.cdGrupoFamiliar = ?
         AND at.feBaja IS NULL
         AND t.cdEstado IN (1, 2)

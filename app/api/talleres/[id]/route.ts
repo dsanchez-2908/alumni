@@ -27,9 +27,9 @@ export async function GET(
         COUNT(DISTINCT CASE WHEN at.feBaja IS NULL THEN at.cdAlumno END) as cantidadAlumnos
       FROM TD_TALLERES t
       INNER JOIN TD_ESTADOS e ON t.cdEstado = e.cdEstado
-      INNER JOIN td_tipo_talleres tt ON t.cdTipoTaller = tt.cdTipoTaller
+      INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
       INNER JOIN TD_PERSONAL p ON t.cdPersonal = p.cdPersonal
-      LEFT JOIN tr_alumno_taller at ON t.cdTaller = at.cdTaller
+      LEFT JOIN TR_ALUMNO_TALLER at ON t.cdTaller = at.cdTaller
       WHERE t.cdTaller = ?
       GROUP BY t.cdTaller`,
       [cdTaller]
@@ -164,7 +164,7 @@ export async function DELETE(
 
     // Verificar si tiene alumnos inscritos
     const [alumnos] = await pool.execute<any[]>(
-      'SELECT COUNT(*) as cantidad FROM tr_alumno_taller WHERE cdTaller = ?',
+      'SELECT COUNT(*) as cantidad FROM TR_ALUMNO_TALLER WHERE cdTaller = ?',
       [cdTaller]
     );
 

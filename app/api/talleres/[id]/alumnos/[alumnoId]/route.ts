@@ -21,13 +21,13 @@ export async function PUT(
     if (activo) {
       // Reactivar alumno (cdEstado = 1)
       await pool.execute(
-        'UPDATE tr_alumno_taller SET cdEstado = 1, feBaja = NULL WHERE id = ?',
+        'UPDATE TR_ALUMNO_TALLER SET cdEstado = 1, feBaja = NULL WHERE id = ?',
         [id]
       );
     } else {
       // Dar de baja alumno (cdEstado = 2)
       await pool.execute(
-        'UPDATE tr_alumno_taller SET cdEstado = 2, feBaja = NOW() WHERE id = ?',
+        'UPDATE TR_ALUMNO_TALLER SET cdEstado = 2, feBaja = NOW() WHERE id = ?',
         [id]
       );
     }
@@ -64,7 +64,7 @@ export async function DELETE(
     const id = parseInt(params.alumnoId);
 
     await pool.execute(
-      'DELETE FROM tr_alumno_taller WHERE id = ?',
+      'DELETE FROM TR_ALUMNO_TALLER WHERE id = ?',
       [id]
     );
 

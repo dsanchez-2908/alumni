@@ -49,7 +49,7 @@ export async function POST(
 
     // Finalizar todos los alumnos activos del taller (cdEstado = 1)
     const [result]: any = await connection.execute(
-      `UPDATE tr_alumno_taller 
+      `UPDATE TR_ALUMNO_TALLER 
        SET cdEstado = 4, feFinalizacion = CURRENT_TIMESTAMP 
        WHERE cdTaller = ? 
        AND cdEstado = 1`,

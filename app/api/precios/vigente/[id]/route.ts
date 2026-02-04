@@ -22,7 +22,7 @@ export async function GET(
         p.*,
         tt.dsNombreTaller
       FROM TD_PRECIOS_TALLERES p
-      INNER JOIN td_tipo_talleres tt ON p.cdTipoTaller = tt.cdTipoTaller
+      INNER JOIN TD_TIPO_TALLERES tt ON p.cdTipoTaller = tt.cdTipoTaller
       WHERE p.cdTipoTaller = ? 
         AND p.feInicioVigencia <= CURDATE()
         AND p.cdEstado = 1
