@@ -36,7 +36,57 @@ interface Taller {
   dsNombreTaller: string;
   nombrePersonal: string | null;
   nuAnioTaller: number;
+  snLunes: boolean;
+  dsLunesHoraDesde: string | null;
+  dsLunesHoraHasta: string | null;
+  snMartes: boolean;
+  dsMartesHoraDesde: string | null;
+  dsMartesHoraHasta: string | null;
+  snMiercoles: boolean;
+  dsMiercolesHoraDesde: string | null;
+  dsMiercolesHoraHasta: string | null;
+  snJueves: boolean;
+  dsJuevesHoraDesde: string | null;
+  dsJuevesHoraHasta: string | null;
+  snViernes: boolean;
+  dsViernesHoraDesde: string | null;
+  dsViernesHoraHasta: string | null;
+  snSabado: boolean;
+  dsSabadoHoraDesde: string | null;
+  dsSabadoHoraHasta: string | null;
+  snDomingo: boolean;
+  dsDomingoHoraDesde: string | null;
+  dsDomingoHoraHasta: string | null;
 }
+
+// Función helper para formatear días y horarios
+const formatHorarioTaller = (taller: Taller): string => {
+  const dias = [];
+  
+  if (taller.snLunes && taller.dsLunesHoraDesde && taller.dsLunesHoraHasta) {
+    dias.push(`Lun ${taller.dsLunesHoraDesde.slice(0, 5)}-${taller.dsLunesHoraHasta.slice(0, 5)}`);
+  }
+  if (taller.snMartes && taller.dsMartesHoraDesde && taller.dsMartesHoraHasta) {
+    dias.push(`Mar ${taller.dsMartesHoraDesde.slice(0, 5)}-${taller.dsMartesHoraHasta.slice(0, 5)}`);
+  }
+  if (taller.snMiercoles && taller.dsMiercolesHoraDesde && taller.dsMiercolesHoraHasta) {
+    dias.push(`Mié ${taller.dsMiercolesHoraDesde.slice(0, 5)}-${taller.dsMiercolesHoraHasta.slice(0, 5)}`);
+  }
+  if (taller.snJueves && taller.dsJuevesHoraDesde && taller.dsJuevesHoraHasta) {
+    dias.push(`Jue ${taller.dsJuevesHoraDesde.slice(0, 5)}-${taller.dsJuevesHoraHasta.slice(0, 5)}`);
+  }
+  if (taller.snViernes && taller.dsViernesHoraDesde && taller.dsViernesHoraHasta) {
+    dias.push(`Vie ${taller.dsViernesHoraDesde.slice(0, 5)}-${taller.dsViernesHoraHasta.slice(0, 5)}`);
+  }
+  if (taller.snSabado && taller.dsSabadoHoraDesde && taller.dsSabadoHoraHasta) {
+    dias.push(`Sáb ${taller.dsSabadoHoraDesde.slice(0, 5)}-${taller.dsSabadoHoraHasta.slice(0, 5)}`);
+  }
+  if (taller.snDomingo && taller.dsDomingoHoraDesde && taller.dsDomingoHoraHasta) {
+    dias.push(`Dom ${taller.dsDomingoHoraDesde.slice(0, 5)}-${taller.dsDomingoHoraHasta.slice(0, 5)}`);
+  }
+  
+  return dias.length > 0 ? dias.join(', ') : 'Sin horario definido';
+};
 
 export default function NuevoAlumnoPage() {
   const router = useRouter();
@@ -613,6 +663,9 @@ export default function NuevoAlumnoPage() {
                           Prof: {taller.nombrePersonal}
                         </span>
                       )}
+                      <span className="block text-xs text-indigo-600 font-normal mt-1">
+                        {formatHorarioTaller(taller)}
+                      </span>
                     </label>
                   </div>
                 ))}
