@@ -125,6 +125,12 @@ export default function ConsultaPagosPage() {
   const [pagoSeleccionado, setPagoSeleccionado] = useState<Pago | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
+  // Limpiar resultados cuando se cambia el estado
+  const handleEstadoChange = (nuevoEstado: string) => {
+    setEstadoPago(nuevoEstado);
+    setPagos([]); // Limpiar resultados para evitar mostrar datos incompatibles
+  };
+
   const buscarPagos = async () => {
     setLoading(true);
     try {
@@ -229,6 +235,8 @@ export default function ConsultaPagosPage() {
         return 'bg-green-100 text-green-800';
       case 'Transferencia':
         return 'bg-blue-100 text-blue-800';
+      case 'Excepción':
+        return 'bg-purple-100 text-purple-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -401,6 +409,7 @@ export default function ConsultaPagosPage() {
                   <SelectItem value="Todos">Todos</SelectItem>
                   <SelectItem value="Efectivo">Efectivo</SelectItem>
                   <SelectItem value="Transferencia">Transferencia</SelectItem>
+                  <SelectItem value="Excepción">Excepción</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -408,7 +417,7 @@ export default function ConsultaPagosPage() {
             {/* Estado del Pago */}
             <div>
               <Label htmlFor="estadoPago">Estado</Label>
-              <Select value={estadoPago} onValueChange={setEstadoPago}>
+              <Select value={estadoPago} onValueChange={handleEstadoChange}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

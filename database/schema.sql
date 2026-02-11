@@ -315,7 +315,8 @@ CREATE TABLE TD_PRECIOS_TALLERES (
     FOREIGN KEY (cdUsuarioAlta) REFERENCES TD_USUARIOS(cdUsuario),
     FOREIGN KEY (cdEstado) REFERENCES TD_ESTADOS(cdEstado),
     INDEX IDX_Precio_Vigencia (feInicioVigencia, cdTipoTaller),
-    INDEX IDX_Precio_Estado (cdEstado)
+    INDEX IDX_Precio_Estado (cdEstado),
+    UNIQUE KEY UK_Precio_Taller_Vigencia (cdTipoTaller, feInicioVigencia, cdEstado)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =============================================

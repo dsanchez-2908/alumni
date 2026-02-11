@@ -78,13 +78,18 @@ export default function RegistroPagosPage() {
   const [saving, setSaving] = useState(false);
   const [dialogAbierto, setDialogAbierto] = useState(false);
   const [datosNotificacion, setDatosNotificacion] = useState<{whatsappLink?: string, pdfUrl?: string, pdfFilename?: string}>({});
+  
+  // Nuevos estados para manejar pagos previos del grupo familiar
+  const [cantidadTalleresTotal, setCantidadTalleresTotal] = useState(0);
+  const [pagosPrevios, setPagosPrevios] = useState<any[]>([]);
+  const [cantidadPagosCompletos, setCantidadPagosCompletos] = useState(0);
 
-  // Recalcular montos cuando cambian los items
+  // Recalcular montos cuando cambian los items o los datos de pagos previos
   useEffect(() => {
     if (items.length > 0 && items.every(item => item.precio)) {
       calcularMontos();
     }
-  }, [items.length]);
+  }, [items.length, cantidadPagosCompletos, cantidadTalleresTotal]);
 
   const searchAlumnos = async () => {
     if (!searchTerm) {
@@ -130,10 +135,24 @@ export default function RegistroPagosPage() {
         if (sinCuotas && data.mensaje) {
           error(`${alumno.dsApellido}, ${alumno.dsNombre} no tiene talleres asociados o no tiene cuotas pendientes`);
           setItems([]);
+          setCantidadTalleresTotal(0);
+          setPagosPrevios([]);
+          setCantidadPagosCompletos(0);
           setAlumnoSeleccionado(null);
           setAlumnos([]);
         } else {
           setItems(data.items || []);
+          // Guardar información adicional sobre pagos previos del grupo familiar
+          setCantidadTalleresTotal(data.cantidadTalleres || 0);
+          setPagosPrevios(data.pagosPrevios || []);
+          setCantidadPagosCompletos(data.cantidadPagosCompletos || 0);
+          console.log('Datos de pagos recibidos:', {
+            cantidadTalleres: data.cantidadTalleres,
+            itemsPendientes: data.items?.length || 0,
+            pagosPrevios: data.pagosPrevios?.length || 0,
+            pagosCompletos: data.cantidadPagosCompletos,
+            pagosDescuento: data.cantidadPagosDescuento
+          });
         }
       } else {
         const errorData = await response.json();
@@ -159,6 +178,9 @@ export default function RegistroPagosPage() {
     setContactosNotificacion({emails: [], whatsapps: []});
     setTipoPagoGlobal('');
     setAlumnos([]);
+    setCantidadTalleresTotal(0);
+    setPagosPrevios([]);
+    setCantidadPagosCompletos(0);
   };
 
   // Cargar contactos de notificación cuando cambian los items
@@ -212,16 +234,29 @@ export default function RegistroPagosPage() {
 
   const calcularMontos = () => {
     // Lógica de cálculo según reglas:
-    // 1. Si solo 1 taller: precio completo
-    // 2. Si +1 taller: el más caro completo, resto con descuento
+    // 1. Si solo 1 taller EN TOTAL (incluyendo pagados): precio completo
+    // 2. Si +1 taller EN TOTAL: considerar pagos previos para determinar precios
+    //    - Si ya hay un pago completo previo, los siguientes con descuento
+    //    - Si solo hay pagos con descuento, el siguiente debe ser completo
     
     setItems((currentItems) => {
       if (currentItems.length === 0) return currentItems;
 
       const itemsActualizados = [...currentItems];
+      
+      // Calcular total de talleres considerando los pendientes + los ya pagados
+      const totalTalleres = cantidadTalleresTotal || currentItems.length;
+      const yaHayPagoCompleto = cantidadPagosCompletos > 0;
+      
+      console.log('Calculando montos:', {
+        totalTalleres,
+        itemsPendientes: currentItems.length,
+        yaHayPagoCompleto,
+        cantidadPagosCompletos
+      });
 
-      if (currentItems.length === 1) {
-        // Un solo taller: precio completo
+      if (totalTalleres === 1) {
+        // Un solo taller en total: siempre precio completo
         const item = itemsActualizados[0];
         if (!item.esExcepcion && item.precio) {
           item.montoCalculado =
@@ -238,21 +273,31 @@ export default function RegistroPagosPage() {
 
         itemsConPrecio.sort((a, b) => b.precioCompletoRef - a.precioCompletoRef);
 
-        // El primero (más caro) lleva precio completo
+        // Si ya hay un pago completo previo, todos los pendientes van con descuento
+        // Si NO hay pago completo previo, el más caro va completo y el resto con descuento
         itemsConPrecio.forEach((item, index) => {
           if (!item.esExcepcion && item.precio) {
-            if (index === 0) {
-              // Más caro: precio completo
-              item.montoCalculado =
-                item.tipoPago === 'Transferencia'
-                  ? parseFloat(item.precio.nuPrecioCompletoTransferencia)
-                  : parseFloat(item.precio.nuPrecioCompletoEfectivo);
-            } else {
-              // Resto: precio con descuento
+            if (yaHayPagoCompleto) {
+              // Ya se pagó uno completo, todos los pendientes con descuento
               item.montoCalculado =
                 item.tipoPago === 'Transferencia'
                   ? parseFloat(item.precio.nuPrecioDescuentoTransferencia)
                   : parseFloat(item.precio.nuPrecioDescuentoEfectivo);
+            } else {
+              // No hay pago completo aún: el más caro completo, resto descuento
+              if (index === 0) {
+                // Más caro: precio completo
+                item.montoCalculado =
+                  item.tipoPago === 'Transferencia'
+                    ? parseFloat(item.precio.nuPrecioCompletoTransferencia)
+                    : parseFloat(item.precio.nuPrecioCompletoEfectivo);
+              } else {
+                // Resto: precio con descuento
+                item.montoCalculado =
+                  item.tipoPago === 'Transferencia'
+                    ? parseFloat(item.precio.nuPrecioDescuentoTransferencia)
+                    : parseFloat(item.precio.nuPrecioDescuentoEfectivo);
+              }
             }
           }
         });

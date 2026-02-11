@@ -82,16 +82,90 @@ export async function GET(
     const mesActual = fechaActual.getMonth() + 1;
     const anioActual = fechaActual.getFullYear();
 
+    // Verificar si el alumno pertenece a un grupo familiar
+    const [grupoFamiliar] = await pool.execute<any[]>(
+      `SELECT cdGrupoFamiliar FROM TR_ALUMNO_GRUPO_FAMILIAR WHERE cdAlumno = ?`,
+      [cdAlumno]
+    );
+
+    const cdGrupoFamiliar = grupoFamiliar.length > 0 ? grupoFamiliar[0].cdGrupoFamiliar : null;
+
     // Obtener pagos ya realizados para este alumno en el mes/año actual
-    const [pagosRealizados] = await pool.execute<any[]>(
-      `SELECT DISTINCT pd.cdAlumno, pd.cdTaller
+    // Si tiene grupo familiar, obtener TODOS los pagos del grupo para calcular descuentos correctamente
+    let queryPagos = '';
+    let paramsPagos: any[] = [];
+    
+    if (cdGrupoFamiliar) {
+      // Tiene grupo familiar: obtener todos los pagos del grupo
+      queryPagos = `SELECT 
+         pd.cdAlumno, 
+         pd.cdTaller,
+         pd.nuMonto,
+         pd.cdPagoDetalle,
+         tt.cdTipoTaller
        FROM TD_PAGOS p
        INNER JOIN TD_PAGOS_DETALLE pd ON p.cdPago = pd.cdPago
+       INNER JOIN TD_TALLERES t ON pd.cdTaller = t.cdTaller
+       INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
+       WHERE p.cdGrupoFamiliar = ?
+         AND p.nuMes = ?
+         AND p.nuAnio = ?`;
+      paramsPagos = [cdGrupoFamiliar, mesActual, anioActual];
+    } else {
+      // No tiene grupo familiar: solo pagos del alumno
+      queryPagos = `SELECT 
+         pd.cdAlumno, 
+         pd.cdTaller,
+         pd.nuMonto,
+         pd.cdPagoDetalle,
+         tt.cdTipoTaller
+       FROM TD_PAGOS p
+       INNER JOIN TD_PAGOS_DETALLE pd ON p.cdPago = pd.cdPago
+       INNER JOIN TD_TALLERES t ON pd.cdTaller = t.cdTaller
+       INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
        WHERE pd.cdAlumno = ?
          AND p.nuMes = ?
-         AND p.nuAnio = ?`,
-      [cdAlumno, mesActual, anioActual]
-    );
+         AND p.nuAnio = ?`;
+      paramsPagos = [cdAlumno, mesActual, anioActual];
+    }
+
+    const [pagosRealizados] = await pool.execute<any[]>(queryPagos, paramsPagos);
+
+    // Analizar pagos previos: determinar cuántos fueron con precio completo
+    const pagosPreviosConTipoInfo = pagosRealizados.map((pago: any) => {
+      const precio = preciosMap.get(pago.cdTipoTaller);
+      let tipoPrecio = 'desconocido';
+      
+      if (precio) {
+        const monto = parseFloat(pago.nuMonto);
+        const precioCompletoEfectivo = parseFloat(precio.nuPrecioCompletoEfectivo);
+        const precioCompletoTransferencia = parseFloat(precio.nuPrecioCompletoTransferencia);
+        const precioDescuentoEfectivo = parseFloat(precio.nuPrecioDescuentoEfectivo);
+        const precioDescuentoTransferencia = parseFloat(precio.nuPrecioDescuentoTransferencia);
+        
+        // Determinar si fue precio completo o descuento (con tolerancia de 0.01 por redondeos)
+        if (Math.abs(monto - precioCompletoEfectivo) < 0.01 || Math.abs(monto - precioCompletoTransferencia) < 0.01) {
+          tipoPrecio = 'completo';
+        } else if (Math.abs(monto - precioDescuentoEfectivo) < 0.01 || Math.abs(monto - precioDescuentoTransferencia) < 0.01) {
+          tipoPrecio = 'descuento';
+        } else {
+          tipoPrecio = 'excepcion';
+        }
+      }
+      
+      return {
+        cdAlumno: pago.cdAlumno,
+        cdTaller: pago.cdTaller,
+        cdTipoTaller: pago.cdTipoTaller,
+        nuMonto: pago.nuMonto,
+        tipoPrecio
+      };
+    });
+
+    // Contar cuántos pagos previos fueron con precio completo
+    const cantidadPagosCompletos = pagosPreviosConTipoInfo.filter(
+      (p: any) => p.tipoPrecio === 'completo'
+    ).length;
 
     // Crear un Set para búsqueda rápida
     const pagoSet = new Set(
@@ -135,8 +209,12 @@ export async function GET(
 
     return NextResponse.json({
       alumno: cdAlumno,
+      grupoFamiliar: cdGrupoFamiliar,
       items,
-      cantidadTalleres: talleres.length,
+      cantidadTalleres: talleres.length, // Total de talleres incluyendo pagados
+      pagosPrevios: pagosPreviosConTipoInfo, // Pagos ya realizados este mes con tipo
+      cantidadPagosCompletos, // Cuántos pagos previos fueron con precio completo
+      cantidadPagosDescuento: pagosPreviosConTipoInfo.filter((p: any) => p.tipoPrecio === 'descuento').length,
     });
   } catch (error: any) {
     console.error('Error al calcular cuotas:', error);

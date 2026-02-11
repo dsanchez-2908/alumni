@@ -114,6 +114,45 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Verificar duplicados antes de insertar
+    const fechasYTalleres = precios.map(p => ({
+      fecha: p.feInicioVigencia,
+      taller: p.cdTipoTaller
+    }));
+    
+    const [existentes] = await pool.execute<any[]>(
+      `SELECT cdTipoTaller, DATE_FORMAT(feInicioVigencia, '%Y-%m-%d') as feInicioVigencia
+       FROM TD_PRECIOS_TALLERES
+       WHERE cdEstado = 1
+         AND DATE(feInicioVigencia) = DATE(?)`,
+      [precios[0].feInicioVigencia]
+    );
+    
+    const duplicados = existentes.filter((existente: any) =>
+      precios.some(precio => 
+        precio.cdTipoTaller === existente.cdTipoTaller &&
+        precio.feInicioVigencia === existente.feInicioVigencia
+      )
+    );
+    
+    if (duplicados.length > 0) {
+      // Obtener nombres de los talleres duplicados
+      const [talleresDup] = await pool.execute<any[]>(
+        `SELECT dsNombreTaller FROM TD_TIPO_TALLERES WHERE cdTipoTaller IN (?)`,
+        [duplicados.map((d: any) => d.cdTipoTaller)]
+      );
+      const nombresDup = talleresDup.map((t: any) => t.dsNombreTaller).join(', ');
+      
+      return NextResponse.json(
+        { 
+          error: 'Ya existen precios registrados para esta fecha de vigencia',
+          detalles: `Talleres duplicados: ${nombresDup}`,
+          consejo: 'Elimine los precios existentes antes de crear nuevos para esta fecha'
+        },
+        { status: 409 }
+      );
+    }
+
     // Insertar todos los precios
     const insertedIds = [];
     for (const precio of precios) {

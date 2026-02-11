@@ -248,12 +248,17 @@ async function consultarPendientes(searchParams: URLSearchParams) {
     const mes = searchParams.get('mes');
     const anio = searchParams.get('anio');
 
-    // Determinar el período a consultar (mes/año actual por defecto)
+    // Determinar el período a consultar
     const fechaActual = new Date();
-    const mesConsulta = mes && mes !== '0' ? parseInt(mes) : fechaActual.getMonth() + 1;
-    const anioConsulta = anio ? parseInt(anio) : fechaActual.getFullYear();
+    const mesActual = fechaActual.getMonth() + 1;
+    const anioActual = fechaActual.getFullYear();
+    
+    // Si se especifica mes y año, consultar solo ese período
+    const consultarPeriodoEspecifico = mes && mes !== '0' && anio;
+    const mesConsulta = mes && mes !== '0' ? parseInt(mes) : mesActual;
+    const anioConsulta = anio ? parseInt(anio) : anioActual;
 
-    // Obtener todos los alumnos con talleres activos
+    // Obtener todos los alumnos con talleres activos (incluyendo feInicioTaller)
     let queryAlumnos = `
       SELECT DISTINCT
         a.cdAlumno,
@@ -266,7 +271,8 @@ async function consultarPendientes(searchParams: URLSearchParams) {
         at.cdTaller,
         t.cdTipoTaller,
         tt.dsNombreTaller,
-        t.nuAnioTaller
+        t.nuAnioTaller,
+        t.feInicioTaller
       FROM TD_ALUMNOS a
       INNER JOIN TR_ALUMNO_TALLER at ON a.cdAlumno = at.cdAlumno
       INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
@@ -276,9 +282,10 @@ async function consultarPendientes(searchParams: URLSearchParams) {
       WHERE a.cdEstado = 1
         AND at.feBaja IS NULL
         AND t.cdEstado IN (1, 2)
+        AND t.nuAnioTaller = ?
     `;
 
-    const params: any[] = [];
+    const params: any[] = [anioActual];
 
     if (searchAlumno) {
       queryAlumnos += ` AND (a.dsNombre LIKE ? OR a.dsApellido LIKE ? OR a.dsDNI LIKE ?)`;
@@ -318,7 +325,7 @@ async function consultarPendientes(searchParams: URLSearchParams) {
     const preciosData = await Promise.all(preciosPromises);
     const preciosMap = new Map(preciosData.map((p) => [p.cdTipoTaller, p.precio]));
 
-    // Obtener pagos ya realizados para el período consultado
+    // Obtener TODOS los pagos realizados del año actual (para buscar pendientes de cualquier mes)
     const [pagosRealizados] = await pool.execute<any[]>(
       `SELECT DISTINCT 
         pd.cdAlumno, 
@@ -327,38 +334,67 @@ async function consultarPendientes(searchParams: URLSearchParams) {
         p.nuAnio
        FROM TD_PAGOS p
        INNER JOIN TD_PAGOS_DETALLE pd ON p.cdPago = pd.cdPago
-       WHERE p.nuMes = ? AND p.nuAnio = ?`,
-      [mesConsulta, anioConsulta]
+       WHERE p.nuAnio = ?`,
+      [anioActual]
     );
 
     const pagoSet = new Set(
       pagosRealizados.map((p: any) => `${p.cdAlumno}-${p.cdTaller}-${p.nuMes}-${p.nuAnio}`)
     );
 
-    // Filtrar solo los que NO tienen pago para el período
-    const pendientes = alumnosTalleres.filter((at: any) => {
-      const key = `${at.cdAlumno}-${at.cdTaller}-${mesConsulta}-${anioConsulta}`;
-      return !pagoSet.has(key);
-    });
-
-    // Agrupar por alumno/grupo familiar para calcular descuentos
-    const gruposMap = new Map<string, any[]>();
+    // Generar registros pendientes por cada mes desde el inicio del taller hasta el mes actual
+    const pendientesDetallados: any[] = [];
     
-    pendientes.forEach((item: any) => {
-      const grupoKey = item.cdGrupoFamiliar 
-        ? `grupo-${item.cdGrupoFamiliar}` 
-        : `alumno-${item.cdAlumno}`;
+    alumnosTalleres.forEach((at: any) => {
+      const fechaInicio = new Date(at.feInicioTaller);
+      const mesInicio = fechaInicio.getMonth() + 1;
       
-      if (!gruposMap.has(grupoKey)) {
-        gruposMap.set(grupoKey, []);
+      // Si consultamos un período específico, solo ese mes
+      if (consultarPeriodoEspecifico) {
+        // Verificar que el mes consultado esté dentro del rango válido
+        if (mesConsulta >= mesInicio && mesConsulta <= mesActual) {
+          const key = `${at.cdAlumno}-${at.cdTaller}-${mesConsulta}-${anioConsulta}`;
+          if (!pagoSet.has(key)) {
+            pendientesDetallados.push({
+              ...at,
+              mesPendiente: mesConsulta,
+              anioPendiente: anioConsulta,
+            });
+          }
+        }
+      } else {
+        // Buscar TODOS los meses pendientes desde el inicio del taller hasta el mes actual
+        for (let m = mesInicio; m <= mesActual; m++) {
+          const key = `${at.cdAlumno}-${at.cdTaller}-${m}-${anioActual}`;
+          if (!pagoSet.has(key)) {
+            pendientesDetallados.push({
+              ...at,
+              mesPendiente: m,
+              anioPendiente: anioActual,
+            });
+          }
+        }
       }
-      gruposMap.get(grupoKey)!.push(item);
     });
 
-    // Calcular montos con descuentos por grupo
+    // Agrupar por alumno + periodo + grupo familiar para calcular descuentos
+    const gruposPeridoMap = new Map<string, any[]>();
+    
+    pendientesDetallados.forEach((item: any) => {
+      const grupoKey = item.cdGrupoFamiliar 
+        ? `grupo-${item.cdGrupoFamiliar}-${item.mesPendiente}-${item.anioPendiente}` 
+        : `alumno-${item.cdAlumno}-${item.mesPendiente}-${item.anioPendiente}`;
+      
+      if (!gruposPeridoMap.has(grupoKey)) {
+        gruposPeridoMap.set(grupoKey, []);
+      }
+      gruposPeridoMap.get(grupoKey)!.push(item);
+    });
+
+    // Calcular montos con descuentos por grupo y periodo
     const pendientesConMontos: any[] = [];
 
-    gruposMap.forEach((items, grupoKey) => {
+    gruposPeridoMap.forEach((items, grupoKey) => {
       // Si es un solo taller, precio completo
       if (items.length === 1) {
         const item = items[0];
@@ -373,8 +409,8 @@ async function consultarPendientes(searchParams: URLSearchParams) {
             dsNombreGrupo: item.dsNombreGrupo,
             cdTaller: item.cdTaller,
             nombreTaller: `${item.dsNombreTaller} (${item.nuAnioTaller})`,
-            mes: mesConsulta,
-            anio: anioConsulta,
+            mes: item.mesPendiente,
+            anio: item.anioPendiente,
             montoEsperadoEfectivo: parseFloat(precio.nuPrecioCompletoEfectivo),
             montoEsperadoTransferencia: parseFloat(precio.nuPrecioCompletoTransferencia),
           });
@@ -404,8 +440,8 @@ async function consultarPendientes(searchParams: URLSearchParams) {
             dsNombreGrupo: item.dsNombreGrupo,
             cdTaller: item.cdTaller,
             nombreTaller: `${item.dsNombreTaller} (${item.nuAnioTaller})`,
-            mes: mesConsulta,
-            anio: anioConsulta,
+            mes: item.mesPendiente,
+            anio: item.anioPendiente,
             montoEsperadoEfectivo: esCompleto
               ? parseFloat(item.precio.nuPrecioCompletoEfectivo)
               : parseFloat(item.precio.nuPrecioDescuentoEfectivo),
@@ -417,38 +453,46 @@ async function consultarPendientes(searchParams: URLSearchParams) {
       }
     });
 
-    // Agrupar por alumno para la vista consolidada
-    const alumnosMap = new Map<number, any>();
+    // Agrupar por alumno + periodo para la vista consolidada
+    const alumnosPeriodoMap = new Map<string, any>();
     
     pendientesConMontos.forEach((item: any) => {
-      if (!alumnosMap.has(item.cdAlumno)) {
-        alumnosMap.set(item.cdAlumno, {
+      const key = `${item.cdAlumno}-${item.mes}-${item.anio}`;
+      
+      if (!alumnosPeriodoMap.has(key)) {
+        alumnosPeriodoMap.set(key, {
           cdAlumno: item.cdAlumno,
           nombreAlumno: item.nombreAlumno,
           dsDNI: item.dsDNI,
           cdGrupoFamiliar: item.cdGrupoFamiliar,
           dsNombreGrupo: item.dsNombreGrupo,
-          mes: mesConsulta,
-          anio: anioConsulta,
-          periodo: `${String(mesConsulta).padStart(2, '0')}/${anioConsulta}`,
+          mes: item.mes,
+          anio: item.anio,
+          periodo: `${String(item.mes).padStart(2, '0')}/${item.anio}`,
           talleres: [],
           montoTotalEsperadoEfectivo: 0,
           montoTotalEsperadoTransferencia: 0,
         });
       }
       
-      const alumno = alumnosMap.get(item.cdAlumno);
-      alumno.talleres.push({
+      const registro = alumnosPeriodoMap.get(key);
+      registro.talleres.push({
         cdTaller: item.cdTaller,
         nombreTaller: item.nombreTaller,
         montoEsperadoEfectivo: item.montoEsperadoEfectivo,
         montoEsperadoTransferencia: item.montoEsperadoTransferencia,
       });
-      alumno.montoTotalEsperadoEfectivo += item.montoEsperadoEfectivo;
-      alumno.montoTotalEsperadoTransferencia += item.montoEsperadoTransferencia;
+      registro.montoTotalEsperadoEfectivo += item.montoEsperadoEfectivo;
+      registro.montoTotalEsperadoTransferencia += item.montoEsperadoTransferencia;
     });
 
-    const resultados = Array.from(alumnosMap.values());
+    const resultados = Array.from(alumnosPeriodoMap.values())
+      .sort((a, b) => {
+        // Ordenar por período (mes/año) descendente
+        if (a.anio !== b.anio) return b.anio - a.anio;
+        if (a.mes !== b.mes) return b.mes - a.mes;
+        return a.nombreAlumno.localeCompare(b.nombreAlumno);
+      });
 
     return NextResponse.json({
       pagos: resultados,
