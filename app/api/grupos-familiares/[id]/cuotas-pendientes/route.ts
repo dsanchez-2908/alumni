@@ -16,6 +16,15 @@ export async function GET(
 
     const cdGrupoFamiliar = parseInt(params.id);
 
+    // Obtener mes y a\u00f1o de los query params, o usar el mes actual por defecto
+    const { searchParams } = new URL(request.url);
+    const mesParam = searchParams.get('mes');
+    const anioParam = searchParams.get('anio');
+    
+    const fechaActual = new Date();
+    const mesSeleccionado = mesParam ? parseInt(mesParam) : fechaActual.getMonth() + 1;
+    const anioSeleccionado = anioParam ? parseInt(anioParam) : fechaActual.getFullYear();
+
     // Obtener todos los talleres activos del grupo familiar
     const [talleres] = await pool.execute<any[]>(
       `SELECT 
@@ -78,12 +87,7 @@ export async function GET(
       }, { status: 400 });
     }
 
-    // Calcular qué mes(es) debe pagar cada alumno
-    const fechaActual = new Date();
-    const mesActual = fechaActual.getMonth() + 1;
-    const anioActual = fechaActual.getFullYear();
-
-    // Obtener pagos ya realizados para este grupo familiar en el mes/año actual
+    // Obtener pagos ya realizados para este grupo familiar en el mes/año seleccionado
     // con información detallada de montos para determinar si fue precio completo o descuento
     const [pagosRealizados] = await pool.execute<any[]>(
       `SELECT 
@@ -99,7 +103,7 @@ export async function GET(
        WHERE p.cdGrupoFamiliar = ?
          AND p.nuMes = ?
          AND p.nuAnio = ?`,
-      [cdGrupoFamiliar, mesActual, anioActual]
+      [cdGrupoFamiliar, mesSeleccionado, anioSeleccionado]
     );
 
     // Analizar pagos previos: determinar cuántos fueron con precio completo
@@ -158,8 +162,8 @@ export async function GET(
           cdTaller: taller.cdTaller,
           nombreTaller: `${taller.dsNombreTaller} (${taller.nuAnioTaller})`,
           cdTipoTaller: taller.cdTipoTaller,
-          mes: mesActual,
-          anio: anioActual,
+          mes: mesSeleccionado,
+          anio: anioSeleccionado,
           precio,
           // Estos valores se calcularán en el frontend según la lógica de descuentos
           montoCalculado: 0,

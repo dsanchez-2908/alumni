@@ -16,6 +16,15 @@ export async function GET(
 
     const cdAlumno = parseInt(params.id);
 
+    // Obtener mes y año de los query params, o usar el mes actual por defecto
+    const { searchParams } = new URL(request.url);
+    const mesParam = searchParams.get('mes');
+    const anioParam = searchParams.get('anio');
+    
+    const fechaActual = new Date();
+    const mesSeleccionado = mesParam ? parseInt(mesParam) : fechaActual.getMonth() + 1;
+    const anioSeleccionado = anioParam ? parseInt(anioParam) : fechaActual.getFullYear();
+
     // Obtener todos los talleres activos del alumno
     const [talleres] = await pool.execute<any[]>(
       `SELECT 
@@ -77,11 +86,6 @@ export async function GET(
       }, { status: 400 });
     }
 
-    // Calcular qué mes(es) debe pagar el alumno
-    const fechaActual = new Date();
-    const mesActual = fechaActual.getMonth() + 1;
-    const anioActual = fechaActual.getFullYear();
-
     // Verificar si el alumno pertenece a un grupo familiar
     const [grupoFamiliar] = await pool.execute<any[]>(
       `SELECT cdGrupoFamiliar FROM TR_ALUMNO_GRUPO_FAMILIAR WHERE cdAlumno = ?`,
@@ -110,7 +114,7 @@ export async function GET(
        WHERE p.cdGrupoFamiliar = ?
          AND p.nuMes = ?
          AND p.nuAnio = ?`;
-      paramsPagos = [cdGrupoFamiliar, mesActual, anioActual];
+      paramsPagos = [cdGrupoFamiliar, mesSeleccionado, anioSeleccionado];
     } else {
       // No tiene grupo familiar: solo pagos del alumno
       queryPagos = `SELECT 
@@ -126,7 +130,7 @@ export async function GET(
        WHERE pd.cdAlumno = ?
          AND p.nuMes = ?
          AND p.nuAnio = ?`;
-      paramsPagos = [cdAlumno, mesActual, anioActual];
+      paramsPagos = [cdAlumno, mesSeleccionado, anioSeleccionado];
     }
 
     const [pagosRealizados] = await pool.execute<any[]>(queryPagos, paramsPagos);
@@ -187,8 +191,8 @@ export async function GET(
           cdTaller: taller.cdTaller,
           nombreTaller: `${taller.dsNombreTaller} (${taller.nuAnioTaller})`,
           cdTipoTaller: taller.cdTipoTaller,
-          mes: mesActual,
-          anio: anioActual,
+          mes: mesSeleccionado,
+          anio: anioSeleccionado,
           precio,
           // Estos valores se calcularán en el frontend según la lógica de descuentos
           montoCalculado: 0,

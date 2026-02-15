@@ -66,6 +66,12 @@ interface ItemPago {
 
 export default function RegistroPagosPage() {
   const { success, error, warning } = useToast();
+  
+  // Inicializar con el mes y año actual
+  const fechaActual = new Date();
+  const [mesSeleccionado, setMesSeleccionado] = useState(fechaActual.getMonth() + 1);
+  const [anioSeleccionado, setAnioSeleccionado] = useState(fechaActual.getFullYear());
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
   const [alumnoSeleccionado, setAlumnoSeleccionado] = useState<Alumno | null>(null);
@@ -118,9 +124,12 @@ export default function RegistroPagosPage() {
     try {
       // Si tiene grupo familiar, buscar cuotas del grupo completo
       // Si no tiene, buscar solo las cuotas del alumno individual
-      const endpoint = alumno.cdGrupoFamiliar
+      const baseEndpoint = alumno.cdGrupoFamiliar
         ? `/api/grupos-familiares/${alumno.cdGrupoFamiliar}/cuotas-pendientes`
         : `/api/alumnos/${alumno.cdAlumno}/cuotas-pendientes`;
+      
+      // Agregar parámetros de mes y año
+      const endpoint = `${baseEndpoint}?mes=${mesSeleccionado}&anio=${anioSeleccionado}`;
       
       const response = await fetch(endpoint);
       
@@ -517,8 +526,56 @@ export default function RegistroPagosPage() {
             <Search className="h-5 w-5" />
             Buscar Alumno
           </CardTitle>
+          <CardDescription>
+            Seleccione el mes a pagar y busque el alumno
+          </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Selector de Mes/Año */}
+          <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <Label className="text-sm font-medium text-blue-900 mb-2 block">
+              Mes y Año del Pago
+            </Label>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs text-gray-600">Mes</Label>
+                <Select 
+                  value={mesSeleccionado.toString()} 
+                  onValueChange={(value) => setMesSeleccionado(parseInt(value))}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {meses.map((mes, index) => (
+                      <SelectItem key={index + 1} value={(index + 1).toString()}>
+                        {mes}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs text-gray-600">Año</Label>
+                <Select 
+                  value={anioSeleccionado.toString()} 
+                  onValueChange={(value) => setAnioSeleccionado(parseInt(value))}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[anioSeleccionado - 1, anioSeleccionado, anioSeleccionado + 1].map((anio) => (
+                      <SelectItem key={anio} value={anio.toString()}>
+                        {anio}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          
           <div className="flex gap-4">
             <div className="flex-1">
               <Input
