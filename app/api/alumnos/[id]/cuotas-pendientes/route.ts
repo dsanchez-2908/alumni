@@ -57,16 +57,19 @@ export async function GET(
     // Obtener precios vigentes para cada tipo de taller
     const tiposTaller = [...new Set(talleres.map((t: any) => t.cdTipoTaller))];
     
+    // Construir fecha para el mes/año seleccionado (primer día del mes)
+    const fechaConsulta = `${anioSeleccionado}-${mesSeleccionado.toString().padStart(2, '0')}-01`;
+    
     const preciosPromises = tiposTaller.map(async (cdTipoTaller) => {
       const [precios] = await pool.execute<any[]>(
         `SELECT *
          FROM TD_PRECIOS_TALLERES
          WHERE cdTipoTaller = ?
-           AND feInicioVigencia <= CURDATE()
+           AND feInicioVigencia <= ?
            AND cdEstado = 1
          ORDER BY feInicioVigencia DESC
          LIMIT 1`,
-        [cdTipoTaller]
+        [cdTipoTaller, fechaConsulta]
       );
       return { cdTipoTaller, precio: precios[0] || null };
     });
