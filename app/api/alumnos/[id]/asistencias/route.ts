@@ -34,7 +34,7 @@ export async function GET(
         at.feInscripcion,
         at.feBaja
       FROM TD_TALLERES t
-      INNER JOIN tr_alumno_taller at ON t.cdTaller = at.cdTaller
+      INNER JOIN TR_ALUMNO_TALLER at ON t.cdTaller = at.cdTaller
       WHERE t.cdTaller = ? AND at.cdAlumno = ?`,
       [cdTaller, cdAlumno]
     );
@@ -91,7 +91,7 @@ export async function GET(
         snPresente,
         dsObservacion,
         cdFalta
-      FROM td_asistencias
+      FROM TD_ASISTENCIAS
       WHERE cdAlumno = ? AND cdTaller = ?
       ORDER BY feFalta`,
       [cdAlumno, cdTaller]

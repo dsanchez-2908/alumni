@@ -170,8 +170,8 @@ export function DashboardSidebar() {
   const toggleCategory = (title: string) => {
     setExpandedCategories(prev =>
       prev.includes(title)
-        ? prev.filter(cat => cat !== title)
-        : [...prev, title]
+        ? [] // Si ya está expandido, lo colapsa (cierra todos)
+        : [title] // Si no está expandido, cierra todos los demás y abre solo este
     );
   };
 

@@ -23,7 +23,7 @@ export async function PATCH(
 
     // Verificar que la asistencia existe y pertenece al alumno
     const [asistenciaRows] = await pool.execute<any[]>(
-      'SELECT cdAlumno FROM td_asistencias WHERE cdFalta = ?',
+      'SELECT cdAlumno FROM TD_ASISTENCIAS WHERE cdFalta = ?',
       [cdFalta]
     );
 
@@ -43,7 +43,7 @@ export async function PATCH(
 
     // Actualizar observación
     await pool.execute(
-      'UPDATE td_asistencias SET dsObservacion = ? WHERE cdFalta = ?',
+      'UPDATE TD_ASISTENCIAS SET dsObservacion = ? WHERE cdFalta = ?',
       [dsObservacion || null, cdFalta]
     );
 
