@@ -31,6 +31,27 @@ interface Taller {
   dsNombreTaller: string;
   nombrePersonal: string;
   cdPersonal: number;
+  snLunes: boolean;
+  dsLunesHoraDesde: string | null;
+  dsLunesHoraHasta: string | null;
+  snMartes: boolean;
+  dsMartesHoraDesde: string | null;
+  dsMartesHoraHasta: string | null;
+  snMiercoles: boolean;
+  dsMiercolesHoraDesde: string | null;
+  dsMiercolesHoraHasta: string | null;
+  snJueves: boolean;
+  dsJuevesHoraDesde: string | null;
+  dsJuevesHoraHasta: string | null;
+  snViernes: boolean;
+  dsViernesHoraDesde: string | null;
+  dsViernesHoraHasta: string | null;
+  snSabado: boolean;
+  dsSabadoHoraDesde: string | null;
+  dsSabadoHoraHasta: string | null;
+  snDomingo: boolean;
+  dsDomingoHoraDesde: string | null;
+  dsDomingoHoraHasta: string | null;
 }
 
 interface FechasPendientes {
@@ -40,6 +61,34 @@ interface FechasPendientes {
 }
 
 const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+// Helper function to format workshop schedule
+const formatHorarioTaller = (taller: Taller): string => {
+  const horarios: string[] = [];
+  const diasMap = [
+    { sn: taller.snLunes, desde: taller.dsLunesHoraDesde, hasta: taller.dsLunesHoraHasta, nombre: 'Lun' },
+    { sn: taller.snMartes, desde: taller.dsMartesHoraDesde, hasta: taller.dsMartesHoraHasta, nombre: 'Mar' },
+    { sn: taller.snMiercoles, desde: taller.dsMiercolesHoraDesde, hasta: taller.dsMiercolesHoraHasta, nombre: 'Mié' },
+    { sn: taller.snJueves, desde: taller.dsJuevesHoraDesde, hasta: taller.dsJuevesHoraHasta, nombre: 'Jue' },
+    { sn: taller.snViernes, desde: taller.dsViernesHoraDesde, hasta: taller.dsViernesHoraHasta, nombre: 'Vie' },
+    { sn: taller.snSabado, desde: taller.dsSabadoHoraDesde, hasta: taller.dsSabadoHoraHasta, nombre: 'Sáb' },
+    { sn: taller.snDomingo, desde: taller.dsDomingoHoraDesde, hasta: taller.dsDomingoHoraHasta, nombre: 'Dom' },
+  ];
+
+  diasMap.forEach(dia => {
+    if (dia.sn) {
+      const horaDesde = dia.desde ? dia.desde.substring(0, 5) : '';
+      const horaHasta = dia.hasta ? dia.hasta.substring(0, 5) : '';
+      if (horaDesde && horaHasta) {
+        horarios.push(`${dia.nombre} ${horaDesde}-${horaHasta}`);
+      } else {
+        horarios.push(dia.nombre);
+      }
+    }
+  });
+
+  return horarios.length > 0 ? horarios.join(', ') : 'Sin horario definido';
+};
 
 export default function RegistroAsistenciaProfesorPage() {
   const router = useRouter();
@@ -186,7 +235,14 @@ export default function RegistroAsistenciaProfesorPage() {
                     ) : (
                       talleresFiltrados.map((t) => (
                         <SelectItem key={t.cdTaller} value={t.cdTaller.toString()}>
-                          {t.dsNombreTaller} - {t.nuAnioTaller}
+                          <div className="flex flex-col">
+                            <span className="font-medium">
+                              {t.dsNombreTaller} - {t.nuAnioTaller}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {formatHorarioTaller(t)}
+                            </span>
+                          </div>
                         </SelectItem>
                       ))
                     )}
@@ -201,6 +257,10 @@ export default function RegistroAsistenciaProfesorPage() {
                   Información del Taller
                 </p>
                 <div className="space-y-1 text-sm text-gray-600">
+                  <p>
+                    <span className="font-medium">Horarios:</span>{' '}
+                    {formatHorarioTaller(tallerActual)}
+                  </p>
                   <p>
                     <span className="font-medium">Días de clase:</span>{' '}
                     {fechasPendientes.diasClase.map((d) => diasSemana[d]).join(', ')}
