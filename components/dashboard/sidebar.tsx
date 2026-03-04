@@ -43,36 +43,37 @@ const menuCategories: MenuCategory[] = [
     title: 'Dashboard',
     href: '/dashboard',
     icon: <LayoutDashboard className="h-5 w-5" />,
+    // Todos los roles pueden ver el Dashboard
   },
   {
     title: 'Configuración',
     icon: <Settings className="h-5 w-5" />,
-    roles: ['Administrador', 'Supervisor', 'Operador'],
+    roles: ['Administrador', 'Supervisor'],
     subItems: [
       {
         title: 'Usuarios',
         href: '/dashboard/usuarios',
-        roles: ['Administrador', 'Supervisor'],
+        roles: ['Administrador'],
       },
       {
         title: 'Tipo de Talleres',
         href: '/dashboard/tipo-talleres',
-        roles: ['Administrador', 'Supervisor', 'Operador'],
+        roles: ['Administrador'],
       },
       {
         title: 'Personal',
         href: '/dashboard/personal',
-        roles: ['Administrador', 'Supervisor', 'Operador'],
+        roles: ['Administrador', 'Supervisor'],
       },
       {
         title: 'Talleres',
         href: '/dashboard/talleres',
-        roles: ['Administrador', 'Supervisor', 'Operador', 'Profesor'],
+        roles: ['Administrador', 'Supervisor'],
       },
       {
         title: 'Registro de Precios',
         href: '/dashboard/precios',
-        roles: ['Administrador', 'Supervisor'],
+        roles: ['Administrador'],
       },
     ],
   },
@@ -84,15 +85,17 @@ const menuCategories: MenuCategory[] = [
       {
         title: 'Nuevo Alumno',
         href: '/dashboard/alumnos/nuevo',
+        roles: ['Administrador', 'Supervisor'],
       },
       {
         title: 'Consulta de Alumnos',
         href: '/dashboard/alumnos',
+        roles: ['Administrador', 'Supervisor', 'Operador'],
       },
       {
         title: 'Grupos Familiares',
         href: '/dashboard/grupos-familiares',
-        roles: ['Administrador', 'Supervisor', 'Operador'],
+        roles: ['Administrador', 'Supervisor'],
       },
     ],
   },
@@ -109,12 +112,12 @@ const menuCategories: MenuCategory[] = [
       {
         title: 'Consulta de Asistencia',
         href: '/dashboard/consulta-asistencia',
-        roles: ['Administrador', 'Supervisor', 'Operador', 'Profesor'],
+        roles: ['Administrador', 'Supervisor'],
       },
       {
         title: 'Historial de Asistencia',
         href: '/dashboard/faltas',
-        roles: ['Administrador', 'Supervisor', 'Operador', 'Profesor'],
+        roles: ['Administrador', 'Supervisor'],
       },
     ],
   },
@@ -131,6 +134,11 @@ const menuCategories: MenuCategory[] = [
       {
         title: 'Consulta de Pagos',
         href: '/dashboard/pagos',
+        roles: ['Administrador', 'Supervisor'],
+      },
+      {
+        title: 'Pagos del Día',
+        href: '/dashboard/pagos/dia',
         roles: ['Administrador', 'Supervisor', 'Operador'],
       },
     ],
@@ -148,7 +156,7 @@ const menuCategories: MenuCategory[] = [
       {
         title: 'Seguimiento de Faltas',
         href: '/dashboard/reportes/alumnos-con-faltas',
-        roles: ['Administrador', 'Supervisor', 'Operador'],
+        roles: ['Administrador', 'Supervisor'],
       },
     ],
   },

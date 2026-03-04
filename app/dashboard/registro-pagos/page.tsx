@@ -80,6 +80,8 @@ export default function RegistroPagosPage() {
   const [observacion, setObservacion] = useState('');
   const [metodoNotificacion, setMetodoNotificacion] = useState<string>('Mail');
   const [contactosNotificacion, setContactosNotificacion] = useState<{emails: string[], whatsapps: string[]}>({emails: [], whatsapps: []});
+  const [emailNotificacion, setEmailNotificacion] = useState('');
+  const [whatsappNotificacion, setWhatsappNotificacion] = useState('');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dialogAbierto, setDialogAbierto] = useState(false);
@@ -185,6 +187,8 @@ export default function RegistroPagosPage() {
     setObservacion('');
     setMetodoNotificacion('Mail');
     setContactosNotificacion({emails: [], whatsapps: []});
+    setEmailNotificacion('');
+    setWhatsappNotificacion('');
     setTipoPagoGlobal('');
     setAlumnos([]);
     setCantidadTalleresTotal(0);
@@ -230,6 +234,19 @@ export default function RegistroPagosPage() {
         emails: Array.from(emails),
         whatsapps: Array.from(whatsapps)
       });
+      
+      // Setear los valores editables con el primer email/whatsapp encontrado
+      if (emails.size > 0) {
+        setEmailNotificacion(Array.from(emails)[0]);
+      } else {
+        setEmailNotificacion('');
+      }
+      
+      if (whatsapps.size > 0) {
+        setWhatsappNotificacion(Array.from(whatsapps)[0]);
+      } else {
+        setWhatsappNotificacion('');
+      }
     } catch (error) {
       console.error('Error al cargar contactos:', error);
     }
@@ -393,14 +410,14 @@ export default function RegistroPagosPage() {
       return;
     }
 
-    // Validar que existan contactos según el método seleccionado
-    if ((metodoNotificacion === 'Mail' || metodoNotificacion === 'Ambos') && contactosNotificacion.emails.length === 0) {
-      error('No se encontró un email de notificación configurado para el alumno. Por favor, configure el campo "Mail Notificación" en los datos del alumno.');
+    // Validar que existan valores en los campos editables según el método seleccionado
+    if ((metodoNotificacion === 'Mail' || metodoNotificacion === 'Ambos') && !emailNotificacion.trim()) {
+      error('Por favor, ingrese un email de notificación');
       return;
     }
 
-    if ((metodoNotificacion === 'Whatsapp' || metodoNotificacion === 'Ambos') && contactosNotificacion.whatsapps.length === 0) {
-      error('No se encontró un número de WhatsApp configurado para el alumno. Por favor, configure el campo "WhatsApp Notificación" en los datos del alumno.');
+    if ((metodoNotificacion === 'Whatsapp' || metodoNotificacion === 'Ambos') && !whatsappNotificacion.trim()) {
+      error('Por favor, ingrese un número de WhatsApp para notificación');
       return;
     }
 
@@ -410,6 +427,8 @@ export default function RegistroPagosPage() {
         cdGrupoFamiliar: alumnoSeleccionado?.cdGrupoFamiliar,
         observacion,
         metodoNotificacion, // Agregar método de notificación
+        emailNotificacion: emailNotificacion.trim() || undefined,
+        whatsappNotificacion: whatsappNotificacion.trim() || undefined,
         items: itemsSeleccionados.map((item) => ({
           cdAlumno: item.cdAlumno,
           cdTaller: item.cdTaller,
@@ -754,32 +773,44 @@ export default function RegistroPagosPage() {
                 </SelectContent>
               </Select>
 
-              {/* Mostrar contactos de notificación */}
+              {/* Campos editables de notificación */}
               {(metodoNotificacion === 'Mail' || metodoNotificacion === 'Ambos') && (
-                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
-                  <p className="text-sm font-medium text-blue-900">📧 Email de notificación:</p>
-                  {contactosNotificacion.emails.length > 0 ? (
-                    <p className="text-sm text-blue-700 mt-1">
-                      {contactosNotificacion.emails.join(', ')}
-                    </p>
-                  ) : (
-                    <p className="text-sm text-red-600 mt-1">
-                      ⚠️ No hay email configurado. Configure el campo "Mail Notificación" en los datos del alumno.
+                <div className="mt-4">
+                  <Label htmlFor="emailNotificacion" className="text-sm font-medium">
+                    📧 Email de notificación
+                  </Label>
+                  <Input
+                    id="emailNotificacion"
+                    type="email"
+                    value={emailNotificacion}
+                    onChange={(e) => setEmailNotificacion(e.target.value)}
+                    placeholder="correo@ejemplo.com"
+                    className="mt-2"
+                  />
+                  {contactosNotificacion.emails.length === 0 && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      ℹ️ El alumno no tiene email registrado. Puede ingresar uno manualmente.
                     </p>
                   )}
                 </div>
               )}
 
               {(metodoNotificacion === 'Whatsapp' || metodoNotificacion === 'Ambos') && (
-                <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
-                  <p className="text-sm font-medium text-green-900">📱 WhatsApp de notificación:</p>
-                  {contactosNotificacion.whatsapps.length > 0 ? (
-                    <p className="text-sm text-green-700 mt-1">
-                      {contactosNotificacion.whatsapps.join(', ')}
-                    </p>
-                  ) : (
-                    <p className="text-sm text-red-600 mt-1">
-                      ⚠️ No hay WhatsApp configurado. Configure el campo "WhatsApp Notificación" en los datos del alumno.
+                <div className="mt-4">
+                  <Label htmlFor="whatsappNotificacion" className="text-sm font-medium">
+                    📱 WhatsApp de notificación
+                  </Label>
+                  <Input
+                    id="whatsappNotificacion"
+                    type="text"
+                    value={whatsappNotificacion}
+                    onChange={(e) => setWhatsappNotificacion(e.target.value)}
+                    placeholder="+54 9 11 1234-5678"
+                    className="mt-2"
+                  />
+                  {contactosNotificacion.whatsapps.length === 0 && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      ℹ️ El alumno no tiene WhatsApp registrado. Puede ingresar uno manualmente.
                     </p>
                   )}
                 </div>

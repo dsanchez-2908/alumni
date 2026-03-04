@@ -41,11 +41,11 @@ export function generarPDFRecibo(datos: DatosRecibo): Buffer {
 
   doc.setFontSize(12);
   doc.setFont('helvetica', 'normal');
-  doc.text('Recibo de Pago', 105, 25, { align: 'center' });
+  doc.text('Comprobante de Pago', 105, 25, { align: 'center' });
 
-  // Número de recibo y fecha
+  // Número de comprobante y fecha
   doc.setFontSize(10);
-  doc.text(`Recibo N° ${datos.cdPago.toString().padStart(6, '0')}`, 105, 32, {
+  doc.text(`Comprobante N° ${datos.cdPago.toString().padStart(6, '0')}`, 105, 32, {
     align: 'center',
   });
 

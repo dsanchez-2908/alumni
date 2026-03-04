@@ -39,11 +39,27 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    // Obtener parámetro de búsqueda
+    // Obtener parámetros de búsqueda y paginación
     const searchParams = request.nextUrl.searchParams;
     const search = searchParams.get('search');
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '10');
+    
+    // Obtener filtros avanzados
+    const nombre = searchParams.get('nombre');
+    const apellido = searchParams.get('apellido');
+    const sexo = searchParams.get('sexo');
+    const edadOperador = searchParams.get('edadOperador');
+    const edadValor = searchParams.get('edadValor');
+    const edadValor2 = searchParams.get('edadValor2');
+    const tieneDiscapacidad = searchParams.get('tieneDiscapacidad');
+    const observacionesDiscapacidad = searchParams.get('observacionesDiscapacidad');
+    const observaciones = searchParams.get('observaciones');
+    const grupoFamiliar = searchParams.get('grupoFamiliar');
+    const tipoTaller = searchParams.get('tipoTaller');
+    const estado = searchParams.get('estado');
 
-    // Construir query con filtro opcional
+    // Construir query con filtros opcionales
     let query = `SELECT 
         a.cdAlumno,
         CONCAT(a.dsNombre, ' ', a.dsApellido) as dsNombreCompleto,
@@ -77,22 +93,106 @@ export async function GET(request: NextRequest) {
        LEFT JOIN TR_ALUMNO_TALLER at ON a.cdAlumno = at.cdAlumno AND at.feBaja IS NULL
        LEFT JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
        LEFT JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
-       WHERE a.cdEstado IN (1, 2)`;
+       WHERE 1=1`;
 
     const params: any[] = [];
 
-    // Agregar filtro de búsqueda si existe
+    // Filtro de estado
+    if (estado) {
+      query += ` AND a.cdEstado = ?`;
+      params.push(parseInt(estado));
+    } else {
+      // Si no se especifica estado, mostrar solo activos e inactivos (1 y 2)
+      query += ` AND a.cdEstado IN (1, 2)`;
+    }
+
+    // Agregar filtro de búsqueda rápida si existe
     if (search) {
       query += ` AND (a.dsNombre LIKE ? OR a.dsApellido LIKE ? OR a.dsDNI LIKE ?)`;
       const searchPattern = `%${search}%`;
       params.push(searchPattern, searchPattern, searchPattern);
     }
 
+    // Agregar filtros avanzados
+    if (nombre) {
+      query += ` AND a.dsNombre LIKE ?`;
+      params.push(`%${nombre}%`);
+    }
+
+    if (apellido) {
+      query += ` AND a.dsApellido LIKE ?`;
+      params.push(`%${apellido}%`);
+    }
+
+    if (sexo) {
+      query += ` AND a.dsSexo = ?`;
+      params.push(sexo);
+    }
+
+    if (tieneDiscapacidad) {
+      query += ` AND a.snDiscapacidad = ?`;
+      params.push(tieneDiscapacidad);
+    }
+
+    if (observacionesDiscapacidad) {
+      query += ` AND a.dsObservacionesDiscapacidad LIKE ?`;
+      params.push(`%${observacionesDiscapacidad}%`);
+    }
+
+    if (observaciones) {
+      query += ` AND a.dsObservaciones LIKE ?`;
+      params.push(`%${observaciones}%`);
+    }
+
+    if (grupoFamiliar) {
+      query += ` AND agf.cdGrupoFamiliar = ?`;
+      params.push(parseInt(grupoFamiliar));
+    }
+
+    // Filtro de tipo de taller - buscar alumnos con talleres de ese tipo
+    if (tipoTaller) {
+      query += ` AND t.cdTipoTaller = ?`;
+      params.push(parseInt(tipoTaller));
+    }
+
     query += `
        GROUP BY a.cdAlumno, a.dsNombre, a.dsApellido, a.dsDNI, a.dsSexo, a.feNacimiento,
                 a.dsDomicilio, a.dsTelefonoCelular, a.dsTelefonoFijo, a.dsMail, agf.cdGrupoFamiliar,
-                gf.dsNombreGrupo, a.cdEstado, a.feAlta
-       ORDER BY a.dsNombre, a.dsApellido ASC`;
+                gf.dsNombreGrupo, a.cdEstado, a.feAlta`;
+
+    // Aplicar filtro de edad después del GROUP BY usando HAVING
+    if (edadOperador && edadValor) {
+      if (edadOperador === 'entre' && edadValor2) {
+        // Filtro de rango de edad
+        query += ` HAVING edad BETWEEN ? AND ?`;
+        params.push(parseInt(edadValor), parseInt(edadValor2));
+      } else {
+        // Filtros de comparación simple
+        const operadores: { [key: string]: string } = {
+          'igual': '=',
+          'mayor': '>',
+          'menor': '<',
+          'mayorIgual': '>=',
+          'menorIgual': '<='
+        };
+        const operadorSQL = operadores[edadOperador];
+        if (operadorSQL) {
+          query += ` HAVING edad ${operadorSQL} ?`;
+          params.push(parseInt(edadValor));
+        }
+      }
+    }
+
+    // Contar total de registros antes de paginar
+    const countQuery = `SELECT COUNT(*) as total FROM (${query}) as countTable`;
+    const [countResult] = await pool.execute<any[]>(countQuery, params);
+    const total = countResult[0].total;
+
+    // Agregar ordenamiento y paginación
+    // Concatenar LIMIT y OFFSET directamente ya que son valores controlados (números)
+    query += ` ORDER BY a.dsNombre, a.dsApellido ASC`;
+    const offset = (page - 1) * limit;
+    query += ` LIMIT ${limit} OFFSET ${offset}`;
 
     const [alumnos] = await pool.execute<any[]>(query, params);
 
@@ -124,10 +224,27 @@ export async function GET(request: NextRequest) {
        ORDER BY tt.dsNombreTaller`
     );
 
+    // Obtener tipos de talleres para filtros
+    const [tiposTalleres] = await pool.execute<any[]>(
+      `SELECT DISTINCT 
+        cdTipoTaller,
+        dsNombreTaller
+       FROM TD_TIPO_TALLERES
+       WHERE cdEstado = 1
+       ORDER BY dsNombreTaller ASC`
+    );
+
     return NextResponse.json({
       alumnos,
       gruposFamiliares,
       talleres,
+      tiposTalleres,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     console.error('Error al obtener alumnos:', error);

@@ -40,6 +40,10 @@ import {
   Users,
   Calendar,
   Eye,
+  Filter,
+  X,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
@@ -70,22 +74,111 @@ interface GrupoFamiliar {
   cantidadMiembros: number;
 }
 
+interface TipoTaller {
+  cdTipoTaller: number;
+  dsNombreTaller: string;
+}
+
 interface Taller {
   cdTaller: number;
-  dsTaller: string;
-  dsProfesor: string | null;
+  dsNombreTaller: string;
+  nombrePersonal: string | null;
+  nuAnioTaller: number;
+  snLunes: boolean;
+  dsLunesHoraDesde: string | null;
+  dsLunesHoraHasta: string | null;
+  snMartes: boolean;
+  dsMartesHoraDesde: string | null;
+  dsMartesHoraHasta: string | null;
+  snMiercoles: boolean;
+  dsMiercolesHoraDesde: string | null;
+  dsMiercolesHoraHasta: string | null;
+  snJueves: boolean;
+  dsJuevesHoraDesde: string | null;
+  dsJuevesHoraHasta: string | null;
+  snViernes: boolean;
+  dsViernesHoraDesde: string | null;
+  dsViernesHoraHasta: string | null;
+  snSabado: boolean;
+  dsSabadoHoraDesde: string | null;
+  dsSabadoHoraHasta: string | null;
+  snDomingo: boolean;
+  dsDomingoHoraDesde: string | null;
+  dsDomingoHoraHasta: string | null;
 }
+
+interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+// Función helper para formatear días y horarios
+const formatHorarioTaller = (taller: Taller): string => {
+  const dias = [];
+  
+  if (taller.snLunes && taller.dsLunesHoraDesde && taller.dsLunesHoraHasta) {
+    dias.push(`Lun ${taller.dsLunesHoraDesde.slice(0, 5)}-${taller.dsLunesHoraHasta.slice(0, 5)}`);
+  }
+  if (taller.snMartes && taller.dsMartesHoraDesde && taller.dsMartesHoraHasta) {
+    dias.push(`Mar ${taller.dsMartesHoraDesde.slice(0, 5)}-${taller.dsMartesHoraHasta.slice(0, 5)}`);
+  }
+  if (taller.snMiercoles && taller.dsMiercolesHoraDesde && taller.dsMiercolesHoraHasta) {
+    dias.push(`Mié ${taller.dsMiercolesHoraDesde.slice(0, 5)}-${taller.dsMiercolesHoraHasta.slice(0, 5)}`);
+  }
+  if (taller.snJueves && taller.dsJuevesHoraDesde && taller.dsJuevesHoraHasta) {
+    dias.push(`Jue ${taller.dsJuevesHoraDesde.slice(0, 5)}-${taller.dsJuevesHoraHasta.slice(0, 5)}`);
+  }
+  if (taller.snViernes && taller.dsViernesHoraDesde && taller.dsViernesHoraHasta) {
+    dias.push(`Vie ${taller.dsViernesHoraDesde.slice(0, 5)}-${taller.dsViernesHoraHasta.slice(0, 5)}`);
+  }
+  if (taller.snSabado && taller.dsSabadoHoraDesde && taller.dsSabadoHoraHasta) {
+    dias.push(`Sáb ${taller.dsSabadoHoraDesde.slice(0, 5)}-${taller.dsSabadoHoraHasta.slice(0, 5)}`);
+  }
+  if (taller.snDomingo && taller.dsDomingoHoraDesde && taller.dsDomingoHoraHasta) {
+    dias.push(`Dom ${taller.dsDomingoHoraDesde.slice(0, 5)}-${taller.dsDomingoHoraHasta.slice(0, 5)}`);
+  }
+  
+  return dias.length > 0 ? dias.join(', ') : 'Sin horario definido';
+};
 
 export default function AlumnosPage() {
   const router = useRouter();
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
   const [gruposFamiliares, setGruposFamiliares] = useState<GrupoFamiliar[]>([]);
+  const [tiposTalleres, setTiposTalleres] = useState<TipoTaller[]>([]);
   const [talleres, setTalleres] = useState<Taller[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentId, setCurrentId] = useState<number | null>(null);
+  
+  // Estados de paginación
+  const [pagination, setPagination] = useState<Pagination>({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0,
+  });
+
+  // Estados de filtros avanzados
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    nombre: '',
+    apellido: '',
+    sexo: 'todos',
+    edadOperador: '',
+    edadValor: '',
+    edadValor2: '',
+    tieneDiscapacidad: 'todos',
+    observacionesDiscapacidad: '',
+    observaciones: '',
+    grupoFamiliar: 'todos',
+    tipoTaller: 'todos',
+    estado: 'todos',
+  });
 
   const [formData, setFormData] = useState({
     dsNombre: '',
@@ -131,20 +224,106 @@ export default function AlumnosPage() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [pagination.page, pagination.limit]);
 
   const fetchData = async () => {
     try {
-      const response = await fetch('/api/alumnos');
-      const data = await response.json();
-      setAlumnos(data.alumnos);
-      setGruposFamiliares(data.gruposFamiliares);
-      setTalleres(data.talleres);
+      setLoading(true);
+      
+      // Construir query params para paginación y filtros
+      const params = new URLSearchParams({
+        page: pagination.page.toString(),
+        limit: pagination.limit.toString(),
+      });
+
+      // Agregar búsqueda rápida
+      if (searchTerm) {
+        params.append('search', searchTerm);
+      }
+
+      // Agregar filtros avanzados
+      if (filters.nombre) params.append('nombre', filters.nombre);
+      if (filters.apellido) params.append('apellido', filters.apellido);
+      if (filters.sexo && filters.sexo !== 'todos') params.append('sexo', filters.sexo);
+      if (filters.edadOperador && filters.edadValor) {
+        params.append('edadOperador', filters.edadOperador);
+        params.append('edadValor', filters.edadValor);
+        if (filters.edadOperador === 'entre' && filters.edadValor2) {
+          params.append('edadValor2', filters.edadValor2);
+        }
+      }
+      if (filters.tieneDiscapacidad && filters.tieneDiscapacidad !== 'todos') params.append('tieneDiscapacidad', filters.tieneDiscapacidad);
+      if (filters.observacionesDiscapacidad) params.append('observacionesDiscapacidad', filters.observacionesDiscapacidad);
+      if (filters.observaciones) params.append('observaciones', filters.observaciones);
+      if (filters.grupoFamiliar && filters.grupoFamiliar !== 'todos') params.append('grupoFamiliar', filters.grupoFamiliar);
+      if (filters.tipoTaller && filters.tipoTaller !== 'todos') params.append('tipoTaller', filters.tipoTaller);
+      if (filters.estado && filters.estado !== 'todos') params.append('estado', filters.estado);
+
+      const [alumnosRes, talleresRes] = await Promise.all([
+        fetch(`/api/alumnos?${params.toString()}`),
+        fetch('/api/talleres')
+      ]);
+      
+      const alumnosData = await alumnosRes.json();
+      const talleresData = await talleresRes.json();
+      
+      setAlumnos(alumnosData.alumnos);
+      setGruposFamiliares(alumnosData.gruposFamiliares);
+      setTiposTalleres(alumnosData.tiposTalleres || []);
+      setTalleres(talleresData.filter((t: any) => t.cdEstado === 1));
+      
+      // Actualizar paginación
+      if (alumnosData.pagination) {
+        setPagination(alumnosData.pagination);
+      }
+      
       setLoading(false);
     } catch (error) {
       console.error('Error al cargar datos:', error);
       setLoading(false);
     }
+  };
+
+  const handleSearchSubmit = () => {
+    // Resetear a página 1 cuando se hace una búsqueda
+    setPagination((prev) => ({ ...prev, page: 1 }));
+    fetchData();
+  };
+
+  const handleApplyFilters = () => {
+    // Resetear a página 1 cuando se aplican filtros
+    setPagination((prev) => ({ ...prev, page: 1 }));
+    fetchData();
+  };
+
+  const handleClearFilters = () => {
+    setFilters({
+      nombre: '',
+      apellido: '',
+      sexo: 'todos',
+      edadOperador: '',
+      edadValor: '',
+      edadValor2: '',
+      tieneDiscapacidad: 'todos',
+      observacionesDiscapacidad: '',
+      observaciones: '',
+      grupoFamiliar: 'todos',
+      tipoTaller: 'todos',
+      estado: 'todos',
+    });
+    setSearchTerm('');
+    setPagination((prev) => ({ ...prev, page: 1 }));
+    setTimeout(() => fetchData(), 100);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= pagination.totalPages) {
+      setPagination((prev) => ({ ...prev, page: newPage }));
+    }
+  };
+
+  const handleLimitChange = (newLimit: number) => {
+    setPagination((prev) => ({ ...prev, limit: newLimit, page: 1 }));
   };
 
   const handleOpenDialog = async (alumno?: Alumno) => {
@@ -296,14 +475,6 @@ export default function AlumnosPage() {
     }));
   };
 
-  const filteredAlumnos = alumnos.filter(
-    (a) =>
-      a.dsNombreCompleto.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      a.dsDNI.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      a.dsGrupoFamiliar?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      a.talleres?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -342,19 +513,254 @@ export default function AlumnosPage() {
         </div>
       )}
 
-      {/* Actions */}
+      {/* Actions and Filters */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row gap-4 justify-between">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="Buscar alumno, documento, grupo familiar..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+          <div className="space-y-4">
+            {/* Búsqueda Rápida */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-between">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Buscar alumno, documento, grupo familiar..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleSearchSubmit();
+                    }
+                  }}
+                  className="pl-10"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleSearchSubmit}
+                  className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700"
+                >
+                  <Search className="h-4 w-4 mr-2" />
+                  Buscar
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                >
+                  <Filter className="h-4 w-4 mr-2" />
+                  Filtros Avanzados
+                </Button>
+              </div>
             </div>
+
+            {/* Panel de Filtros Avanzados */}
+            {showAdvancedFilters && (
+              <div className="border rounded-lg p-4 bg-gray-50 space-y-4">
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="font-semibold text-lg">Filtros Avanzados</h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowAdvancedFilters(false)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {/* Nombre */}
+                  <div className="grid gap-2">
+                    <Label htmlFor="filtro-nombre">Nombre</Label>
+                    <Input
+                      id="filtro-nombre"
+                      value={filters.nombre}
+                      onChange={(e) => setFilters({ ...filters, nombre: e.target.value })}
+                      placeholder="Buscar por nombre"
+                    />
+                  </div>
+
+                  {/* Apellido */}
+                  <div className="grid gap-2">
+                    <Label htmlFor="filtro-apellido">Apellido</Label>
+                    <Input
+                      id="filtro-apellido"
+                      value={filters.apellido}
+                      onChange={(e) => setFilters({ ...filters, apellido: e.target.value })}
+                      placeholder="Buscar por apellido"
+                    />
+                  </div>
+
+                  {/* Sexo */}
+                  <div className="grid gap-2">
+                    <Label htmlFor="filtro-sexo">Sexo</Label>
+                    <Select
+                      value={filters.sexo}
+                      onValueChange={(value) => setFilters({ ...filters, sexo: value })}
+                    >
+                      <SelectTrigger id="filtro-sexo">
+                        <SelectValue placeholder="Todos" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos</SelectItem>
+                        <SelectItem value="Femenino">Femenino</SelectItem>
+                        <SelectItem value="Masculino">Masculino</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Edad */}
+                  <div className="grid gap-2">
+                    <Label>Edad</Label>
+                    <div className="flex gap-2">
+                      <Select
+                        value={filters.edadOperador}
+                        onValueChange={(value) => setFilters({ ...filters, edadOperador: value, edadValor: '', edadValor2: '' })}
+                      >
+                        <SelectTrigger className="w-[120px]">
+                          <SelectValue placeholder="Operador" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="igual">=</SelectItem>
+                          <SelectItem value="mayor">&gt;</SelectItem>
+                          <SelectItem value="menor">&lt;</SelectItem>
+                          <SelectItem value="mayorIgual">&gt;=</SelectItem>
+                          <SelectItem value="menorIgual">&lt;=</SelectItem>
+                          <SelectItem value="entre">Entre</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="number"
+                        value={filters.edadValor}
+                        onChange={(e) => setFilters({ ...filters, edadValor: e.target.value })}
+                        placeholder={filters.edadOperador === 'entre' ? 'Desde' : 'Edad'}
+                        min="0"
+                      />
+                      {filters.edadOperador === 'entre' && (
+                        <Input
+                          type="number"
+                          value={filters.edadValor2}
+                          onChange={(e) => setFilters({ ...filters, edadValor2: e.target.value })}
+                          placeholder="Hasta"
+                          min="0"
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Estado */}
+                  <div className="grid gap-2">
+                    <Label htmlFor="filtro-estado">Estado</Label>
+                    <Select
+                      value={filters.estado}
+                      onValueChange={(value) => setFilters({ ...filters, estado: value })}
+                    >
+                      <SelectTrigger id="filtro-estado">
+                        <SelectValue placeholder="Todos" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos</SelectItem>
+                        <SelectItem value="1">Activo</SelectItem>
+                        <SelectItem value="2">Inactivo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Tiene Discapacidad */}
+                  <div className="grid gap-2">
+                    <Label htmlFor="filtro-discapacidad">Tiene Discapacidad</Label>
+                    <Select
+                      value={filters.tieneDiscapacidad}
+                      onValueChange={(value) => setFilters({ ...filters, tieneDiscapacidad: value })}
+                    >
+                      <SelectTrigger id="filtro-discapacidad">
+                        <SelectValue placeholder="Todos" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos</SelectItem>
+                        <SelectItem value="SI">Sí</SelectItem>
+                        <SelectItem value="NO">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Observaciones Discapacidad */}
+                  <div className="grid gap-2">
+                    <Label htmlFor="filtro-obs-discapacidad">Observaciones Discapacidad</Label>
+                    <Input
+                      id="filtro-obs-discapacidad"
+                      value={filters.observacionesDiscapacidad}
+                      onChange={(e) => setFilters({ ...filters, observacionesDiscapacidad: e.target.value })}
+                      placeholder="Buscar en observaciones"
+                    />
+                  </div>
+
+                  {/* Observaciones */}
+                  <div className="grid gap-2">
+                    <Label htmlFor="filtro-observaciones">Observaciones</Label>
+                    <Input
+                      id="filtro-observaciones"
+                      value={filters.observaciones}
+                      onChange={(e) => setFilters({ ...filters, observaciones: e.target.value })}
+                      placeholder="Buscar en observaciones"
+                    />
+                  </div>
+
+                  {/* Grupo Familiar */}
+                  <div className="grid gap-2">
+                    <Label htmlFor="filtro-grupo">Grupo Familiar</Label>
+                    <Select
+                      value={filters.grupoFamiliar}
+                      onValueChange={(value) => setFilters({ ...filters, grupoFamiliar: value })}
+                    >
+                      <SelectTrigger id="filtro-grupo">
+                        <SelectValue placeholder="Todos" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos</SelectItem>
+                        {gruposFamiliares.map((gf) => (
+                          <SelectItem key={gf.cdGrupoFamiliar} value={gf.cdGrupoFamiliar.toString()}>
+                            {gf.dsNombreGrupo}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Tipo de Taller */}
+                  <div className="grid gap-2">
+                    <Label htmlFor="filtro-tipo-taller">Tipo de Taller</Label>
+                    <Select
+                      value={filters.tipoTaller}
+                      onValueChange={(value) => setFilters({ ...filters, tipoTaller: value })}
+                    >
+                      <SelectTrigger id="filtro-tipo-taller">
+                        <SelectValue placeholder="Todos" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos</SelectItem>
+                        {tiposTalleres.map((tt) => (
+                          <SelectItem key={tt.cdTipoTaller} value={tt.cdTipoTaller.toString()}>
+                            {tt.dsNombreTaller}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t">
+                  <Button variant="outline" onClick={handleClearFilters}>
+                    <X className="h-4 w-4 mr-2" />
+                    Limpiar Filtros
+                  </Button>
+                  <Button
+                    onClick={handleApplyFilters}
+                    className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700"
+                  >
+                    <Filter className="h-4 w-4 mr-2" />
+                    Aplicar Filtros
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -406,13 +812,39 @@ export default function AlumnosPage() {
       {/* Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-indigo-600" />
-            Alumnos Registrados
-          </CardTitle>
-          <CardDescription>
-            {filteredAlumnos.length} alumno(s) encontrado(s)
-          </CardDescription>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-indigo-600" />
+                Alumnos Registrados
+              </CardTitle>
+              <CardDescription>
+                {pagination.total} alumno(s) encontrado(s) - Página {pagination.page} de {pagination.totalPages}
+              </CardDescription>
+            </div>
+            
+            {/* Selector de registros por página */}
+            <div className="flex items-center gap-2">
+              <Label htmlFor="limit-select" className="text-sm text-gray-600">
+                Mostrar:
+              </Label>
+              <Select
+                value={pagination.limit.toString()}
+                onValueChange={(value) => handleLimitChange(parseInt(value))}
+              >
+                <SelectTrigger id="limit-select" className="w-[100px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5</SelectItem>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -429,7 +861,7 @@ export default function AlumnosPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredAlumnos.map((alumno) => (
+              {alumnos.map((alumno) => (
                 <TableRow key={alumno.cdAlumno}>
                   <TableCell className="font-medium">
                     {alumno.dsNombreCompleto}
@@ -503,7 +935,7 @@ export default function AlumnosPage() {
                   </TableCell>
                 </TableRow>
               ))}
-              {filteredAlumnos.length === 0 && (
+              {alumnos.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-8 text-gray-500">
                     No se encontraron alumnos
@@ -512,6 +944,54 @@ export default function AlumnosPage() {
               )}
             </TableBody>
           </Table>
+
+          {/* Paginación */}
+          {pagination.totalPages > 1 && (
+            <div className="flex justify-between items-center mt-4 pt-4 border-t">
+              <div className="text-sm text-gray-600">
+                Mostrando {((pagination.page - 1) * pagination.limit) + 1} - {Math.min(pagination.page * pagination.limit, pagination.total)} de {pagination.total}
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(1)}
+                  disabled={pagination.page === 1}
+                >
+                  Primera
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(pagination.page - 1)}
+                  disabled={pagination.page === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <div className="flex items-center gap-2 px-3">
+                  <span className="text-sm">
+                    Página {pagination.page} de {pagination.totalPages}
+                  </span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(pagination.page + 1)}
+                  disabled={pagination.page === pagination.totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(pagination.totalPages)}
+                  disabled={pagination.page === pagination.totalPages}
+                >
+                  Última
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -942,9 +1422,9 @@ export default function AlumnosPage() {
                 <h3 className="font-semibold text-lg mb-3">Talleres</h3>
                 <div className="grid gap-2">
                   <Label>Talleres a inscribir (opcional)</Label>
-                  <div className="grid grid-cols-2 gap-2 border rounded-lg p-4 max-h-48 overflow-y-auto">
+                  <div className="grid grid-cols-2 gap-3 border rounded-lg p-4 max-h-48 overflow-y-auto">
                     {talleres.map((taller) => (
-                      <div key={taller.cdTaller} className="flex items-center space-x-2">
+                      <div key={taller.cdTaller} className="flex items-start space-x-2">
                         <Checkbox
                           id={`taller-${taller.cdTaller}`}
                           checked={formData.talleres.includes(taller.cdTaller)}
@@ -952,14 +1432,17 @@ export default function AlumnosPage() {
                         />
                         <label
                           htmlFor={`taller-${taller.cdTaller}`}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                         >
-                          {taller.dsTaller}
-                          {taller.dsProfesor && (
-                            <span className="text-gray-500 block text-xs">
-                              Prof: {taller.dsProfesor}
+                          {taller.dsNombreTaller} - {taller.nuAnioTaller}
+                          {taller.nombrePersonal && (
+                            <span className="block text-xs text-gray-500 font-normal mt-1">
+                              Prof: {taller.nombrePersonal}
                             </span>
                           )}
+                          <span className="block text-xs text-indigo-600 font-normal mt-1">
+                            {formatHorarioTaller(taller)}
+                          </span>
                         </label>
                       </div>
                     ))}

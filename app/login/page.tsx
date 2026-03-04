@@ -134,17 +134,6 @@ export default function LoginPage() {
                 )}
               </Button>
             </form>
-
-            {/* Info de prueba */}
-            <div className="mt-6 p-4 bg-indigo-50 border border-indigo-200 rounded-md">
-              <p className="text-xs text-indigo-800 font-semibold mb-2">
-                Credenciales de prueba:
-              </p>
-              <div className="text-xs text-indigo-700 space-y-1">
-                <p>Usuario: <span className="font-mono font-bold">admin</span></p>
-                <p>Contraseña: <span className="font-mono font-bold">123</span></p>
-              </div>
-            </div>
           </CardContent>
         </Card>
 

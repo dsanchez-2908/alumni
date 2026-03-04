@@ -174,6 +174,29 @@ export default function ConsultaPagosPage() {
     setDialogOpen(true);
   };
 
+  const descargarPDF = async (cdPago: number) => {
+    try {
+      const response = await fetch(`/api/pagos/${cdPago}/pdf`);
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Comprobante_de_Pago_${cdPago.toString().padStart(6, '0')}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        error('Error al generar el PDF');
+      }
+    } catch (err) {
+      console.error('Error al descargar PDF:', err);
+      error('Error al descargar el PDF');
+    }
+  };
+
   // Función para formatear horarios de taller (igual a la de nuevo/page.tsx)
   const formatHorarioTaller = (horarios: any): string => {
     if (!horarios) return '';
@@ -593,14 +616,27 @@ export default function ConsultaPagosPage() {
                           )}
                         </TableCell>
                         <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => verDetalle(pago)}
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            Ver
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => verDetalle(pago)}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              Ver
+                            </Button>
+                            {estadoPago === 'Pagado' && pago.cdPago && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => descargarPDF(pago.cdPago!)}
+                                title="Descargar comprobante PDF"
+                              >
+                                <FileText className="h-4 w-4 mr-1" />
+                                PDF
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );

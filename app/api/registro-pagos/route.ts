@@ -22,6 +22,8 @@ export async function POST(request: NextRequest) {
       items, // Array de items a pagar
       observacion,
       metodoNotificacion = 'Mail', // Por defecto Mail
+      emailNotificacion, // Email para notificación (editable por el usuario)
+      whatsappNotificacion, // WhatsApp para notificación (editable por el usuario)
     } = await request.json();
 
     if (!items || items.length === 0) {
@@ -110,41 +112,21 @@ export async function POST(request: NextRequest) {
 
     // Recolectar datos de notificación basados en el método seleccionado
     try {
-      const emailsSet = new Set<string>(); // Usar Set para evitar duplicados
-      const whatsappNumbers = new Set<string>(); // Para números de WhatsApp
+      // Usar los valores editables enviados desde el frontend
+      const emails: string[] = [];
+      const whatsappNumbersArray: string[] = [];
 
-      // Obtener todos los cdAlumno únicos del pago
-      const alumnosEnPago = [...new Set(items.map((item: any) => item.cdAlumno))];
-
-      // Obtener datos de notificación de TODOS los alumnos involucrados en el pago
-      for (const cdAlumno of alumnosEnPago) {
-        const [alumnoData] = await connection.execute<any[]>(
-          'SELECT dsMailNotificacion, dsWhatsappNotificacion FROM TD_ALUMNOS WHERE cdAlumno = ?',
-          [cdAlumno]
-        );
-
-        if (alumnoData.length > 0) {
-          const alumno = alumnoData[0];
-          
-          console.log(`Alumno ${cdAlumno} - Mail: ${alumno.dsMailNotificacion}, WhatsApp: ${alumno.dsWhatsappNotificacion}`);
-          
-          // Recolectar emails si el método incluye Mail
-          if ((metodoNotificacion === 'Mail' || metodoNotificacion === 'Ambos') && 
-              alumno.dsMailNotificacion && alumno.dsMailNotificacion.trim()) {
-            emailsSet.add(alumno.dsMailNotificacion.trim());
-          }
-          
-          // Recolectar números de WhatsApp si el método incluye WhatsApp
-          if ((metodoNotificacion === 'Whatsapp' || metodoNotificacion === 'Ambos') && 
-              alumno.dsWhatsappNotificacion && alumno.dsWhatsappNotificacion.trim()) {
-            whatsappNumbers.add(alumno.dsWhatsappNotificacion.trim());
-          }
-        }
+      // Agregar email si fue proporcionado y el método incluye Mail
+      if ((metodoNotificacion === 'Mail' || metodoNotificacion === 'Ambos') && 
+          emailNotificacion && emailNotificacion.trim()) {
+        emails.push(emailNotificacion.trim());
       }
-
-      // Convertir Set a Array
-      const emails = Array.from(emailsSet);
-      const whatsappNumbersArray = Array.from(whatsappNumbers);
+      
+      // Agregar WhatsApp si fue proporcionado y el método incluye WhatsApp
+      if ((metodoNotificacion === 'Whatsapp' || metodoNotificacion === 'Ambos') && 
+          whatsappNotificacion && whatsappNotificacion.trim()) {
+        whatsappNumbersArray.push(whatsappNotificacion.trim());
+      }
 
       console.log(`Método notificación: ${metodoNotificacion}`);
       console.log(`Emails encontrados: ${emails.join(', ')}`);
@@ -203,7 +185,7 @@ export async function POST(request: NextRequest) {
           // Convertir PDF a base64 para poder descargarlo desde el navegador
           const pdfBase64 = pdfBuffer.toString('base64');
           pdfUrl = `data:application/pdf;base64,${pdfBase64}`;
-          pdfFilename = `Recibo_${cdPago.toString().padStart(6, '0')}.pdf`;
+          pdfFilename = `Comprobante_de_Pago_${cdPago.toString().padStart(6, '0')}.pdf`;
         }
 
         // Enviar por Email si corresponde
@@ -213,7 +195,7 @@ export async function POST(request: NextRequest) {
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center;">
                 <h1 style="color: white; margin: 0;">Índigo Teatro</h1>
-                <p style="color: white; margin: 10px 0 0 0;">Recibo de Pago</p>
+                <p style="color: white; margin: 10px 0 0 0;">Comprobante de Pago</p>
               </div>
               
               <div style="padding: 30px; background-color: #f9fafb;">
@@ -227,13 +209,13 @@ export async function POST(request: NextRequest) {
                 
                 <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e5e7eb;">
                   <h3 style="color: #374151; margin-top: 0;">Detalles del pago:</h3>
-                  <p style="margin: 5px 0; color: #6b7280;"><strong>Recibo N°:</strong> ${cdPago.toString().padStart(6, '0')}</p>
+                  <p style="margin: 5px 0; color: #6b7280;"><strong>Comprobante N°:</strong> ${cdPago.toString().padStart(6, '0')}</p>
                   <p style="margin: 5px 0; color: #6b7280;"><strong>Fecha:</strong> ${new Date(primerDetalle.fePago).toLocaleDateString('es-AR')}</p>
                   <p style="margin: 5px 0; color: #6b7280;"><strong>Total pagado:</strong> $${montoTotal.toFixed(2)}</p>
                 </div>
                 
                 <p style="color: #6b7280;">
-                  Adjuntamos el recibo en formato PDF para tu registro.
+                  Adjuntamos el comprobante de pago en formato PDF para tu registro.
                 </p>
                 
                 <p style="color: #6b7280; margin-top: 30px;">
@@ -255,11 +237,11 @@ export async function POST(request: NextRequest) {
           // Enviar email
           await enviarEmail(
             emails,
-            `Recibo de Pago - N° ${cdPago.toString().padStart(6, '0')}`,
+            `Comprobante de Pago - N° ${cdPago.toString().padStart(6, '0')}`,
             htmlEmail,
             [
               {
-                filename: `Recibo_${cdPago.toString().padStart(6, '0')}.pdf`,
+                filename: `Comprobante_de_Pago_${cdPago.toString().padStart(6, '0')}.pdf`,
                 content: pdfBuffer,
                 contentType: 'application/pdf',
               },
@@ -281,11 +263,11 @@ export async function POST(request: NextRequest) {
 
 Te enviamos el comprobante de pago de *Índigo Teatro*.
 
-📄 *Recibo N°:* ${cdPago.toString().padStart(6, '0')}
+📄 *Comprobante N°:* ${cdPago.toString().padStart(6, '0')}
 📅 *Fecha:* ${new Date(primerDetalle.fePago).toLocaleDateString('es-AR')}
 💰 *Total pagado:* $${montoTotal.toFixed(2)}
 
-El PDF del recibo se descargará automáticamente en tu navegador.
+El PDF del comprobante de pago se descargará automáticamente en tu navegador.
 
 ¡Gracias por confiar en nosotros! 🎭`;
 
