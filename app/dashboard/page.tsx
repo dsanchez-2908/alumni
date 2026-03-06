@@ -37,6 +37,8 @@ interface Taller {
   dsNombreTaller: string;
   nuAnioTaller: number;
   fechasPendientes: number;
+  diasClase?: string;
+  horarioClase?: string;
 }
 
 interface ProfesorPendiente {
@@ -249,13 +251,20 @@ export default function DashboardPage() {
                         {profesor.totalFechasPendientes} fecha{profesor.totalFechasPendientes > 1 ? 's' : ''}
                       </span>
                     </div>
-                    <div className="ml-7 space-y-1">
+                    <div className="ml-7 space-y-2">
                       {profesor.talleres.map((taller) => (
-                        <div key={taller.cdTaller} className="flex items-center justify-between text-xs">
-                          <span className="text-gray-700">
-                            {taller.dsNombreTaller} ({taller.nuAnioTaller})
-                          </span>
-                          <span className="flex items-center gap-1 text-orange-700">
+                        <div key={taller.cdTaller} className="flex items-start gap-2">
+                          <div className="flex-1 text-xs overflow-visible">
+                            <span className="text-gray-700 font-medium">
+                              {taller.dsNombreTaller} ({taller.nuAnioTaller})
+                            </span>
+                            {(taller.diasClase || taller.horarioClase) && (
+                              <span className="text-gray-600 ml-1">
+                                - {taller.diasClase}{taller.horarioClase && ` (${taller.horarioClase})`}
+                              </span>
+                            )}
+                          </div>
+                          <span className="flex items-center gap-1 text-orange-700 text-xs flex-shrink-0">
                             <Clock className="h-3 w-3" />
                             {taller.fechasPendientes}
                           </span>

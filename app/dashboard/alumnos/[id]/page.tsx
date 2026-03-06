@@ -580,6 +580,7 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
                       <TableHead>Taller</TableHead>
                       <TableHead>Año</TableHead>
                       <TableHead>Profesor</TableHead>
+                      <TableHead className="min-w-[200px]">Días y Horario</TableHead>
                       <TableHead>Fecha Inscripción</TableHead>
                       <TableHead>Estado</TableHead>
                     </TableRow>
@@ -594,6 +595,10 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
                         <TableCell className="font-medium">{taller.dsNombreTaller}</TableCell>
                         <TableCell>{taller.nuAnioTaller}</TableCell>
                         <TableCell>{taller.nombreProfesor}</TableCell>
+                        <TableCell className="text-sm max-w-md whitespace-normal">
+                          {taller.diasClase || '-'}
+                          {taller.horarioClase && ` (${taller.horarioClase})`}
+                        </TableCell>
                         <TableCell>{formatFecha(taller.feInscripcion)}</TableCell>
                         <TableCell>
                           <Badge variant="default">{taller.estadoEnTaller}</Badge>
@@ -626,6 +631,7 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
                       <TableHead>Taller</TableHead>
                       <TableHead>Año</TableHead>
                       <TableHead>Profesor</TableHead>
+                      <TableHead className="min-w-[200px]">Días y Horario</TableHead>
                       <TableHead>Fecha Finalización</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -635,6 +641,10 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
                         <TableCell className="font-medium">{taller.dsNombreTaller}</TableCell>
                         <TableCell>{taller.nuAnioTaller}</TableCell>
                         <TableCell>{taller.nombreProfesor}</TableCell>
+                        <TableCell className="text-sm min-w-[200px] whitespace-normal">
+                          {taller.diasClase || '-'}
+                          {taller.horarioClase && ` (${taller.horarioClase})`}
+                        </TableCell>
                         <TableCell>{formatFecha(taller.feFinalizacion)}</TableCell>
                       </TableRow>
                     ))}
@@ -749,6 +759,8 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
                       <TableRow>
                         <TableHead>Alumno</TableHead>
                         <TableHead>Taller</TableHead>
+                        <TableHead>Profesor</TableHead>
+                        <TableHead className="min-w-[200px]">Días y Horario</TableHead>
                         <TableHead>Período</TableHead>
                         <TableHead className="text-right">Monto</TableHead>
                       </TableRow>
@@ -767,6 +779,11 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
                             <span className="text-muted-foreground text-sm ml-1">
                               ({pendiente.nuAnioTaller})
                             </span>
+                          </TableCell>
+                          <TableCell className="text-sm">{pendiente.nombreProfesor || '-'}</TableCell>
+                          <TableCell className="text-sm min-w-[200px] whitespace-normal">
+                            {pendiente.diasClase || '-'}
+                            {pendiente.horarioClase && ` (${pendiente.horarioClase})`}
                           </TableCell>
                           <TableCell>
                             {pendiente.mesNombre} {pendiente.anio}

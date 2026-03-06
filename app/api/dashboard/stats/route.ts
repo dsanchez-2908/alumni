@@ -164,7 +164,15 @@ export async function GET(request: NextRequest) {
         t.nuAnioTaller,
         t.feInicioTaller,
         t.snDomingo, t.snLunes, t.snMartes, t.snMiercoles, 
-        t.snJueves, t.snViernes, t.snSabado
+        t.snJueves, t.snViernes, t.snSabado,
+        t.dsDescripcionHorarios,
+        t.dsDomingoHoraDesde, t.dsDomingoHoraHasta,
+        t.dsLunesHoraDesde, t.dsLunesHoraHasta,
+        t.dsMartesHoraDesde, t.dsMartesHoraHasta,
+        t.dsMiercolesHoraDesde, t.dsMiercolesHoraHasta,
+        t.dsJuevesHoraDesde, t.dsJuevesHoraHasta,
+        t.dsViernesHoraDesde, t.dsViernesHoraHasta,
+        t.dsSabadoHoraDesde, t.dsSabadoHoraHasta
       FROM TD_TALLERES t
       INNER JOIN TD_PERSONAL p ON t.cdPersonal = p.cdPersonal
       INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
@@ -231,11 +239,65 @@ export async function GET(request: NextRequest) {
           });
         }
         const profesor = profesoresPendientesMap.get(taller.cdPersonal)!;
+        
+        // Función helper para formatear hora TIME a HH:MM
+        const formatTime = (time: string | null) => {
+          if (!time) return null;
+          return time.substring(0, 5);
+        };
+        
+        // Formatear días de la semana con horarios
+        const diasInfo = [];
+        if (taller.snDomingo) {
+          const desde = formatTime(taller.dsDomingoHoraDesde);
+          const hasta = formatTime(taller.dsDomingoHoraHasta);
+          diasInfo.push({ dia: 'Dom', desde, hasta });
+        }
+        if (taller.snLunes) {
+          const desde = formatTime(taller.dsLunesHoraDesde);
+          const hasta = formatTime(taller.dsLunesHoraHasta);
+          diasInfo.push({ dia: 'Lun', desde, hasta });
+        }
+        if (taller.snMartes) {
+          const desde = formatTime(taller.dsMartesHoraDesde);
+          const hasta = formatTime(taller.dsMartesHoraHasta);
+          diasInfo.push({ dia: 'Mar', desde, hasta });
+        }
+        if (taller.snMiercoles) {
+          const desde = formatTime(taller.dsMiercolesHoraDesde);
+          const hasta = formatTime(taller.dsMiercolesHoraHasta);
+          diasInfo.push({ dia: 'Mié', desde, hasta });
+        }
+        if (taller.snJueves) {
+          const desde = formatTime(taller.dsJuevesHoraDesde);
+          const hasta = formatTime(taller.dsJuevesHoraHasta);
+          diasInfo.push({ dia: 'Jue', desde, hasta });
+        }
+        if (taller.snViernes) {
+          const desde = formatTime(taller.dsViernesHoraDesde);
+          const hasta = formatTime(taller.dsViernesHoraHasta);
+          diasInfo.push({ dia: 'Vie', desde, hasta });
+        }
+        if (taller.snSabado) {
+          const desde = formatTime(taller.dsSabadoHoraDesde);
+          const hasta = formatTime(taller.dsSabadoHoraHasta);
+          diasInfo.push({ dia: 'Sáb', desde, hasta });
+        }
+        
+        const diasTexto = diasInfo.map(d => {
+          if (d.desde && d.hasta) {
+            return `${d.dia} ${d.desde}-${d.hasta}`;
+          }
+          return d.dia;
+        }).join(', ');
+        
         profesor.talleres.push({
           cdTaller: taller.cdTaller,
           dsNombreTaller: taller.dsNombreTaller,
           nuAnioTaller: taller.nuAnioTaller,
-          fechasPendientes
+          fechasPendientes,
+          diasClase: diasTexto,
+          horarioClase: taller.dsDescripcionHorarios || ''
         });
         profesor.totalFechasPendientes += fechasPendientes;
       }

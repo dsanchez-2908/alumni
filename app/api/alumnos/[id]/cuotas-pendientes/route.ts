@@ -34,11 +34,23 @@ export async function GET(
         at.cdTaller,
         t.nuAnioTaller,
         tt.cdTipoTaller,
-        tt.dsNombreTaller
+        tt.dsNombreTaller,
+        p.dsNombreCompleto as nombreProfesor,
+        t.snDomingo, t.snLunes, t.snMartes, t.snMiercoles, 
+        t.snJueves, t.snViernes, t.snSabado,
+        t.dsDescripcionHorarios,
+        t.dsDomingoHoraDesde, t.dsDomingoHoraHasta,
+        t.dsLunesHoraDesde, t.dsLunesHoraHasta,
+        t.dsMartesHoraDesde, t.dsMartesHoraHasta,
+        t.dsMiercolesHoraDesde, t.dsMiercolesHoraHasta,
+        t.dsJuevesHoraDesde, t.dsJuevesHoraHasta,
+        t.dsViernesHoraDesde, t.dsViernesHoraHasta,
+        t.dsSabadoHoraDesde, t.dsSabadoHoraHasta
       FROM TR_ALUMNO_TALLER at
       INNER JOIN TD_ALUMNOS a ON at.cdAlumno = a.cdAlumno
       INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
       INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
+      INNER JOIN TD_PERSONAL p ON t.cdPersonal = p.cdPersonal
       WHERE at.cdAlumno = ?
         AND at.feBaja IS NULL
         AND t.cdEstado IN (1, 2)
@@ -189,12 +201,66 @@ export async function GET(
       .map((taller: any) => {
         const precio = preciosMap.get(taller.cdTipoTaller);
         
+        // Función helper para formatear hora TIME a HH:MM
+        const formatTime = (time: string | null) => {
+          if (!time) return null;
+          return time.substring(0, 5);
+        };
+        
+        // Formatear días de la semana con horarios
+        const diasInfo = [];
+        if (taller.snDomingo) {
+          const desde = formatTime(taller.dsDomingoHoraDesde);
+          const hasta = formatTime(taller.dsDomingoHoraHasta);
+          diasInfo.push({ dia: 'Dom', desde, hasta });
+        }
+        if (taller.snLunes) {
+          const desde = formatTime(taller.dsLunesHoraDesde);
+          const hasta = formatTime(taller.dsLunesHoraHasta);
+          diasInfo.push({ dia: 'Lun', desde, hasta });
+        }
+        if (taller.snMartes) {
+          const desde = formatTime(taller.dsMartesHoraDesde);
+          const hasta = formatTime(taller.dsMartesHoraHasta);
+          diasInfo.push({ dia: 'Mar', desde, hasta });
+        }
+        if (taller.snMiercoles) {
+          const desde = formatTime(taller.dsMiercolesHoraDesde);
+          const hasta = formatTime(taller.dsMiercolesHoraHasta);
+          diasInfo.push({ dia: 'Mié', desde, hasta });
+        }
+        if (taller.snJueves) {
+          const desde = formatTime(taller.dsJuevesHoraDesde);
+          const hasta = formatTime(taller.dsJuevesHoraHasta);
+          diasInfo.push({ dia: 'Jue', desde, hasta });
+        }
+        if (taller.snViernes) {
+          const desde = formatTime(taller.dsViernesHoraDesde);
+          const hasta = formatTime(taller.dsViernesHoraHasta);
+          diasInfo.push({ dia: 'Vie', desde, hasta });
+        }
+        if (taller.snSabado) {
+          const desde = formatTime(taller.dsSabadoHoraDesde);
+          const hasta = formatTime(taller.dsSabadoHoraHasta);
+          diasInfo.push({ dia: 'Sáb', desde, hasta });
+        }
+        
+        const diasTexto = diasInfo.map(d => {
+          if (d.desde && d.hasta) {
+            return `${d.dia} ${d.desde}-${d.hasta}`;
+          }
+          return d.dia;
+        }).join(', ');
+        
         return {
           cdAlumno: taller.cdAlumno,
           nombreAlumno: `${taller.dsApellido}, ${taller.dsNombre}`,
           cdTaller: taller.cdTaller,
           nombreTaller: `${taller.dsNombreTaller} (${taller.nuAnioTaller})`,
           cdTipoTaller: taller.cdTipoTaller,
+          nombreProfesor: taller.nombreProfesor,
+          diasClase: diasTexto,
+          horarioClase: taller.dsDescripcionHorarios || '',
           mes: mesSeleccionado,
           anio: anioSeleccionado,
           precio,

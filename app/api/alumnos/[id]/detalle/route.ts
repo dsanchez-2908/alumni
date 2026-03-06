@@ -86,7 +86,17 @@ export async function GET(
         p.dsNombreCompleto as nombreProfesor,
         at.feInscripcion,
         et.dsEstado as estadoEnTaller,
-        at.cdEstado as cdEstadoEnTaller
+        at.cdEstado as cdEstadoEnTaller,
+        t.snDomingo, t.snLunes, t.snMartes, t.snMiercoles, 
+        t.snJueves, t.snViernes, t.snSabado,
+        t.dsDescripcionHorarios,
+        t.dsDomingoHoraDesde, t.dsDomingoHoraHasta,
+        t.dsLunesHoraDesde, t.dsLunesHoraHasta,
+        t.dsMartesHoraDesde, t.dsMartesHoraHasta,
+        t.dsMiercolesHoraDesde, t.dsMiercolesHoraHasta,
+        t.dsJuevesHoraDesde, t.dsJuevesHoraHasta,
+        t.dsViernesHoraDesde, t.dsViernesHoraHasta,
+        t.dsSabadoHoraDesde, t.dsSabadoHoraHasta
       FROM TR_ALUMNO_TALLER at
       INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
       INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
@@ -106,7 +116,17 @@ export async function GET(
         p.dsNombreCompleto as nombreProfesor,
         at.feInscripcion,
         at.feFinalizacion,
-        et.dsEstado as estadoEnTaller
+        et.dsEstado as estadoEnTaller,
+        t.snDomingo, t.snLunes, t.snMartes, t.snMiercoles, 
+        t.snJueves, t.snViernes, t.snSabado,
+        t.dsDescripcionHorarios,
+        t.dsDomingoHoraDesde, t.dsDomingoHoraHasta,
+        t.dsLunesHoraDesde, t.dsLunesHoraHasta,
+        t.dsMartesHoraDesde, t.dsMartesHoraHasta,
+        t.dsMiercolesHoraDesde, t.dsMiercolesHoraHasta,
+        t.dsJuevesHoraDesde, t.dsJuevesHoraHasta,
+        t.dsViernesHoraDesde, t.dsViernesHoraHasta,
+        t.dsSabadoHoraDesde, t.dsSabadoHoraHasta
       FROM TR_ALUMNO_TALLER at
       INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
       INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
@@ -151,6 +171,17 @@ export async function GET(
         t.cdTaller,
         tt.dsNombreTaller,
         t.nuAnioTaller,
+        p.dsNombreCompleto as nombreProfesor,
+        t.snDomingo, t.snLunes, t.snMartes, t.snMiercoles, 
+        t.snJueves, t.snViernes, t.snSabado,
+        t.dsDescripcionHorarios,
+        t.dsDomingoHoraDesde, t.dsDomingoHoraHasta,
+        t.dsLunesHoraDesde, t.dsLunesHoraHasta,
+        t.dsMartesHoraDesde, t.dsMartesHoraHasta,
+        t.dsMiercolesHoraDesde, t.dsMiercolesHoraHasta,
+        t.dsJuevesHoraDesde, t.dsJuevesHoraHasta,
+        t.dsViernesHoraDesde, t.dsViernesHoraHasta,
+        t.dsSabadoHoraDesde, t.dsSabadoHoraHasta,
         (
           SELECT tp.nuPrecioCompletoEfectivo 
           FROM TD_PRECIOS_TALLERES tp
@@ -165,6 +196,7 @@ export async function GET(
       INNER JOIN TD_ALUMNOS a ON at.cdAlumno = a.cdAlumno
       INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
       INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
+      INNER JOIN TD_PERSONAL p ON t.cdPersonal = p.cdPersonal
       LEFT JOIN TR_ALUMNO_GRUPO_FAMILIAR agf ON a.cdAlumno = agf.cdAlumno
       WHERE (
         a.cdAlumno = ? 
@@ -177,7 +209,12 @@ export async function GET(
       AND at.cdEstado = 1
       AND t.cdEstado = 1
       AND a.cdEstado != 3
-      GROUP BY a.cdAlumno, t.cdTaller, tt.cdTipoTaller, tt.dsNombreTaller, t.nuAnioTaller`,
+      GROUP BY a.cdAlumno, t.cdTaller, tt.cdTipoTaller, tt.dsNombreTaller, t.nuAnioTaller, p.dsNombreCompleto,
+               t.snDomingo, t.snLunes, t.snMartes, t.snMiercoles, t.snJueves, t.snViernes, t.snSabado, t.dsDescripcionHorarios,
+               t.dsDomingoHoraDesde, t.dsDomingoHoraHasta, t.dsLunesHoraDesde, t.dsLunesHoraHasta,
+               t.dsMartesHoraDesde, t.dsMartesHoraHasta, t.dsMiercolesHoraDesde, t.dsMiercolesHoraHasta,
+               t.dsJuevesHoraDesde, t.dsJuevesHoraHasta, t.dsViernesHoraDesde, t.dsViernesHoraHasta,
+               t.dsSabadoHoraDesde, t.dsSabadoHoraHasta`,
       [cdAlumno, cdAlumno]
     );
 
@@ -222,6 +259,57 @@ export async function GET(
       
       let fecha = new Date(fechaInscripcion.getFullYear(), fechaInscripcion.getMonth(), 1);
       
+      // Función helper para formatear hora TIME a HH:MM
+      const formatTime = (time: string | null) => {
+        if (!time) return null;
+        return time.substring(0, 5);
+      };
+      
+      // Formatear días de la semana con horarios
+      const diasInfo = [];
+      if (inscripcion.snDomingo) {
+        const desde = formatTime(inscripcion.dsDomingoHoraDesde);
+        const hasta = formatTime(inscripcion.dsDomingoHoraHasta);
+        diasInfo.push({ dia: 'Dom', desde, hasta });
+      }
+      if (inscripcion.snLunes) {
+        const desde = formatTime(inscripcion.dsLunesHoraDesde);
+        const hasta = formatTime(inscripcion.dsLunesHoraHasta);
+        diasInfo.push({ dia: 'Lun', desde, hasta });
+      }
+      if (inscripcion.snMartes) {
+        const desde = formatTime(inscripcion.dsMartesHoraDesde);
+        const hasta = formatTime(inscripcion.dsMartesHoraHasta);
+        diasInfo.push({ dia: 'Mar', desde, hasta });
+      }
+      if (inscripcion.snMiercoles) {
+        const desde = formatTime(inscripcion.dsMiercolesHoraDesde);
+        const hasta = formatTime(inscripcion.dsMiercolesHoraHasta);
+        diasInfo.push({ dia: 'Mié', desde, hasta });
+      }
+      if (inscripcion.snJueves) {
+        const desde = formatTime(inscripcion.dsJuevesHoraDesde);
+        const hasta = formatTime(inscripcion.dsJuevesHoraHasta);
+        diasInfo.push({ dia: 'Jue', desde, hasta });
+      }
+      if (inscripcion.snViernes) {
+        const desde = formatTime(inscripcion.dsViernesHoraDesde);
+        const hasta = formatTime(inscripcion.dsViernesHoraHasta);
+        diasInfo.push({ dia: 'Vie', desde, hasta });
+      }
+      if (inscripcion.snSabado) {
+        const desde = formatTime(inscripcion.dsSabadoHoraDesde);
+        const hasta = formatTime(inscripcion.dsSabadoHoraHasta);
+        diasInfo.push({ dia: 'Sáb', desde, hasta });
+      }
+      
+      const diasTexto = diasInfo.map(d => {
+        if (d.desde && d.hasta) {
+          return `${d.dia} ${d.desde}-${d.hasta}`;
+        }
+        return d.dia;
+      }).join(', ');
+      
       while (fecha <= hoy) {
         const mes = fecha.getMonth() + 1;
         const anio = fecha.getFullYear();
@@ -234,6 +322,9 @@ export async function GET(
             cdTaller: inscripcion.cdTaller,
             dsNombreTaller: inscripcion.dsNombreTaller,
             nuAnioTaller: inscripcion.nuAnioTaller,
+            nombreProfesor: inscripcion.nombreProfesor,
+            diasClase: diasTexto,
+            horarioClase: inscripcion.dsDescripcionHorarios || '',
             mes: mes,
             mesNombre: mesesNombres[mes - 1],
             anio: anio,
@@ -272,13 +363,84 @@ export async function GET(
       [cdAlumno]
     );
 
+    // Formatear días de clase para talleres activos y finalizados
+    const formatearDiasYHorarios = (talleres: any[]) => {
+      return talleres.map(taller => {
+        const diasInfo = [];
+        
+        // Función helper para formatear hora TIME a HH:MM
+        const formatTime = (time: string | null) => {
+          if (!time) return null;
+          // TIME viene como "HH:MM:SS", tomamos solo HH:MM
+          return time.substring(0, 5);
+        };
+        
+        // Procesar cada día con su horario específico
+        if (taller.snDomingo) {
+          const desde = formatTime(taller.dsDomingoHoraDesde);
+          const hasta = formatTime(taller.dsDomingoHoraHasta);
+          diasInfo.push({ dia: 'Dom', desde, hasta });
+        }
+        if (taller.snLunes) {
+          const desde = formatTime(taller.dsLunesHoraDesde);
+          const hasta = formatTime(taller.dsLunesHoraHasta);
+          diasInfo.push({ dia: 'Lun', desde, hasta });
+        }
+        if (taller.snMartes) {
+          const desde = formatTime(taller.dsMartesHoraDesde);
+          const hasta = formatTime(taller.dsMartesHoraHasta);
+          diasInfo.push({ dia: 'Mar', desde, hasta });
+        }
+        if (taller.snMiercoles) {
+          const desde = formatTime(taller.dsMiercolesHoraDesde);
+          const hasta = formatTime(taller.dsMiercolesHoraHasta);
+          diasInfo.push({ dia: 'Mié', desde, hasta });
+        }
+        if (taller.snJueves) {
+          const desde = formatTime(taller.dsJuevesHoraDesde);
+          const hasta = formatTime(taller.dsJuevesHoraHasta);
+          diasInfo.push({ dia: 'Jue', desde, hasta });
+        }
+        if (taller.snViernes) {
+          const desde = formatTime(taller.dsViernesHoraDesde);
+          const hasta = formatTime(taller.dsViernesHoraHasta);
+          diasInfo.push({ dia: 'Vie', desde, hasta });
+        }
+        if (taller.snSabado) {
+          const desde = formatTime(taller.dsSabadoHoraDesde);
+          const hasta = formatTime(taller.dsSabadoHoraHasta);
+          diasInfo.push({ dia: 'Sáb', desde, hasta });
+        }
+        
+        // Construir texto de días con horarios
+        const diasTexto = diasInfo.map(d => {
+          if (d.desde && d.hasta) {
+            return `${d.dia} ${d.desde}-${d.hasta}`;
+          }
+          return d.dia;
+        }).join(', ');
+        
+        // Si hay dsDescripcionHorarios, usarlo como descripción adicional
+        const horarioClase = taller.dsDescripcionHorarios || '';
+        
+        return {
+          ...taller,
+          diasClase: diasTexto,
+          horarioClase
+        };
+      });
+    };
+
+    const talleresActivosFormateados = formatearDiasYHorarios(talleresActivos);
+    const talleresFinalizadosFormateados = formatearDiasYHorarios(talleresFinalizados);
+
     // Retornar todo
     return NextResponse.json({
       alumno: alumnoData,
       grupoFamiliar,
       miembrosGrupo,
-      talleresActivos,
-      talleresFinalizados,
+      talleresActivos: talleresActivosFormateados,
+      talleresFinalizados: talleresFinalizadosFormateados,
       pagosRealizados,
       pagosPendientes,
       faltas,

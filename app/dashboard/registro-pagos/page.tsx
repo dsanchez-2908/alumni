@@ -54,6 +54,9 @@ interface ItemPago {
   cdTaller: number;
   nombreTaller: string;
   cdTipoTaller: number;
+  nombreProfesor?: string;
+  diasClase?: string;
+  horarioClase?: string;
   mes: number;
   anio: number;
   precio: any;
@@ -678,6 +681,8 @@ export default function RegistroPagosPage() {
                   <TableHead>Mes</TableHead>
                   <TableHead>Alumno</TableHead>
                   <TableHead>Taller</TableHead>
+                  <TableHead>Profesor</TableHead>
+                  <TableHead className="min-w-[200px]">Días y Horario</TableHead>
                   <TableHead>Modo de Pago</TableHead>
                   <TableHead className="text-right">Monto</TableHead>
                 </TableRow>
@@ -696,6 +701,11 @@ export default function RegistroPagosPage() {
                     </TableCell>
                     <TableCell>{item.nombreAlumno}</TableCell>
                     <TableCell>{item.nombreTaller}</TableCell>
+                    <TableCell className="text-sm">{item.nombreProfesor || '-'}</TableCell>
+                    <TableCell className="text-sm min-w-[200px] whitespace-normal">
+                      {item.diasClase || '-'}
+                      {item.horarioClase && ` (${item.horarioClase})`}
+                    </TableCell>
                     <TableCell>
                       {item.esExcepcion ? (
                         <div className="flex gap-2 items-center">

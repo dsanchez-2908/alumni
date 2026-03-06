@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -92,6 +93,7 @@ const formatHorarioTaller = (taller: Taller): string => {
 
 export default function RegistroAsistenciaProfesorPage() {
   const router = useRouter();
+  const { data: session } = useSession();
 
   const [personal, setPersonal] = useState<Personal[]>([]);
   const [talleres, setTalleres] = useState<Taller[]>([]);
@@ -101,6 +103,22 @@ export default function RegistroAsistenciaProfesorPage() {
   const [profesorSeleccionado, setProfesorSeleccionado] = useState<number | null>(null);
   const [tallerSeleccionado, setTallerSeleccionado] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  const [profesorBloqueado, setProfesorBloqueado] = useState(false);
+
+  // Verificar si el usuario es profesor y precargar su cdPersonal
+  useEffect(() => {
+    if (session?.user) {
+      const user = session.user as any;
+      const roles = user.roles || [];
+      const esProfesor = roles.includes('Profesor');
+      const cdPersonal = user.cdPersonal;
+
+      if (esProfesor && cdPersonal) {
+        setProfesorSeleccionado(cdPersonal);
+        setProfesorBloqueado(true);
+      }
+    }
+  }, [session]);
 
   useEffect(() => {
     fetchPersonal();
@@ -203,6 +221,7 @@ export default function RegistroAsistenciaProfesorPage() {
               <Select
                 value={profesorSeleccionado?.toString() || ''}
                 onValueChange={(value) => setProfesorSeleccionado(parseInt(value))}
+                disabled={profesorBloqueado}
               >
                 <SelectTrigger className="mt-2">
                   <SelectValue placeholder="Selecciona un profesor" />
@@ -215,6 +234,11 @@ export default function RegistroAsistenciaProfesorPage() {
                   ))}
                 </SelectContent>
               </Select>
+              {profesorBloqueado && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Como profesor, solo puedes registrar asistencia en tus talleres
+                </p>
+              )}
             </div>
 
             {profesorSeleccionado && (
