@@ -46,6 +46,17 @@ export default withAuth(
     // Obtener roles del usuario
     const userRoles = (token.roles as string[]) || [];
 
+    // Permitir acceso a rutas de asistencia de talleres para profesores
+    // Esta verificación debe ir antes de la búsqueda general de permisos
+    if (path.match(/^\/dashboard\/talleres\/\d+\/asistencia/)) {
+      const hasAccess = userRoles.some(role => 
+        ['Administrador', 'Supervisor', 'Operador', 'Profesor'].includes(role)
+      );
+      if (hasAccess) {
+        return NextResponse.next();
+      }
+    }
+
     // Buscar la ruta más específica que coincida
     let matchedRoute: string | null = null;
     let matchedPermissions: string[] | null = null;
