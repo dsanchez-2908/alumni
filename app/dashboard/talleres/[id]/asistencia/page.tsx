@@ -32,6 +32,7 @@ interface AlumnoAsistencia {
   dsApellido: string;
   dsDNI: string;
   cdFalta: number | null;
+  snPresente: number | null;
   dsObservacion: string | null;
 }
 
@@ -48,7 +49,10 @@ export default function AsistenciaPage() {
   const searchParams = useSearchParams();
   const { success, error, warning } = useToast();
   const cdTaller = params?.id as string;
-  const fromRegistro = searchParams.get('from') === 'registro';
+  const fromParam = searchParams.get('from');
+  const fromRegistro = fromParam === 'registro';
+  const fromConsulta = fromParam === 'consulta';
+  const isReadOnly = searchParams.get('readonly') === 'true';
 
   const [taller, setTaller] = useState<Taller | null>(null);
   const [alumnos, setAlumnos] = useState<AlumnoAsistencia[]>([]);
@@ -99,6 +103,7 @@ export default function AsistenciaPage() {
 
   const fetchAsistencia = async () => {
     setLoading(true);
+    setEsFeriado(false); // Resetear el estado de feriado
     try {
       const response = await fetch(
         `/api/talleres/${cdTaller}/faltas?fecha=${fecha}`
@@ -107,19 +112,28 @@ export default function AsistenciaPage() {
         const data = await response.json();
         setAlumnos(data);
 
-        // Marcar los que ya tienen falta registrada
+        // Marcar los que ya tienen falta registrada (ausentes o feriado)
         const faltasSet = new Set<number>();
         const obs: Record<number, string> = {};
+        let esFeriadoDetectado = false;
+        
         data.forEach((alumno: AlumnoAsistencia) => {
-          if (alumno.cdFalta) {
+          // snPresente: 0 = ausente, 1 = presente, 3 = feriado
+          // Marcar como falta si snPresente es 0 o 3 (ausente o feriado)
+          if (alumno.cdFalta != null && alumno.snPresente !== 1) {
             faltasSet.add(alumno.cdAlumno);
             if (alumno.dsObservacion) {
               obs[alumno.cdAlumno] = alumno.dsObservacion;
+            }
+            // Detectar si es feriado
+            if (alumno.snPresente === 3) {
+              esFeriadoDetectado = true;
             }
           }
         });
         setFaltas(faltasSet);
         setObservaciones(obs);
+        setEsFeriado(esFeriadoDetectado);
       }
     } catch (error) {
       console.error('Error al cargar asistencia:', error);
@@ -205,6 +219,8 @@ export default function AsistenciaPage() {
         // Volver a la pantalla de origen
         if (fromRegistro) {
           router.push('/dashboard/registro-asistencia');
+        } else if (fromConsulta) {
+          router.push('/dashboard/consulta-asistencia');
         } else {
           router.push(`/dashboard/talleres/${cdTaller}`);
         }
@@ -234,30 +250,42 @@ export default function AsistenciaPage() {
       <div className="mb-6 flex items-center justify-between">
         <Button
           variant="outline"
-          onClick={() => router.push(`/dashboard/talleres/${cdTaller}`)}
+          onClick={() => {
+            if (fromRegistro) {
+              router.push('/dashboard/registro-asistencia');
+            } else if (fromConsulta) {
+              router.push('/dashboard/consulta-asistencia');
+            } else {
+              router.push(`/dashboard/talleres/${cdTaller}`);
+            }
+          }}
           className="gap-2"
         >
           <ArrowLeft className="h-4 w-4" />
           Volver
         </Button>
         <div className="flex gap-2">
-          <Button
-            onClick={marcarComoFeriado}
-            disabled={saving || esFeriado}
-            variant="outline"
-            className="gap-2 border-orange-500 text-orange-600 hover:bg-orange-50"
-          >
-            <AlertTriangle className="h-4 w-4" />
+          {!isReadOnly && (
+            <Button
+              onClick={marcarComoFeriado}
+              disabled={saving || esFeriado}
+              variant="outline"
+              className="gap-2 border-orange-500 text-orange-600 hover:bg-orange-50"
+            >
+              <AlertTriangle className="h-4 w-4" />
             {esFeriado ? 'Marcado como Feriado' : 'Marcar como Feriado'}
           </Button>
-          <Button
-            onClick={guardarAsistencia}
-            disabled={saving}
-            className="gap-2 bg-indigo-600 hover:bg-indigo-700"
-          >
-            <Save className="h-4 w-4" />
-            {saving ? 'Guardando...' : 'Guardar Asistencia'}
-          </Button>
+          )}
+          {!isReadOnly && (
+            <Button
+              onClick={guardarAsistencia}
+              disabled={saving}
+              className="gap-2 bg-indigo-600 hover:bg-indigo-700"
+            >
+              <Save className="h-4 w-4" />
+              {saving ? 'Guardando...' : 'Guardar Asistencia'}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -285,6 +313,7 @@ export default function AsistenciaPage() {
                 value={fecha}
                 onChange={(e) => setFecha(e.target.value)}
                 className="mt-2"
+                disabled={isReadOnly}
               />
               {fecha && diasClase.length > 0 && (() => {
                 const fechaObj = new Date(fecha + 'T00:00:00');
@@ -317,10 +346,21 @@ export default function AsistenciaPage() {
         <CardHeader>
           <CardTitle>Lista de Alumnos</CardTitle>
           <CardDescription>
-            Marca los alumnos ausentes y agrega observaciones si es necesario
+            {isReadOnly 
+              ? 'Visualización de asistencia registrada (solo lectura)'
+              : 'Marca los alumnos ausentes y agrega observaciones si es necesario'
+            }
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {isReadOnly && (
+            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+              <p className="font-medium">Modo de solo lectura</p>
+              <p className="mt-1">
+                Estás visualizando un registro de asistencia. No puedes realizar modificaciones.
+              </p>
+            </div>
+          )}
           {loading ? (
             <div className="text-center py-8">Cargando alumnos...</div>
           ) : alumnos.length === 0 ? (
@@ -346,7 +386,12 @@ export default function AsistenciaPage() {
                     <TableCell>
                       <Checkbox
                         checked={faltas.has(alumno.cdAlumno)}
-                        onChange={() => toggleFalta(alumno.cdAlumno)}
+                        onChange={(e) => {
+                          if (!isReadOnly) {
+                            toggleFalta(alumno.cdAlumno);
+                          }
+                        }}
+                        disabled={isReadOnly}
                       />
                     </TableCell>
                     <TableCell className="font-medium">
@@ -366,6 +411,8 @@ export default function AsistenciaPage() {
                           }
                           rows={2}
                           className="text-sm"
+                          disabled={isReadOnly}
+                          readOnly={isReadOnly}
                         />
                       )}
                     </TableCell>

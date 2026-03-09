@@ -20,7 +20,7 @@ const routePermissions: { [key: string]: string[] } = {
   
   // Asistencia
   '/dashboard/registro-asistencia': ['Administrador', 'Supervisor', 'Operador', 'Profesor'],
-  '/dashboard/consulta-asistencia': ['Administrador', 'Supervisor'],
+  '/dashboard/consulta-asistencia': ['Administrador', 'Supervisor', 'Profesor'],
   '/dashboard/faltas': ['Administrador', 'Supervisor'],
   
   // Pagos

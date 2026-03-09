@@ -112,7 +112,7 @@ const menuCategories: MenuCategory[] = [
       {
         title: 'Consulta de Asistencia',
         href: '/dashboard/consulta-asistencia',
-        roles: ['Administrador', 'Supervisor'],
+        roles: ['Administrador', 'Supervisor', 'Profesor'],
       },
       {
         title: 'Historial de Asistencia',

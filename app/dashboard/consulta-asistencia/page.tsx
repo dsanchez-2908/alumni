@@ -1,9 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import {
   Select,
   SelectContent,
@@ -11,504 +18,509 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, Search, Calendar, Check, X, Edit, AlertTriangle } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Search, Calendar, Eye, CheckCircle, XCircle, Users } from 'lucide-react';
 
-interface Alumno {
-  cdAlumno: number;
-  dsNombre: string;
-  dsApellido: string;
-  dsDNI: string;
+interface Personal {
+  cdPersonal: number;
+  dsNombreCompleto: string;
 }
 
 interface Taller {
   cdTaller: number;
   nuAnioTaller: number;
   dsNombreTaller: string;
-  feInicioTaller: string;
-  diasSemana: string[];
+  nombrePersonal: string;
+  cdPersonal: number;
+  snDomingo: boolean;
+  dsDomingoHoraDesde: string | null;
+  dsDomingoHoraHasta: string | null;
+  snLunes: boolean;
+  dsLunesHoraDesde: string | null;
+  dsLunesHoraHasta: string | null;
+  snMartes: boolean;
+  dsMartesHoraDesde: string | null;
+  dsMartesHoraHasta: string | null;
+  snMiercoles: boolean;
+  dsMiercolesHoraDesde: string | null;
+  dsMiercolesHoraHasta: string | null;
+  snJueves: boolean;
+  dsJuevesHoraDesde: string | null;
+  dsJuevesHoraHasta: string | null;
+  snViernes: boolean;
+  dsViernesHoraDesde: string | null;
+  dsViernesHoraHasta: string | null;
+  snSabado: boolean;
+  dsSabadoHoraDesde: string | null;
+  dsSabadoHoraHasta: string | null;
 }
 
-interface Asistencia {
+interface FechaRegistrada {
   fecha: string;
-  snPresente: number;
-  dsObservacion: string | null;
-  cdFalta: number | null;
+  totalAlumnos: number;
+  presentes: number;
+  ausentes: number;
 }
+
+interface TallerInfo {
+  cdTaller: number;
+  nuAnioTaller: number;
+  dsNombreTaller: string;
+  feInicioTaller: string;
+  nombreProfesor: string;
+}
+
+const mesesDelAnio = [
+  { value: '1', label: 'Enero' },
+  { value: '2', label: 'Febrero' },
+  { value: '3', label: 'Marzo' },
+  { value: '4', label: 'Abril' },
+  { value: '5', label: 'Mayo' },
+  { value: '6', label: 'Junio' },
+  { value: '7', label: 'Julio' },
+  { value: '8', label: 'Agosto' },
+  { value: '9', label: 'Septiembre' },
+  { value: '10', label: 'Octubre' },
+  { value: '11', label: 'Noviembre' },
+  { value: '12', label: 'Diciembre' },
+];
 
 export default function ConsultaAsistenciaPage() {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [alumnos, setAlumnos] = useState<Alumno[]>([]);
-  const [alumnoSeleccionado, setAlumnoSeleccionado] = useState<Alumno | null>(null);
+  const router = useRouter();
+  const { data: session } = useSession();
+
+  const [personal, setPersonal] = useState<Personal[]>([]);
   const [talleres, setTalleres] = useState<Taller[]>([]);
-  const [tallerSeleccionado, setTallerSeleccionado] = useState<string>('');
-  const [asistencias, setAsistencias] = useState<Asistencia[]>([]);
-  const [fechasClase, setFechasClase] = useState<string[]>([]);
+  const [talleresFiltrados, setTalleresFiltrados] = useState<Taller[]>([]);
+  const [fechasRegistradas, setFechasRegistradas] = useState<FechaRegistrada[]>([]);
+  const [tallerInfo, setTallerInfo] = useState<TallerInfo | null>(null);
+
+  const [profesorSeleccionado, setProfesorSeleccionado] = useState<number | null>(null);
+  const [tallerSeleccionado, setTallerSeleccionado] = useState<number | null>(null);
+  const [anioSeleccionado, setAnioSeleccionado] = useState<string>('');
+  const [mesSeleccionado, setMesSeleccionado] = useState<string>('');
   const [loading, setLoading] = useState(false);
-  const [searchingAlumnos, setSearchingAlumnos] = useState(false);
-  const [editandoObservacion, setEditandoObservacion] = useState<{
-    fecha: string;
-    observacion: string;
-    cdFalta: number | null;
-  } | null>(null);
-  const [guardandoObservacion, setGuardandoObservacion] = useState(false);
+  const [profesorBloqueado, setProfesorBloqueado] = useState(false);
+  const [esProfesor, setEsProfesor] = useState(false);
 
-  // Buscar alumnos
-  const buscarAlumnos = async () => {
-    if (searchTerm.length < 2) {
-      setAlumnos([]);
-      return;
+  // Generar lista de años (año actual - 2 hasta año actual + 1)
+  const aniosDisponibles = Array.from({ length: 4 }, (_, i) => {
+    const anio = new Date().getFullYear() - 2 + i;
+    return { value: anio.toString(), label: anio.toString() };
+  });
+
+  // Verificar si el usuario es profesor y precargar su cdPersonal
+  useEffect(() => {
+    if (session?.user) {
+      const user = session.user as any;
+      const roles = user.roles || [];
+      const esProf = roles.includes('Profesor');
+      const cdPersonal = user.cdPersonal;
+
+      setEsProfesor(esProf);
+
+      if (esProf && cdPersonal) {
+        setProfesorSeleccionado(cdPersonal);
+        setProfesorBloqueado(true);
+      }
     }
+  }, [session]);
 
-    setSearchingAlumnos(true);
+  useEffect(() => {
+    fetchPersonal();
+    fetchTalleres();
+    
+    // Preseleccionar año y mes actual
+    const now = new Date();
+    setAnioSeleccionado(now.getFullYear().toString());
+    setMesSeleccionado((now.getMonth() + 1).toString());
+  }, []);
+
+  useEffect(() => {
+    if (profesorSeleccionado) {
+      const filtrados = talleres.filter((t) => t.cdPersonal === profesorSeleccionado);
+      setTalleresFiltrados(filtrados);
+      setTallerSeleccionado(null);
+      setFechasRegistradas([]);
+      setTallerInfo(null);
+    } else {
+      setTalleresFiltrados([]);
+      setTallerSeleccionado(null);
+      setFechasRegistradas([]);
+      setTallerInfo(null);
+    }
+  }, [profesorSeleccionado, talleres]);
+
+  const fetchPersonal = async () => {
     try {
-      const response = await fetch(
-        `/api/alumnos/buscar?q=${encodeURIComponent(searchTerm)}`
-      );
+      const response = await fetch('/api/personal');
       if (response.ok) {
         const data = await response.json();
-        setAlumnos(data);
+        setPersonal(data.personal || []);
       }
     } catch (error) {
-      console.error('Error al buscar alumnos:', error);
-    } finally {
-      setSearchingAlumnos(false);
+      console.error('Error al cargar personal:', error);
     }
   };
 
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      buscarAlumnos();
-    }, 300);
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [searchTerm]);
-
-  // Cargar talleres del alumno
-  const cargarTalleresAlumno = async (cdAlumno: number) => {
-    setLoading(true);
+  const fetchTalleres = async () => {
     try {
-      const response = await fetch(`/api/alumnos/${cdAlumno}/talleres`);
+      const response = await fetch('/api/talleres');
       if (response.ok) {
         const data = await response.json();
-        setTalleres(data);
-        if (data.length > 0) {
-          setTallerSeleccionado(data[0].cdTaller.toString());
-        } else {
-          setTallerSeleccionado('');
-        }
+        setTalleres(Array.isArray(data) ? data : []);
       }
     } catch (error) {
       console.error('Error al cargar talleres:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
-  // Cargar asistencias del alumno en el taller
-  const cargarAsistencias = async () => {
-    if (!alumnoSeleccionado || !tallerSeleccionado) return;
+  const handleBuscar = async () => {
+    if (!profesorSeleccionado || !tallerSeleccionado || !anioSeleccionado || !mesSeleccionado) {
+      return;
+    }
 
     setLoading(true);
     try {
-      const response = await fetch(
-        `/api/alumnos/${alumnoSeleccionado.cdAlumno}/asistencias?cdTaller=${tallerSeleccionado}`
-      );
+      const params = new URLSearchParams({
+        cdPersonal: profesorSeleccionado.toString(),
+        cdTaller: tallerSeleccionado.toString(),
+        anio: anioSeleccionado,
+        mes: mesSeleccionado,
+      });
+
+      const response = await fetch(`/api/consulta-asistencia?${params}`);
       if (response.ok) {
         const data = await response.json();
-        setAsistencias(data.asistencias);
-        setFechasClase(data.fechasClase);
+        setFechasRegistradas(data.fechasRegistradas || []);
+        setTallerInfo(data.taller);
       }
     } catch (error) {
-      console.error('Error al cargar asistencias:', error);
+      console.error('Error al buscar fechas registradas:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (alumnoSeleccionado) {
-      cargarTalleresAlumno(alumnoSeleccionado.cdAlumno);
-    }
-  }, [alumnoSeleccionado]);
-
-  useEffect(() => {
+  const handleVerDetalle = (fecha: string) => {
     if (tallerSeleccionado) {
-      cargarAsistencias();
-    }
-  }, [tallerSeleccionado]);
-
-  // Seleccionar alumno
-  const seleccionarAlumno = (alumno: Alumno) => {
-    setAlumnoSeleccionado(alumno);
-    setAlumnos([]);
-    setSearchTerm('');
-  };
-
-  // Obtener información de asistencia para una fecha
-  const getAsistenciaFecha = (fecha: string): Asistencia | null => {
-    return asistencias.find((a) => a.fecha === fecha) || null;
-  };
-
-  // Abrir modal para editar observación
-  const abrirEdicionObservacion = (fecha: string, asistencia: Asistencia | null) => {
-    if (!asistencia || asistencia.snPresente === 1) return; // Solo ausencias
-    setEditandoObservacion({
-      fecha,
-      observacion: asistencia.dsObservacion || '',
-      cdFalta: asistencia.cdFalta,
-    });
-  };
-
-  // Guardar observación
-  const guardarObservacion = async () => {
-    if (!editandoObservacion || !alumnoSeleccionado || !tallerSeleccionado) return;
-
-    setGuardandoObservacion(true);
-    try {
-      const response = await fetch(
-        `/api/alumnos/${alumnoSeleccionado.cdAlumno}/asistencias/${editandoObservacion.cdFalta}`,
-        {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            dsObservacion: editandoObservacion.observacion,
-          }),
-        }
+      // Extraer solo la parte de fecha (YYYY-MM-DD) del string ISO
+      const fechaSoloFecha = fecha.split('T')[0];
+      // Agregar parámetro readonly=true solo si es profesor
+      const readonlyParam = esProfesor ? '&readonly=true' : '';
+      router.push(
+        `/dashboard/talleres/${tallerSeleccionado}/asistencia?fecha=${fechaSoloFecha}&from=consulta${readonlyParam}`
       );
-
-      if (response.ok) {
-        // Actualizar asistencias localmente
-        setAsistencias((prev) =>
-          prev.map((a) =>
-            a.cdFalta === editandoObservacion.cdFalta
-              ? { ...a, dsObservacion: editandoObservacion.observacion }
-              : a
-          )
-        );
-        setEditandoObservacion(null);
-      }
-    } catch (error) {
-      console.error('Error al guardar observación:', error);
-    } finally {
-      setGuardandoObservacion(false);
     }
   };
 
-  // Agrupar fechas por mes
-  const agruparPorMes = () => {
-    const meses: { [key: string]: string[] } = {};
-    fechasClase.forEach((fecha) => {
-      const [anio, mes] = fecha.split('-');
-      const claveMes = `${anio}-${mes}`;
-      if (!meses[claveMes]) {
-        meses[claveMes] = [];
+  const formatFecha = (fecha: string) => {
+    try {
+      const date = new Date(fecha);
+      if (isNaN(date.getTime())) {
+        return 'Fecha inválida';
       }
-      meses[claveMes].push(fecha);
-    });
-    return meses;
+      return date.toLocaleDateString('es-AR', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+    } catch (error) {
+      return 'Fecha inválida';
+    }
   };
 
-  const mesesAgrupados = agruparPorMes();
-  const nombresMeses = [
-    'Enero',
-    'Febrero',
-    'Marzo',
-    'Abril',
-    'Mayo',
-    'Junio',
-    'Julio',
-    'Agosto',
-    'Septiembre',
-    'Octubre',
-    'Noviembre',
-    'Diciembre',
-  ];
+  const formatFechaCorta = (fecha: string) => {
+    try {
+      const date = new Date(fecha);
+      if (isNaN(date.getTime())) {
+        return 'N/A';
+      }
+      return date.toLocaleDateString('es-AR');
+    } catch (error) {
+      return 'N/A';
+    }
+  };
 
-  const nombresDias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+  const puedeConsultar =
+    profesorSeleccionado && tallerSeleccionado && anioSeleccionado && mesSeleccionado;
+
+  const mesNombre = mesesDelAnio.find((m) => m.value === mesSeleccionado)?.label || '';
+
+  // Función helper para formatear días y horarios
+  const formatDiasHorarios = (taller: Taller): string => {
+    const dias = [];
+    const formatTime = (time: string | null) => {
+      if (!time) return null;
+      return time.substring(0, 5); // HH:MM
+    };
+
+    if (taller.snDomingo && taller.dsDomingoHoraDesde) {
+      dias.push(`Dom ${formatTime(taller.dsDomingoHoraDesde)}`);
+    }
+    if (taller.snLunes && taller.dsLunesHoraDesde) {
+      dias.push(`Lun ${formatTime(taller.dsLunesHoraDesde)}`);
+    }
+    if (taller.snMartes && taller.dsMartesHoraDesde) {
+      dias.push(`Mar ${formatTime(taller.dsMartesHoraDesde)}`);
+    }
+    if (taller.snMiercoles && taller.dsMiercolesHoraDesde) {
+      dias.push(`Mié ${formatTime(taller.dsMiercolesHoraDesde)}`);
+    }
+    if (taller.snJueves && taller.dsJuevesHoraDesde) {
+      dias.push(`Jue ${formatTime(taller.dsJuevesHoraDesde)}`);
+    }
+    if (taller.snViernes && taller.dsViernesHoraDesde) {
+      dias.push(`Vie ${formatTime(taller.dsViernesHoraDesde)}`);
+    }
+    if (taller.snSabado && taller.dsSabadoHoraDesde) {
+      dias.push(`Sáb ${formatTime(taller.dsSabadoHoraDesde)}`);
+    }
+
+    return dias.length > 0 ? dias.join(', ') : 'Sin horarios';
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Consulta de Asistencia</h1>
+    <div className="container mx-auto py-8">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-900">Consulta de Asistencia Registrada</h1>
+        <p className="text-gray-600 mt-1">
+          Consulta las fechas en que se registró asistencia y revisa los detalles
+        </p>
       </div>
 
-      {/* Buscador de Alumno */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Search className="h-5 w-5" />
-            Buscar Alumno
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="relative">
-            <Label htmlFor="buscar-alumno">Nombre, Apellido o DNI</Label>
-            <div className="relative">
-              <Input
-                id="buscar-alumno"
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Escribe para buscar..."
-                disabled={!!alumnoSeleccionado}
-              />
-              {searchingAlumnos && (
-                <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin" />
-              )}
-            </div>
-
-            {/* Lista de resultados */}
-            {alumnos.length > 0 && !alumnoSeleccionado && (
-              <div className="absolute z-10 mt-1 w-full rounded-md border bg-white shadow-lg">
-                {alumnos.map((alumno) => (
-                  <button
-                    key={alumno.cdAlumno}
-                    className="w-full px-4 py-2 text-left hover:bg-gray-100"
-                    onClick={() => seleccionarAlumno(alumno)}
-                  >
-                    <div className="font-medium">
-                      {alumno.dsApellido}, {alumno.dsNombre}
-                    </div>
-                    <div className="text-sm text-gray-500">DNI: {alumno.dsDNI}</div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Alumno seleccionado */}
-          {alumnoSeleccionado && (
-            <div className="flex items-center justify-between rounded-md border bg-blue-50 p-3">
-              <div>
-                <div className="font-medium">
-                  {alumnoSeleccionado.dsApellido}, {alumnoSeleccionado.dsNombre}
-                </div>
-                <div className="text-sm text-gray-600">
-                  DNI: {alumnoSeleccionado.dsDNI}
-                </div>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setAlumnoSeleccionado(null);
-                  setTalleres([]);
-                  setTallerSeleccionado('');
-                  setAsistencias([]);
-                  setFechasClase([]);
-                }}
-              >
-                Cambiar
-              </Button>
-            </div>
-          )}
-
-          {/* Selector de Taller */}
-          {alumnoSeleccionado && talleres.length > 0 && (
-            <div className="space-y-2">
-              <Label htmlFor="taller">Taller</Label>
-              <Select value={tallerSeleccionado} onValueChange={setTallerSeleccionado}>
-                <SelectTrigger id="taller">
-                  <SelectValue placeholder="Seleccione un taller" />
-                </SelectTrigger>
-                <SelectContent>
-                  {talleres.map((taller) => (
-                    <SelectItem key={taller.cdTaller} value={taller.cdTaller.toString()}>
-                      {taller.dsNombreTaller} - {taller.nuAnioTaller}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Calendario de Asistencia */}
-      {alumnoSeleccionado && tallerSeleccionado && (
+      <div className="grid gap-6">
+        {/* Panel de búsqueda */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Calendario de Asistencia
+              <Search className="h-5 w-5" />
+              Criterios de Búsqueda
             </CardTitle>
+            <CardDescription>
+              Selecciona los criterios para consultar las asistencias registradas
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin" />
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              {/* Profesor */}
+              <div>
+                <Label>Profesor</Label>
+                <Select
+                  value={profesorSeleccionado?.toString() || ''}
+                  onValueChange={(value) => setProfesorSeleccionado(parseInt(value))}
+                  disabled={profesorBloqueado}
+                >
+                  <SelectTrigger className="mt-2">
+                    <SelectValue placeholder="Selecciona un profesor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {personal.map((p) => (
+                      <SelectItem key={p.cdPersonal} value={p.cdPersonal.toString()}>
+                        {p.dsNombreCompleto}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {profesorBloqueado && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Como profesor, solo puedes consultar tus talleres
+                  </p>
+                )}
               </div>
-            ) : fechasClase.length === 0 ? (
-              <p className="text-center text-gray-500 py-8">
-                No hay fechas de clase registradas para este taller.
-              </p>
-            ) : (
-              <div className="space-y-8">
-                {Object.entries(mesesAgrupados)
-                  .sort()
-                  .reverse()
-                  .map(([mes, fechas]) => {
-                    const [anio, mesNum] = mes.split('-');
-                    const nombreMes = nombresMeses[parseInt(mesNum) - 1];
 
-                    return (
-                      <div key={mes}>
-                        <h3 className="text-lg font-semibold mb-4">
-                          {nombreMes} {anio}
-                        </h3>
-                        <div className="grid grid-cols-7 gap-2">
-                          {fechas.sort().map((fecha) => {
-                            const asistencia = getAsistenciaFecha(fecha);
-                            const fechaObj = new Date(fecha + 'T00:00:00');
-                            const dia = fechaObj.getDate();
-                            const nombreDia = nombresDias[fechaObj.getDay()];
+              {/* Taller */}
+              <div>
+                <Label>Taller</Label>
+                <Select
+                  value={tallerSeleccionado?.toString() || ''}
+                  onValueChange={(value) => setTallerSeleccionado(parseInt(value))}
+                  disabled={!profesorSeleccionado}
+                >
+                  <SelectTrigger className="mt-2">
+                    <SelectValue placeholder="Selecciona un taller" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {talleresFiltrados.length === 0 ? (
+                      <SelectItem value="none" disabled>
+                        Sin talleres asignados
+                      </SelectItem>
+                    ) : (
+                      talleresFiltrados.map((t) => (
+                        <SelectItem key={t.cdTaller} value={t.cdTaller.toString()}>
+                          {t.dsNombreTaller} - {t.nuAnioTaller} | {formatDiasHorarios(t)}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
 
-                            return (
-                              <div
-                                key={fecha}
-                                className={`
-                                  relative p-3 rounded-lg border-2 transition-all
-                                  ${
-                                    !asistencia
-                                      ? 'border-gray-300 bg-gray-50'
-                                      : asistencia.snPresente === 1
-                                      ? 'border-green-500 bg-green-50 cursor-default'
-                                      : asistencia.snPresente === 3
-                                      ? 'border-orange-500 bg-orange-50 cursor-pointer hover:shadow-md'
-                                      : 'border-red-500 bg-red-50 cursor-pointer hover:shadow-md'
-                                  }
-                                `}
-                                onClick={() => {
-                                  if (asistencia && (asistencia.snPresente === 0 || asistencia.snPresente === 3)) {
-                                    abrirEdicionObservacion(fecha, asistencia);
-                                  }
-                                }}
-                              >
-                                <div className="text-xs text-gray-600 font-medium">
-                                  {nombreDia}
-                                </div>
-                                <div className="text-2xl font-bold">{dia}</div>
-                                <div className="absolute top-1 right-1">
-                                  {!asistencia ? (
-                                    <Badge variant="outline" className="text-xs">
-                                      N/R
-                                    </Badge>
-                                  ) : asistencia.snPresente === 1 ? (
-                                    <Check className="h-5 w-5 text-green-600" />
-                                  ) : asistencia.snPresente === 3 ? (
-                                    <div className="flex items-center gap-1">
-                                      <AlertTriangle className="h-5 w-5 text-orange-600" />
-                                      {asistencia.dsObservacion && (
-                                        <Edit className="h-3 w-3 text-gray-600" />
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <div className="flex items-center gap-1">
-                                      <X className="h-5 w-5 text-red-600" />
-                                      {asistencia.dsObservacion && (
-                                        <Edit className="h-3 w-3 text-gray-600" />
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
+              {/* Año */}
+              <div>
+                <Label>Año</Label>
+                <Select value={anioSeleccionado} onValueChange={setAnioSeleccionado}>
+                  <SelectTrigger className="mt-2">
+                    <SelectValue placeholder="Selecciona un año" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {aniosDisponibles.map((a) => (
+                      <SelectItem key={a.value} value={a.value}>
+                        {a.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            )}
 
-            <div className="mt-6 flex items-center gap-6 text-sm">
-              <div className="flex items-center gap-2">
-                <Check className="h-5 w-5 text-green-600" />
-                <span>Presente</span>
+              {/* Mes */}
+              <div>
+                <Label>Mes</Label>
+                <Select value={mesSeleccionado} onValueChange={setMesSeleccionado}>
+                  <SelectTrigger className="mt-2">
+                    <SelectValue placeholder="Selecciona un mes" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {mesesDelAnio.map((m) => (
+                      <SelectItem key={m.value} value={m.value}>
+                        {m.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="flex items-center gap-2">
-                <X className="h-5 w-5 text-red-600" />
-                <span>Ausente</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-orange-600" />
-                <span>Feriado</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-xs">
-                  N/R
-                </Badge>
-                <span>No Registrado</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Edit className="h-4 w-4 text-gray-600" />
-                <span>Click en ausente/feriado para ver/editar observación</span>
-              </div>
+            </div>
+
+            <div className="mt-4">
+              <Button
+                onClick={handleBuscar}
+                disabled={!puedeConsultar || loading}
+                className="w-full md:w-auto"
+              >
+                <Search className="h-4 w-4 mr-2" />
+                {loading ? 'Buscando...' : 'Buscar'}
+              </Button>
             </div>
           </CardContent>
         </Card>
-      )}
 
-      {/* Modal para editar observación */}
-      <Dialog
-        open={!!editandoObservacion}
-        onOpenChange={(open) => !open && setEditandoObservacion(null)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Observación de Ausencia</DialogTitle>
-            <DialogDescription>
-              Fecha: {editandoObservacion?.fecha}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="observacion">Observación</Label>
-              <Textarea
-                id="observacion"
-                value={editandoObservacion?.observacion || ''}
-                onChange={(e) =>
-                  setEditandoObservacion((prev) =>
-                    prev ? { ...prev, observacion: e.target.value } : null
-                  )
-                }
-                placeholder="Ingrese una observación sobre la ausencia..."
-                rows={4}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setEditandoObservacion(null)}
-              disabled={guardandoObservacion}
-            >
-              Cancelar
-            </Button>
-            <Button onClick={guardarObservacion} disabled={guardandoObservacion}>
-              {guardandoObservacion ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Guardando...
-                </>
+        {/* Resultados */}
+        {tallerInfo && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Fechas Registradas - {mesNombre} {anioSeleccionado}
+              </CardTitle>
+              <CardDescription>
+                Taller: {tallerInfo.dsNombreTaller} - {tallerInfo.nuAnioTaller} | Profesor:{' '}
+                {tallerInfo.nombreProfesor}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="text-center py-12">
+                  <p>Cargando fechas registradas...</p>
+                </div>
+              ) : fechasRegistradas.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                  <p className="font-medium">No hay registros de asistencia</p>
+                  <p className="text-sm mt-2">
+                    No se encontraron asistencias registradas para {mesNombre} {anioSeleccionado}
+                  </p>
+                </div>
               ) : (
-                'Guardar'
+                <div>
+                  <div className="mb-4 text-sm text-gray-600">
+                    <p>
+                      <strong>Total de fechas registradas:</strong> {fechasRegistradas.length}
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    {fechasRegistradas.map((fecha, index) => {
+                      const porcentajePresentes =
+                        fecha.totalAlumnos > 0
+                          ? Math.round((fecha.presentes / fecha.totalAlumnos) * 100)
+                          : 0;
+
+                      return (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3">
+                              <Calendar className="h-5 w-5 text-indigo-600" />
+                              <div>
+                                <p className="font-medium text-gray-900">
+                                  {formatFechaCorta(fecha.fecha)}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  {formatFecha(fecha.fecha)}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-6 mr-4">
+                            <div className="flex items-center gap-2">
+                              <Users className="h-4 w-4 text-gray-600" />
+                              <span className="text-sm font-medium text-gray-700">
+                                {fecha.totalAlumnos}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <CheckCircle className="h-4 w-4 text-green-600" />
+                              <span className="text-sm font-medium text-green-700">
+                                {fecha.presentes}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <XCircle className="h-4 w-4 text-red-600" />
+                              <span className="text-sm font-medium text-red-700">
+                                {fecha.ausentes}
+                              </span>
+                            </div>
+
+                            <div className="text-sm font-medium text-gray-700">
+                              {porcentajePresentes}% asist.
+                            </div>
+                          </div>
+
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleVerDetalle(fecha.fecha)}
+                            className="gap-2"
+                          >
+                            <Eye className="h-4 w-4" />
+                            Ver
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {esProfesor && (
+                    <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+                      <p className="font-medium">Nota:</p>
+                      <p className="mt-1">
+                        Como profesor, solo puedes visualizar las asistencias. No puedes realizar
+                        modificaciones.
+                      </p>
+                    </div>
+                  )}
+                </div>
               )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }

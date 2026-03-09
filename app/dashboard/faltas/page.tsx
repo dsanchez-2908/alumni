@@ -71,7 +71,8 @@ export default function FaltasPage() {
 
   const fetchAlumnos = async () => {
     try {
-      const response = await fetch('/api/alumnos');
+      // Solicitar un límite alto para obtener todos los alumnos activos
+      const response = await fetch('/api/alumnos?limit=10000&estado=1');
       if (response.ok) {
         const data = await response.json();
         setAlumnos(data.alumnos || []);

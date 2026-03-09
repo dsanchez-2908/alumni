@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Users, 
@@ -21,6 +22,7 @@ interface Stats {
   profesores: number;
   alumnosPagoMesActual: number;
   alumnosPagoMesesAnteriores: number;
+  alumnosConSeguimiento: number;
 }
 
 interface Cumpleano {
@@ -48,18 +50,30 @@ interface ProfesorPendiente {
   totalFechasPendientes: number;
 }
 
+interface MiTaller {
+  cdTaller: number;
+  dsNombreTaller: string;
+  nuAnioTaller: number;
+  diasClase: string;
+  cantidadAlumnos: number;
+}
+
 export default function DashboardPage() {
   const { data: session } = useSession();
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [rol, setRol] = useState<string>('');
   const [stats, setStats] = useState<Stats>({
     alumnos: 0,
     talleres: 0,
     profesores: 0,
     alumnosPagoMesActual: 0,
     alumnosPagoMesesAnteriores: 0,
+    alumnosConSeguimiento: 0,
   });
   const [cumpleanos, setCumpleanos] = useState<Cumpleano[]>([]);
   const [profesoresPendientes, setProfesoresPendientes] = useState<ProfesorPendiente[]>([]);
+  const [misTalleres, setMisTalleres] = useState<MiTaller[]>([]);
 
   useEffect(() => {
     fetchStats();
@@ -70,9 +84,11 @@ export default function DashboardPage() {
       const response = await fetch('/api/dashboard/stats');
       if (response.ok) {
         const data = await response.json();
+        setRol(data.rol || '');
         setStats(data.totales);
         setCumpleanos(data.cumpleanos || []);
         setProfesoresPendientes(data.profesoresPendientes || []);
+        setMisTalleres(data.misTalleres || []);
       }
     } catch (error) {
       console.error('Error al cargar estadísticas:', error);
@@ -81,43 +97,82 @@ export default function DashboardPage() {
     }
   };
 
-  const statsCards = [
-    {
-      title: 'Total Alumnos',
-      value: loading ? '...' : stats.alumnos.toString(),
-      icon: <Users className="h-8 w-8 text-indigo-600" />,
-      description: 'Alumnos activos',
-      color: 'from-indigo-500 to-indigo-600',
-    },
-    {
-      title: 'Talleres Activos',
-      value: loading ? '...' : stats.talleres.toString(),
-      icon: <BookOpen className="h-8 w-8 text-violet-600" />,
-      description: 'Talleres en curso',
-      color: 'from-violet-500 to-violet-600',
-    },
-    {
-      title: 'Profesores',
-      value: loading ? '...' : stats.profesores.toString(),
-      icon: <GraduationCap className="h-8 w-8 text-purple-600" />,
-      description: 'Personal activo',
-      color: 'from-purple-500 to-purple-600',
-    },
-    {
-      title: 'Deben Pagar - Mes Actual',
-      value: loading ? '...' : stats.alumnosPagoMesActual.toString(),
-      icon: <DollarSign className="h-8 w-8 text-amber-600" />,
-      description: 'Alumnos con pago pendiente',
-      color: 'from-amber-500 to-amber-600',
-    },
-    {
-      title: 'Deben Pagar - Meses Anteriores',
-      value: loading ? '...' : stats.alumnosPagoMesesAnteriores.toString(),
-      icon: <DollarSign className="h-8 w-8 text-red-600" />,
-      description: 'Alumnos con deuda acumulada',
-      color: 'from-red-500 to-red-600',
-    },
-  ];
+  // Configurar stats cards según el rol
+  const getStatsCards = () => {
+    // OPERADOR: No mostrar stats cards
+    if (rol === 'Operador') {
+      return [];
+    }
+
+    // PROFESOR: Solo mostrar Alumnos y Talleres (de su contexto)
+    if (rol === 'Profesor') {
+      return [
+        {
+          title: 'Mis Alumnos',
+          value: loading ? '...' : stats.alumnos.toString(),
+          icon: <Users className="h-8 w-8 text-indigo-600" />,
+          description: 'Alumnos en mis talleres',
+          color: 'from-indigo-500 to-indigo-600',
+        },
+        {
+          title: 'Mis Talleres',
+          value: loading ? '...' : stats.talleres.toString(),
+          icon: <BookOpen className="h-8 w-8 text-violet-600" />,
+          description: 'Talleres a mi cargo',
+          color: 'from-violet-500 to-violet-600',
+        },
+      ];
+    }
+
+    // ADMINISTRADOR y SUPERVISOR: Dashboard completo
+    return [
+      {
+        title: 'Total Alumnos',
+        value: loading ? '...' : stats.alumnos.toString(),
+        icon: <Users className="h-8 w-8 text-indigo-600" />,
+        description: 'Alumnos activos',
+        color: 'from-indigo-500 to-indigo-600',
+      },
+      {
+        title: 'Talleres Activos',
+        value: loading ? '...' : stats.talleres.toString(),
+        icon: <BookOpen className="h-8 w-8 text-violet-600" />,
+        description: 'Talleres en curso',
+        color: 'from-violet-500 to-violet-600',
+      },
+      {
+        title: 'Profesores',
+        value: loading ? '...' : stats.profesores.toString(),
+        icon: <GraduationCap className="h-8 w-8 text-purple-600" />,
+        description: 'Personal activo',
+        color: 'from-purple-500 to-purple-600',
+      },
+      {
+        title: 'Seguimiento de Faltas',
+        value: loading ? '...' : stats.alumnosConSeguimiento.toString(),
+        icon: <AlertCircle className="h-8 w-8 text-orange-600" />,
+        description: 'Alumnos por contactar',
+        color: 'from-orange-500 to-orange-600',
+        href: '/dashboard/reportes/alumnos-con-faltas',
+      },
+      {
+        title: 'Deben Pagar - Mes Actual',
+        value: loading ? '...' : stats.alumnosPagoMesActual.toString(),
+        icon: <DollarSign className="h-8 w-8 text-amber-600" />,
+        description: 'Alumnos con pago pendiente',
+        color: 'from-amber-500 to-amber-600',
+      },
+      {
+        title: 'Deben Pagar - Meses Anteriores',
+        value: loading ? '...' : stats.alumnosPagoMesesAnteriores.toString(),
+        icon: <DollarSign className="h-8 w-8 text-red-600" />,
+        description: 'Alumnos con deuda acumulada',
+        color: 'from-red-500 to-red-600',
+      },
+    ];
+  };
+
+  const statsCards = getStatsCards();
 
   return (
     <div className="space-y-8">
@@ -144,32 +199,38 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-        {statsCards.map((stat, index) => (
-          <Card key={index} className="border-none shadow-lg hover:shadow-xl transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                {stat.title}
-              </CardTitle>
-              <div className={`p-3 rounded-lg bg-gradient-to-br ${stat.color} bg-opacity-10`}>
-                {stat.icon}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-gray-900 mb-1">
-                {stat.value}
-              </div>
-              <p className="text-xs text-gray-600 flex items-center gap-1">
-                <TrendingUp className="h-3 w-3" />
-                {stat.description}
-              </p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {statsCards.length > 0 && (
+        <div className={`grid grid-cols-1 md:grid-cols-2 ${statsCards.length >= 3 ? 'lg:grid-cols-3' : ''} gap-6`}>
+          {statsCards.map((stat, index) => (
+            <Card 
+              key={index} 
+              className={`border-none shadow-lg hover:shadow-xl transition-shadow ${stat.href ? 'cursor-pointer' : ''}`}
+              onClick={() => stat.href && router.push(stat.href)}
+            >
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-gray-600">
+                  {stat.title}
+                </CardTitle>
+                <div className={`p-3 rounded-lg bg-gradient-to-br ${stat.color} bg-opacity-10`}>
+                  {stat.icon}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-gray-900 mb-1">
+                  {stat.value}
+                </div>
+                <p className="text-xs text-gray-600 flex items-center gap-1">
+                  <TrendingUp className="h-3 w-3" />
+                  {stat.description}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className={`grid grid-cols-1 ${rol === 'Profesor' ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-6`}>
         {/* Próximos Cumpleaños */}
         <Card className="border-pink-100 shadow-lg">
           <CardHeader>
@@ -177,7 +238,11 @@ export default function DashboardPage() {
               <Cake className="h-5 w-5 text-pink-600" />
               Próximos Cumpleaños
             </CardTitle>
-            <CardDescription>Alumnos y profesores próximos a cumplir años</CardDescription>
+            <CardDescription>
+              {rol === 'Profesor' 
+                ? 'Alumnos de tus talleres próximos a cumplir años' 
+                : 'Alumnos y profesores próximos a cumplir años'}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -226,14 +291,63 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Profesores con Fechas Pendientes */}
+        {/* Mis Talleres - Solo para Profesor */}
+        {rol === 'Profesor' && (
+          <Card className="border-blue-100 shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-xl text-gray-800 flex items-center gap-2">
+                <BookOpen className="h-5 w-5 text-blue-600" />
+                Mis Talleres
+              </CardTitle>
+              <CardDescription>Talleres a tu cargo este año</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="text-center py-4 text-gray-500">Cargando...</div>
+              ) : misTalleres.length > 0 ? (
+                <div className="space-y-4 max-h-96 overflow-y-auto">
+                  {misTalleres.map((taller) => (
+                    <div key={taller.cdTaller} className="border border-blue-200 rounded-lg p-3 bg-blue-50">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <BookOpen className="h-5 w-5 text-blue-600" />
+                          <div>
+                            <p className="font-medium text-gray-800 text-sm">
+                              {taller.dsNombreTaller} ({taller.nuAnioTaller})
+                            </p>
+                            <p className="text-xs text-gray-600">{taller.diasClase}</p>
+                          </div>
+                        </div>
+                        <div className="text-center">
+                          <Users className="h-4 w-4 text-blue-600 mx-auto" />
+                          <span className="text-xs text-blue-700 font-medium">{taller.cantidadAlumnos}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <BookOpen className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                  <p className="text-sm">No tienes talleres asignados</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Asistencias Pendientes */}
         <Card className="border-orange-100 shadow-lg">
           <CardHeader>
             <CardTitle className="text-xl text-gray-800 flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-orange-600" />
               Asistencias Pendientes
             </CardTitle>
-            <CardDescription>Profesores con fechas de asistencia sin registrar</CardDescription>
+            <CardDescription>
+              {rol === 'Profesor' 
+                ? 'Fechas de asistencia sin registrar en tus talleres' 
+                : 'Profesores con fechas de asistencia sin registrar'}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {loading ? (
