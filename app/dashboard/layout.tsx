@@ -1,7 +1,7 @@
 'use client';
 
-import { SessionProvider } from 'next-auth/react';
 import { DashboardSidebar } from '@/components/dashboard/sidebar';
+import { DashboardWrapper } from '@/components/dashboard/dashboard-wrapper';
 
 export default function DashboardLayout({
   children,
@@ -9,7 +9,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <SessionProvider>
+    <DashboardWrapper>
       <div className="flex h-screen overflow-hidden bg-gray-50">
         <DashboardSidebar />
         <main className="flex-1 overflow-y-auto">
@@ -18,6 +18,6 @@ export default function DashboardLayout({
           </div>
         </main>
       </div>
-    </SessionProvider>
+    </DashboardWrapper>
   );
 }

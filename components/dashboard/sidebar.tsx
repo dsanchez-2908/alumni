@@ -163,13 +163,19 @@ const menuCategories: MenuCategory[] = [
 ];
 
 export function DashboardSidebar() {
-  const { data: session, status } = useSession();
+  const { data: session, status } = useSession({
+    required: true,
+    onUnauthenticated() {
+      // Si no hay sesión, redirigir al login
+      window.location.href = '/login';
+    },
+  });
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
 
   const userRoles = session?.user?.roles || [];
-  const isLoading = status === 'loading';
+  const isLoading = status === 'loading' || !session;
 
   const hasAccess = (roles?: string[]) => {
     if (!roles) return true;
