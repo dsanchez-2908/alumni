@@ -243,6 +243,34 @@ export default function TallerDetallePage() {
     }
   };
 
+  const handleQuitarAlumno = (id: number, nombre: string, apellido: string) => {
+    setConfirmDialog({
+      open: true,
+      title: 'Quitar alumno del taller',
+      description: `¿Estás seguro de quitar a ${apellido}, ${nombre} del taller? Esta acción eliminará la relación completamente y no se podrá deshacer.`,
+      variant: 'destructive',
+      onConfirm: () => quitarAlumnoConfirmado(id),
+    });
+  };
+
+  const quitarAlumnoConfirmado = async (id: number) => {
+    try {
+      const response = await fetch(`/api/talleres/${cdTaller}/alumnos/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        success('Alumno quitado del taller exitosamente');
+        fetchAlumnosInscritos();
+      } else {
+        const errorData = await response.json();
+        error(errorData.error || 'Error al quitar alumno');
+      }
+    } catch (err) {
+      error('Error de conexión');
+    }
+  };
+
   const handleFinalizarTaller = () => {
     setConfirmDialog({
       open: true,
@@ -563,27 +591,40 @@ export default function TallerDetallePage() {
                       </span>
                     </TableCell>
                     <TableCell className="text-right">
-                      {alumno.feBaja ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleCambiarEstado(alumno.id, true)}
-                          className="gap-2"
-                        >
-                          <UserCheck className="h-4 w-4" />
-                          Reactivar
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleCambiarEstado(alumno.id, false)}
-                          className="gap-2"
-                        >
-                          <UserX className="h-4 w-4" />
-                          Dar de Baja
-                        </Button>
-                      )}
+                      <div className="flex justify-end gap-2">
+                        {alumno.feBaja ? (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleCambiarEstado(alumno.id, true)}
+                              className="gap-2"
+                            >
+                              <UserCheck className="h-4 w-4" />
+                              Reactivar
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleQuitarAlumno(alumno.id, alumno.dsNombre, alumno.dsApellido)}
+                              className="gap-2"
+                            >
+                              <UserX className="h-4 w-4" />
+                              Quitar
+                            </Button>
+                          </>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleCambiarEstado(alumno.id, false)}
+                            className="gap-2"
+                          >
+                            <UserX className="h-4 w-4" />
+                            Dar de Baja
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))

@@ -353,7 +353,7 @@ export default function TalleresPage() {
             <div>
               <CardTitle className="text-2xl font-bold">Talleres</CardTitle>
               <CardDescription>
-                Gestiona los talleres y sus horarios
+                Gestiona los talleres y sus horarios {filteredTalleres.length > 0 && `• Total: ${filteredTalleres.length} ${filteredTalleres.length === 1 ? 'taller' : 'talleres'}`}
               </CardDescription>
             </div>
             <Button onClick={() => handleOpenDialog()} className="gap-2">
