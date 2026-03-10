@@ -150,7 +150,17 @@ export async function GET(
         p.dsObservacion,
         CONCAT(a.dsNombre, ' ', a.dsApellido) as alumno,
         tt.dsNombreTaller,
-        t.nuAnioTaller
+        t.nuAnioTaller,
+        t.snDomingo, t.snLunes, t.snMartes, t.snMiercoles, 
+        t.snJueves, t.snViernes, t.snSabado,
+        t.dsDescripcionHorarios,
+        t.dsDomingoHoraDesde, t.dsDomingoHoraHasta,
+        t.dsLunesHoraDesde, t.dsLunesHoraHasta,
+        t.dsMartesHoraDesde, t.dsMartesHoraHasta,
+        t.dsMiercolesHoraDesde, t.dsMiercolesHoraHasta,
+        t.dsJuevesHoraDesde, t.dsJuevesHoraHasta,
+        t.dsViernesHoraDesde, t.dsViernesHoraHasta,
+        t.dsSabadoHoraDesde, t.dsSabadoHoraHasta
       FROM TD_PAGOS_DETALLE pd
       INNER JOIN TD_PAGOS p ON pd.cdPago = p.cdPago
       INNER JOIN TD_ALUMNOS a ON pd.cdAlumno = a.cdAlumno
@@ -353,7 +363,17 @@ export async function GET(
         f.dsObservacion,
         t.cdTaller,
         tt.dsNombreTaller,
-        t.nuAnioTaller
+        t.nuAnioTaller,
+        t.snDomingo, t.snLunes, t.snMartes, t.snMiercoles, 
+        t.snJueves, t.snViernes, t.snSabado,
+        t.dsDescripcionHorarios,
+        t.dsDomingoHoraDesde, t.dsDomingoHoraHasta,
+        t.dsLunesHoraDesde, t.dsLunesHoraHasta,
+        t.dsMartesHoraDesde, t.dsMartesHoraHasta,
+        t.dsMiercolesHoraDesde, t.dsMiercolesHoraHasta,
+        t.dsJuevesHoraDesde, t.dsJuevesHoraHasta,
+        t.dsViernesHoraDesde, t.dsViernesHoraHasta,
+        t.dsSabadoHoraDesde, t.dsSabadoHoraHasta
       FROM TD_ASISTENCIAS f
       INNER JOIN TD_TALLERES t ON f.cdTaller = t.cdTaller
       INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
@@ -433,6 +453,8 @@ export async function GET(
 
     const talleresActivosFormateados = formatearDiasYHorarios(talleresActivos);
     const talleresFinalizadosFormateados = formatearDiasYHorarios(talleresFinalizados);
+    const pagosRealizadosFormateados = formatearDiasYHorarios(pagosRealizados);
+    const faltasFormateadas = formatearDiasYHorarios(faltas);
 
     // Retornar todo
     return NextResponse.json({
@@ -441,9 +463,9 @@ export async function GET(
       miembrosGrupo,
       talleresActivos: talleresActivosFormateados,
       talleresFinalizados: talleresFinalizadosFormateados,
-      pagosRealizados,
+      pagosRealizados: pagosRealizadosFormateados,
       pagosPendientes,
-      faltas,
+      faltas: faltasFormateadas,
       resumen: {
         totalTalleresActivos: talleresActivos.length,
         totalTalleresFinalizados: talleresFinalizados.length,

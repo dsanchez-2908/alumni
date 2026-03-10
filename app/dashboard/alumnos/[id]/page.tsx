@@ -678,6 +678,7 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
                     <TableRow>
                       <TableHead>Fecha</TableHead>
                       <TableHead>Taller</TableHead>
+                      <TableHead className="min-w-[200px]">Días y Horario</TableHead>
                       <TableHead>Período</TableHead>
                       <TableHead>Tipo</TableHead>
                       <TableHead className="text-right">Importe</TableHead>
@@ -698,6 +699,14 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
                             </>
                           ) : (
                             <span className="text-muted-foreground">Sin taller</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm min-w-[200px] whitespace-normal">
+                          {pago.diasClase || '-'}
+                          {pago.horarioClase && (
+                            <span className="text-muted-foreground block text-xs mt-0.5">
+                              {pago.horarioClase}
+                            </span>
                           )}
                         </TableCell>
                         <TableCell>
@@ -820,7 +829,7 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
                   <TableHeader>
                     <TableRow>
                       <TableHead>Fecha</TableHead>
-                      <TableHead>Taller</TableHead>
+                      <TableHead className="min-w-[250px]">Taller</TableHead>
                       <TableHead>Estado</TableHead>
                       <TableHead>Observación</TableHead>
                     </TableRow>
@@ -829,11 +838,23 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
                     {faltas.map((falta) => (
                       <TableRow key={falta.cdFalta}>
                         <TableCell>{formatFecha(falta.feFalta)}</TableCell>
-                        <TableCell>
-                          {falta.dsNombreTaller}
-                          <span className="text-muted-foreground text-sm ml-1">
-                            ({falta.nuAnioTaller})
-                          </span>
+                        <TableCell className="min-w-[250px]">
+                          <div>
+                            {falta.dsNombreTaller}
+                            <span className="text-muted-foreground text-sm ml-1">
+                              ({falta.nuAnioTaller})
+                            </span>
+                          </div>
+                          {falta.diasClase && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {falta.diasClase}
+                              {falta.horarioClase && (
+                                <span className="block text-xs mt-0.5">
+                                  {falta.horarioClase}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell>
                           {falta.snPresente === 1 ? (

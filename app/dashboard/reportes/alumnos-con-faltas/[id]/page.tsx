@@ -53,6 +53,29 @@ interface Falta {
   feFalta: string;
   dsObservacion: string | null;
   snContactado: number;
+  nombreProfesor?: string;
+  snDomingo?: number;
+  snLunes?: number;
+  snMartes?: number;
+  snMiercoles?: number;
+  snJueves?: number;
+  snViernes?: number;
+  snSabado?: number;
+  dsDescripcionHorarios?: string;
+  dsDomingoHoraDesde?: string;
+  dsDomingoHoraHasta?: string;
+  dsLunesHoraDesde?: string;
+  dsLunesHoraHasta?: string;
+  dsMartesHoraDesde?: string;
+  dsMartesHoraHasta?: string;
+  dsMiercolesHoraDesde?: string;
+  dsMiercolesHoraHasta?: string;
+  dsJuevesHoraDesde?: string;
+  dsJuevesHoraHasta?: string;
+  dsViernesHoraDesde?: string;
+  dsViernesHoraHasta?: string;
+  dsSabadoHoraDesde?: string;
+  dsSabadoHoraHasta?: string;
 }
 
 export default function DetalleAlumnoFaltasPage() {
@@ -169,6 +192,58 @@ export default function DetalleAlumnoFaltasPage() {
       console.error('Error al formatear fecha:', fecha, error);
       return 'Fecha inválida';
     }
+  };
+
+  const formatearDiasYHorarios = (falta: Falta): string => {
+    const diasInfo = [];
+    
+    const formatTime = (time: string | null | undefined) => {
+      if (!time) return null;
+      return time.substring(0, 5);
+    };
+    
+    if (falta.snDomingo) {
+      const desde = formatTime(falta.dsDomingoHoraDesde);
+      const hasta = formatTime(falta.dsDomingoHoraHasta);
+      diasInfo.push({ dia: 'Dom', desde, hasta });
+    }
+    if (falta.snLunes) {
+      const desde = formatTime(falta.dsLunesHoraDesde);
+      const hasta = formatTime(falta.dsLunesHoraHasta);
+      diasInfo.push({ dia: 'Lun', desde, hasta });
+    }
+    if (falta.snMartes) {
+      const desde = formatTime(falta.dsMartesHoraDesde);
+      const hasta = formatTime(falta.dsMartesHoraHasta);
+      diasInfo.push({ dia: 'Mar', desde, hasta });
+    }
+    if (falta.snMiercoles) {
+      const desde = formatTime(falta.dsMiercolesHoraDesde);
+      const hasta = formatTime(falta.dsMiercolesHoraHasta);
+      diasInfo.push({ dia: 'Mié', desde, hasta });
+    }
+    if (falta.snJueves) {
+      const desde = formatTime(falta.dsJuevesHoraDesde);
+      const hasta = formatTime(falta.dsJuevesHoraHasta);
+      diasInfo.push({ dia: 'Jue', desde, hasta });
+    }
+    if (falta.snViernes) {
+      const desde = formatTime(falta.dsViernesHoraDesde);
+      const hasta = formatTime(falta.dsViernesHoraHasta);
+      diasInfo.push({ dia: 'Vie', desde, hasta });
+    }
+    if (falta.snSabado) {
+      const desde = formatTime(falta.dsSabadoHoraDesde);
+      const hasta = formatTime(falta.dsSabadoHoraHasta);
+      diasInfo.push({ dia: 'Sáb', desde, hasta });
+    }
+    
+    return diasInfo.map(d => {
+      if (d.desde && d.hasta) {
+        return `${d.dia} ${d.desde}-${d.hasta}`;
+      }
+      return d.dia;
+    }).join(', ');
   };
 
   if (loading) {
@@ -352,6 +427,8 @@ export default function DetalleAlumnoFaltasPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Taller</TableHead>
+                  <TableHead>Profesor</TableHead>
+                  <TableHead className="min-w-[200px]">Día y Horario</TableHead>
                   <TableHead>Fecha</TableHead>
                   <TableHead>Observaciones</TableHead>
                 </TableRow>
@@ -360,6 +437,10 @@ export default function DetalleAlumnoFaltasPage() {
                 {faltas.map((falta) => (
                   <TableRow key={falta.cdFalta}>
                     <TableCell className="font-medium">{falta.dsNombreTaller}</TableCell>
+                    <TableCell>{falta.nombreProfesor || '-'}</TableCell>
+                    <TableCell className="text-sm min-w-[200px] whitespace-normal">
+                      {formatearDiasYHorarios(falta) || '-'}
+                    </TableCell>
                     <TableCell>{formatFecha(falta.feFalta)}</TableCell>
                     <TableCell>
                       <Input

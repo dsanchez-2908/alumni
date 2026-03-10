@@ -163,12 +163,13 @@ const menuCategories: MenuCategory[] = [
 ];
 
 export function DashboardSidebar() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
 
   const userRoles = session?.user?.roles || [];
+  const isLoading = status === 'loading';
 
   const hasAccess = (roles?: string[]) => {
     if (!roles) return true;
@@ -206,24 +207,42 @@ export function DashboardSidebar() {
 
       {/* Usuario info */}
       <div className="p-4 border-b border-indigo-100 bg-indigo-50">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-white font-semibold">
-            {session?.user?.name?.charAt(0) || 'U'}
+        {isLoading ? (
+          <div className="flex items-center gap-3 animate-pulse">
+            <div className="h-10 w-10 rounded-full bg-gray-300"></div>
+            <div className="flex-1 space-y-2">
+              <div className="h-4 bg-gray-300 rounded w-3/4"></div>
+              <div className="h-3 bg-gray-300 rounded w-1/2"></div>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">
-              {session?.user?.name}
-            </p>
-            <p className="text-xs text-gray-600 truncate">
-              {userRoles.join(', ')}
-            </p>
+        ) : (
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-white font-semibold">
+              {session?.user?.name?.charAt(0) || 'U'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">
+                {session?.user?.name}
+              </p>
+              <p className="text-xs text-gray-600 truncate">
+                {userRoles.join(', ')}
+              </p>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Menu items */}
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {menuCategories.map((category) => {
+        {isLoading ? (
+          // Loading skeleton para el menú
+          <div className="space-y-2 animate-pulse">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="h-12 bg-gray-200 rounded-lg"></div>
+            ))}
+          </div>
+        ) : (
+          menuCategories.map((category) => {
           if (!hasAccess(category.roles)) return null;
 
           // Si es un item simple (sin subItems), mostrar como antes
@@ -295,7 +314,8 @@ export function DashboardSidebar() {
               )}
             </div>
           );
-        })}
+        })
+        )}
       </nav>
 
       {/* Logout button */}

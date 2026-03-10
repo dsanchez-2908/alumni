@@ -29,7 +29,17 @@ export async function GET(request: NextRequest) {
         t.nuAnioTaller,
         tt.dsNombreTaller,
         t.feInicioTaller,
-        p.dsNombreCompleto as nombrePersonal
+        p.dsNombreCompleto as nombrePersonal,
+        t.snDomingo, t.snLunes, t.snMartes, t.snMiercoles, 
+        t.snJueves, t.snViernes, t.snSabado,
+        t.dsDescripcionHorarios,
+        t.dsDomingoHoraDesde, t.dsDomingoHoraHasta,
+        t.dsLunesHoraDesde, t.dsLunesHoraHasta,
+        t.dsMartesHoraDesde, t.dsMartesHoraHasta,
+        t.dsMiercolesHoraDesde, t.dsMiercolesHoraHasta,
+        t.dsJuevesHoraDesde, t.dsJuevesHoraHasta,
+        t.dsViernesHoraDesde, t.dsViernesHoraHasta,
+        t.dsSabadoHoraDesde, t.dsSabadoHoraHasta
       FROM TD_TALLERES t
       INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
       LEFT JOIN TD_PERSONAL p ON t.cdPersonal = p.cdPersonal

@@ -69,9 +69,10 @@ export async function GET(
     // Obtener precios vigentes para cada tipo de taller
     const tiposTaller = [...new Set(talleres.map((t: any) => t.cdTipoTaller))];
     
-    // Usar la fecha actual para buscar el precio vigente más reciente
-    // Esto permite encontrar precios que entraron en vigencia después del día 1 del mes
-    const fechaConsulta = new Date().toISOString().split('T')[0];
+    // Calcular el último día del mes seleccionado
+    // Esto asegura que si hay un nuevo precio en un mes posterior, no se aplique a meses anteriores
+    const ultimoDiaMes = new Date(anioSeleccionado, mesSeleccionado, 0).getDate();
+    const fechaConsulta = `${anioSeleccionado}-${String(mesSeleccionado).padStart(2, '0')}-${String(ultimoDiaMes).padStart(2, '0')}`;
     
     const preciosPromises = tiposTaller.map(async (cdTipoTaller) => {
       const [precios] = await pool.execute<any[]>(

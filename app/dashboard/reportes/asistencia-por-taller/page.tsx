@@ -27,6 +27,28 @@ interface Taller {
   dsNombreTaller: string;
   nombrePersonal: string;
   feInicioTaller: string;
+  snDomingo?: number;
+  snLunes?: number;
+  snMartes?: number;
+  snMiercoles?: number;
+  snJueves?: number;
+  snViernes?: number;
+  snSabado?: number;
+  dsDescripcionHorarios?: string;
+  dsDomingoHoraDesde?: string;
+  dsDomingoHoraHasta?: string;
+  dsLunesHoraDesde?: string;
+  dsLunesHoraHasta?: string;
+  dsMartesHoraDesde?: string;
+  dsMartesHoraHasta?: string;
+  dsMiercolesHoraDesde?: string;
+  dsMiercolesHoraHasta?: string;
+  dsJuevesHoraDesde?: string;
+  dsJuevesHoraHasta?: string;
+  dsViernesHoraDesde?: string;
+  dsViernesHoraHasta?: string;
+  dsSabadoHoraDesde?: string;
+  dsSabadoHoraHasta?: string;
 }
 
 interface TotalesGenerales {
@@ -80,6 +102,73 @@ export default function AsistenciaPorTallerPage() {
   const [loading, setLoading] = useState(false);
   const [loadingTalleres, setLoadingTalleres] = useState(false);
   const [reporteData, setReporteData] = useState<ReporteData | null>(null);
+
+  // Función para formatear días y horarios
+  const formatearDiasYHorarios = (taller: Taller): string => {
+    const diasInfo = [];
+    
+    const formatTime = (time: string | null | undefined) => {
+      if (!time) return null;
+      return time.substring(0, 5);
+    };
+    
+    if (taller.snDomingo) {
+      const desde = formatTime(taller.dsDomingoHoraDesde);
+      const hasta = formatTime(taller.dsDomingoHoraHasta);
+      diasInfo.push({ dia: 'Dom', desde, hasta });
+    }
+    if (taller.snLunes) {
+      const desde = formatTime(taller.dsLunesHoraDesde);
+      const hasta = formatTime(taller.dsLunesHoraHasta);
+      diasInfo.push({ dia: 'Lun', desde, hasta });
+    }
+    if (taller.snMartes) {
+      const desde = formatTime(taller.dsMartesHoraDesde);
+      const hasta = formatTime(taller.dsMartesHoraHasta);
+      diasInfo.push({ dia: 'Mar', desde, hasta });
+    }
+    if (taller.snMiercoles) {
+      const desde = formatTime(taller.dsMiercolesHoraDesde);
+      const hasta = formatTime(taller.dsMiercolesHoraHasta);
+      diasInfo.push({ dia: 'Mié', desde, hasta });
+    }
+    if (taller.snJueves) {
+      const desde = formatTime(taller.dsJuevesHoraDesde);
+      const hasta = formatTime(taller.dsJuevesHoraHasta);
+      diasInfo.push({ dia: 'Jue', desde, hasta });
+    }
+    if (taller.snViernes) {
+      const desde = formatTime(taller.dsViernesHoraDesde);
+      const hasta = formatTime(taller.dsViernesHoraHasta);
+      diasInfo.push({ dia: 'Vie', desde, hasta });
+    }
+    if (taller.snSabado) {
+      const desde = formatTime(taller.dsSabadoHoraDesde);
+      const hasta = formatTime(taller.dsSabadoHoraHasta);
+      diasInfo.push({ dia: 'Sáb', desde, hasta });
+    }
+    
+    return diasInfo.map(d => {
+      if (d.desde && d.hasta) {
+        return `${d.dia} ${d.desde}-${d.hasta}`;
+      }
+      return d.dia;
+    }).join(', ');
+  };
+
+  // Función para formatear fecha
+  const formatearFecha = (fechaStr: string): string => {
+    if (!fechaStr) return '-';
+    try {
+      // Parsear fecha en formato YYYY-MM-DD
+      const [year, month, day] = fechaStr.split('T')[0].split('-');
+      const fecha = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      if (isNaN(fecha.getTime())) return '-';
+      return fecha.toLocaleDateString('es-AR');
+    } catch {
+      return '-';
+    }
+  };
 
   // Generar años (últimos 5 años + próximos 2)
   const anios = Array.from({ length: 8 }, (_, i) => currentYear - 3 + i);
@@ -186,11 +275,15 @@ export default function AsistenciaPorTallerPage() {
                       {loadingTalleres ? 'Cargando...' : 'No hay talleres para este año'}
                     </SelectItem>
                   ) : (
-                    talleres.map((taller) => (
-                      <SelectItem key={taller.cdTaller} value={taller.cdTaller.toString()}>
-                        {taller.dsNombreTaller} - {taller.nombrePersonal}
-                      </SelectItem>
-                    ))
+                    talleres.map((taller) => {
+                      const diasHorarios = formatearDiasYHorarios(taller);
+                      return (
+                        <SelectItem key={taller.cdTaller} value={taller.cdTaller.toString()}>
+                          {taller.dsNombreTaller} - {taller.nombrePersonal}
+                          {diasHorarios && ` (${diasHorarios})`}
+                        </SelectItem>
+                      );
+                    })
                   )}
                 </SelectContent>
               </Select>
@@ -232,10 +325,18 @@ export default function AsistenciaPorTallerPage() {
                   <span>{reporteData.taller.nuAnioTaller}</span>
                 </div>
                 <div className="flex justify-between">
+                  <span className="font-medium text-gray-700">Días y Horarios:</span>
+                  <span>{formatearDiasYHorarios(reporteData.taller) || '-'}</span>
+                </div>
+                {reporteData.taller.dsDescripcionHorarios && (
+                  <div className="flex justify-between">
+                    <span className="font-medium text-gray-700">Descripción:</span>
+                    <span className="text-xs text-gray-600">{reporteData.taller.dsDescripcionHorarios}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
                   <span className="font-medium text-gray-700">Fecha de Inicio:</span>
-                  <span>
-                    {new Date(reporteData.taller.feInicioTaller + 'T00:00:00').toLocaleDateString('es-AR')}
-                  </span>
+                  <span>{formatearFecha(reporteData.taller.feInicioTaller)}</span>
                 </div>
               </div>
             </CardContent>

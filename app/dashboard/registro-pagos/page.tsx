@@ -81,7 +81,7 @@ export default function RegistroPagosPage() {
   const [items, setItems] = useState<ItemPago[]>([]);
   const [tipoPagoGlobal, setTipoPagoGlobal] = useState<string>('');
   const [observacion, setObservacion] = useState('');
-  const [metodoNotificacion, setMetodoNotificacion] = useState<string>('Mail');
+  const [metodoNotificacion, setMetodoNotificacion] = useState<string>('Whatsapp');
   const [contactosNotificacion, setContactosNotificacion] = useState<{emails: string[], whatsapps: string[]}>({emails: [], whatsapps: []});
   const [emailNotificacion, setEmailNotificacion] = useState('');
   const [whatsappNotificacion, setWhatsappNotificacion] = useState('');
@@ -188,7 +188,7 @@ export default function RegistroPagosPage() {
     setAlumnoSeleccionado(null);
     setItems([]);
     setObservacion('');
-    setMetodoNotificacion('Mail');
+    setMetodoNotificacion('Whatsapp');
     setContactosNotificacion({emails: [], whatsapps: []});
     setEmailNotificacion('');
     setWhatsappNotificacion('');
@@ -505,7 +505,7 @@ export default function RegistroPagosPage() {
     setAlumnoSeleccionado(null);
     setItems([]);
     setObservacion('');
-    setMetodoNotificacion('Mail');
+    setMetodoNotificacion('Whatsapp');
     setSearchTerm('');
   };
 

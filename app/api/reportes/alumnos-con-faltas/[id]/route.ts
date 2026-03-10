@@ -65,10 +65,22 @@ export async function GET(
         tt.dsNombreTaller,
         ast.feFalta,
         ast.dsObservacion,
-        ast.snContactado
+        ast.snContactado,
+        p.dsNombreCompleto as nombreProfesor,
+        t.snDomingo, t.snLunes, t.snMartes, t.snMiercoles, 
+        t.snJueves, t.snViernes, t.snSabado,
+        t.dsDescripcionHorarios,
+        t.dsDomingoHoraDesde, t.dsDomingoHoraHasta,
+        t.dsLunesHoraDesde, t.dsLunesHoraHasta,
+        t.dsMartesHoraDesde, t.dsMartesHoraHasta,
+        t.dsMiercolesHoraDesde, t.dsMiercolesHoraHasta,
+        t.dsJuevesHoraDesde, t.dsJuevesHoraHasta,
+        t.dsViernesHoraDesde, t.dsViernesHoraHasta,
+        t.dsSabadoHoraDesde, t.dsSabadoHoraHasta
       FROM TD_ASISTENCIAS ast
       INNER JOIN TD_TALLERES t ON ast.cdTaller = t.cdTaller
       INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
+      LEFT JOIN TD_PERSONAL p ON t.cdPersonal = p.cdPersonal
       WHERE ast.cdAlumno = ?
         AND ast.snPresente = 0
         AND YEAR(ast.feFalta) = ?
