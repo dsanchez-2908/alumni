@@ -2,8 +2,8 @@ name: MySQL Daily Backup
 
 on:
   schedule:
-    - cron: '0 6 * * *'  # 3 AM Argentina (UTC-3)
-  workflow_dispatch:       # permite correrlo manualmente también
+    - cron: '0 6 * * *'
+  workflow_dispatch:
 
 jobs:
   backup:
@@ -35,15 +35,3 @@ jobs:
           filename: ${{ env.FILENAME }}
           folderId: ${{ secrets.GDRIVE_FOLDER_ID }}
           overwrite: false
-
-      - name: Notificar error por email
-        if: failure()
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          username: ${{ secrets.MAIL_USER }}
-          password: ${{ secrets.MAIL_PASSWORD }}
-          to: tucliente@email.com
-          subject: "⚠️ Falló el backup de la base de datos"
-          body: "El backup automático del $(date) no se completó. Revisar GitHub Actions."
