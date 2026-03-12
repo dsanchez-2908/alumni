@@ -1,0 +1,50 @@
+name: MySQL Daily Backup
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # 3 AM Argentina (UTC-3)
+  workflow_dispatch:       # permite correrlo manualmente también
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Instalar cliente MySQL
+        run: sudo apt-get install -y mysql-client
+
+      - name: Generar backup
+        run: |
+          FILENAME="backup_$(date +'%Y-%m-%d').sql.gz"
+          mysqldump \
+            -h ${{ secrets.RAILWAY_MYSQL_HOST }} \
+            -P ${{ secrets.RAILWAY_MYSQL_PORT }} \
+            -u ${{ secrets.RAILWAY_MYSQL_USER }} \
+            -p${{ secrets.RAILWAY_MYSQL_PASSWORD }} \
+            ${{ secrets.RAILWAY_MYSQL_DATABASE }} \
+            --single-transaction \
+            --routines \
+            --triggers \
+          | gzip > $FILENAME
+          echo "FILENAME=$FILENAME" >> $GITHUB_ENV
+
+      - name: Subir a Google Drive
+        uses: adityak74/google-drive-upload-git-action@main
+        with:
+          credentials: ${{ secrets.GDRIVE_CREDENTIALS }}
+          filename: ${{ env.FILENAME }}
+          folderId: ${{ secrets.GDRIVE_FOLDER_ID }}
+          overwrite: false
+
+      - name: Notificar error por email
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USER }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          to: tucliente@email.com
+          subject: "⚠️ Falló el backup de la base de datos"
+          body: "El backup automático del $(date) no se completó. Revisar GitHub Actions."
+```
