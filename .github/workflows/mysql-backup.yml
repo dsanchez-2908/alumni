@@ -47,4 +47,3 @@ jobs:
           to: tucliente@email.com
           subject: "⚠️ Falló el backup de la base de datos"
           body: "El backup automático del $(date) no se completó. Revisar GitHub Actions."
-```
