@@ -35,9 +35,13 @@ export async function GET(request: NextRequest) {
 
     // ADMINISTRADOR y SUPERVISOR: Dashboard completo
     if (rolPrincipal === 'Administrador' || rolPrincipal === 'Supervisor') {
-      // Contar alumnos activos
+      // Contar alumnos activos (inscritos en al menos un taller activo)
       const alumnosResult = await executeQuery<any>(
-        'SELECT COUNT(*) as total FROM TD_ALUMNOS WHERE cdEstado = 1'
+        `SELECT COUNT(DISTINCT a.cdAlumno) as total 
+         FROM TD_ALUMNOS a
+         INNER JOIN TR_ALUMNO_TALLER at ON a.cdAlumno = at.cdAlumno
+         INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
+         WHERE at.cdEstado = 1 AND t.cdEstado = 1`
       );
       totalAlumnos = alumnosResult[0]?.total || 0;
 
@@ -61,7 +65,7 @@ export async function GET(request: NextRequest) {
          INNER JOIN TR_ALUMNO_TALLER at ON a.cdAlumno = at.cdAlumno
          INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
          WHERE a.cdEstado = 1
-           AND at.feBaja IS NULL
+           AND at.cdEstado = 1
            AND t.cdEstado IN (1, 2)
            AND t.nuAnioTaller = ?
            AND NOT EXISTS (
@@ -90,7 +94,7 @@ export async function GET(request: NextRequest) {
              UNION SELECT 9 UNION SELECT 10 UNION SELECT 11 UNION SELECT 12
            ) mes
            WHERE a.cdEstado = 1
-             AND at.feBaja IS NULL
+             AND at.cdEstado = 1
              AND t.cdEstado IN (1, 2)
              AND t.nuAnioTaller = ?
              AND mes.mes < ?
@@ -119,7 +123,7 @@ export async function GET(request: NextRequest) {
         INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
         INNER JOIN TD_ASISTENCIAS ast ON a.cdAlumno = ast.cdAlumno AND t.cdTaller = ast.cdTaller
         WHERE a.cdEstado = 1
-          AND at.feBaja IS NULL
+          AND at.cdEstado = 1
           AND t.cdEstado = 1
           AND t.nuAnioTaller = ?
           AND YEAR(ast.feFalta) = ?
@@ -197,7 +201,7 @@ export async function GET(request: NextRequest) {
            AND t.nuAnioTaller = ?
            AND t.cdEstado IN (1, 2)
            AND a.cdEstado = 1
-           AND at.feBaja IS NULL`,
+           AND at.cdEstado = 1`,
         [cdPersonal, currentYear]
       );
       totalAlumnos = alumnosResult[0]?.total || 0;
@@ -243,7 +247,7 @@ export async function GET(request: NextRequest) {
             AND a.feNacimiento IS NOT NULL
             AND t.cdPersonal = ?
             AND t.nuAnioTaller = ?
-            AND at.feBaja IS NULL
+            AND at.cdEstado = 1
         ) AS cumpleanos_alumnos
         ORDER BY diasFaltantes ASC, nombre ASC
         LIMIT 5`,
