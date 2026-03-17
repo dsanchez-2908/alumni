@@ -28,10 +28,9 @@ jobs:
           | gzip > $FILENAME
           echo "FILENAME=$FILENAME" >> $GITHUB_ENV
 
-      - name: Subir a Google Drive
-        uses: adityak74/google-drive-upload-git-action@main
+      - name: Guardar backup como artifact
+        uses: actions/upload-artifact@v4
         with:
-          credentials: ${{ secrets.GDRIVE_CREDENTIALS }}
-          filename: ${{ env.FILENAME }}
-          folderId: ${{ secrets.GDRIVE_FOLDER_ID }}
-          overwrite: false
+          name: backup-${{ github.run_id }}
+          path: ${{ env.FILENAME }}
+          retention-days: 30
