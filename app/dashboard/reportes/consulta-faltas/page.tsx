@@ -375,51 +375,51 @@ export default function ConsultaFaltasPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="border rounded-lg overflow-hidden">
-              <div className="max-h-[600px] overflow-y-auto">
+            <div className="border rounded-lg">
+              <div className="max-h-[600px] overflow-y-auto overflow-x-auto">
                 <Table>
                   <TableHeader className="sticky top-0 bg-muted">
                     <TableRow>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead>Tipo de Taller</TableHead>
-                      <TableHead>Horario</TableHead>
-                      <TableHead>Profesor</TableHead>
-                      <TableHead>Alumno</TableHead>
-                      <TableHead className="text-center">Aviso</TableHead>
-                      <TableHead>Observaciones</TableHead>
-                      <TableHead className="text-center">Contactado</TableHead>
-                      <TableHead>Novedad/Motivo</TableHead>
+                      <TableHead className="w-[100px]">Fecha</TableHead>
+                      <TableHead className="w-[140px]">Tipo de Taller</TableHead>
+                      <TableHead className="w-[160px]">Horario</TableHead>
+                      <TableHead className="w-[150px]">Profesor</TableHead>
+                      <TableHead className="w-[150px]">Alumno</TableHead>
+                      <TableHead className="text-center w-[80px]">Aviso</TableHead>
+                      <TableHead className="w-[200px]">Observaciones</TableHead>
+                      <TableHead className="text-center w-[100px]">Contactado</TableHead>
+                      <TableHead className="w-[200px]">Novedad/Motivo</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {faltas.map((falta) => (
                       <TableRow key={falta.cdFalta}>
-                        <TableCell className="whitespace-nowrap">
+                        <TableCell className="whitespace-nowrap text-sm">
                           {new Date(falta.feFalta).toLocaleDateString('es-AR')}
                         </TableCell>
-                        <TableCell>{falta.tipoTaller}</TableCell>
-                        <TableCell className="whitespace-nowrap">{falta.horario}</TableCell>
-                        <TableCell>{falta.profesor}</TableCell>
-                        <TableCell>{falta.alumno}</TableCell>
+                        <TableCell className="text-sm">{falta.tipoTaller}</TableCell>
+                        <TableCell className="text-sm">{falta.horario}</TableCell>
+                        <TableCell className="text-sm">{falta.profesor}</TableCell>
+                        <TableCell className="text-sm">{falta.alumno}</TableCell>
                         <TableCell className="text-center">
-                          <Badge variant={falta.snAviso === 1 ? 'default' : 'destructive'}>
+                          <Badge variant={falta.snAviso === 1 ? 'default' : 'destructive'} className="text-xs px-2 py-0">
                             {falta.snAviso === 1 ? 'SI' : 'NO'}
                           </Badge>
                         </TableCell>
-                        <TableCell className="max-w-[300px] truncate" title={falta.dsObservacion || ''}>
-                          {falta.dsObservacion || '-'}
+                        <TableCell className="text-sm max-w-[200px]" title={falta.dsObservacion || ''}>
+                          <div className="line-clamp-2">{falta.dsObservacion || '-'}</div>
                         </TableCell>
                         <TableCell className="text-center">
                           {falta.snContactado === 1 ? (
-                            <Badge variant="default">SI</Badge>
+                            <Badge variant="default" className="text-xs px-2 py-0">SI</Badge>
                           ) : falta.snContactado === 0 ? (
-                            <Badge variant="outline">NO</Badge>
+                            <Badge variant="outline" className="text-xs px-2 py-0">NO</Badge>
                           ) : (
-                            <span className="text-muted-foreground">N/A</span>
+                            <span className="text-muted-foreground text-xs">N/A</span>
                           )}
                         </TableCell>
-                        <TableCell className="max-w-[300px] truncate" title={falta.motivoFalta || ''}>
-                          {falta.motivoFalta || '-'}
+                        <TableCell className="text-sm max-w-[200px]" title={falta.motivoFalta || ''}>
+                          <div className="line-clamp-2">{falta.motivoFalta || '-'}</div>
                         </TableCell>
                       </TableRow>
                     ))}
