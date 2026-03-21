@@ -18,6 +18,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -34,6 +41,7 @@ interface AlumnoAsistencia {
   cdFalta: number | null;
   snPresente: number | null;
   dsObservacion: string | null;
+  snAviso: number | null;
 }
 
 interface Taller {
@@ -61,6 +69,7 @@ export default function AsistenciaPage() {
   );
   const [faltas, setFaltas] = useState<Set<number>>(new Set());
   const [observaciones, setObservaciones] = useState<Record<number, string>>({});
+  const [avisos, setAvisos] = useState<Record<number, number>>({});  // 0 = NO, 1 = SI
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [diasClase, setDiasClase] = useState<number[]>([]);
@@ -115,6 +124,7 @@ export default function AsistenciaPage() {
         // Marcar los que ya tienen falta registrada (ausentes o feriado)
         const faltasSet = new Set<number>();
         const obs: Record<number, string> = {};
+        const avs: Record<number, number> = {};
         let esFeriadoDetectado = false;
         
         data.forEach((alumno: AlumnoAsistencia) => {
@@ -125,6 +135,8 @@ export default function AsistenciaPage() {
             if (alumno.dsObservacion) {
               obs[alumno.cdAlumno] = alumno.dsObservacion;
             }
+            // Cargar estado de aviso (default 0 = NO)
+            avs[alumno.cdAlumno] = alumno.snAviso || 0;
             // Detectar si es feriado
             if (alumno.snPresente === 3) {
               esFeriadoDetectado = true;
@@ -133,6 +145,7 @@ export default function AsistenciaPage() {
         });
         setFaltas(faltasSet);
         setObservaciones(obs);
+        setAvisos(avs);
         setEsFeriado(esFeriadoDetectado);
       }
     } catch (error) {
@@ -147,14 +160,24 @@ export default function AsistenciaPage() {
       const newSet = new Set(prev);
       if (newSet.has(cdAlumno)) {
         newSet.delete(cdAlumno);
-        // Limpiar observación si ya no tiene falta
+        // Limpiar observación y aviso si ya no tiene falta
         setObservaciones((obs) => {
           const newObs = { ...obs };
           delete newObs[cdAlumno];
           return newObs;
         });
+        setAvisos((avs) => {
+          const newAvs = { ...avs };
+          delete newAvs[cdAlumno];
+          return newAvs;
+        });
       } else {
         newSet.add(cdAlumno);
+        // Inicializar aviso en NO (0) por defecto
+        setAvisos((prev) => ({
+          ...prev,
+          [cdAlumno]: 0,
+        }));
       }
       return newSet;
     });
@@ -164,6 +187,13 @@ export default function AsistenciaPage() {
     setObservaciones((prev) => ({
       ...prev,
       [cdAlumno]: value,
+    }));
+  };
+
+  const handleAvisoChange = (cdAlumno: number, value: string) => {
+    setAvisos((prev) => ({
+      ...prev,
+      [cdAlumno]: parseInt(value),
     }));
   };
 
@@ -200,6 +230,7 @@ export default function AsistenciaPage() {
       const faltasArray = Array.from(faltas).map((cdAlumno) => ({
         cdAlumno,
         dsObservacion: observaciones[cdAlumno] || null,
+        snAviso: avisos[cdAlumno] || 0,  // 0 = NO avisó, 1 = SI avisó
       }));
 
       const response = await fetch(`/api/talleres/${cdTaller}/faltas`, {
@@ -374,6 +405,7 @@ export default function AsistenciaPage() {
                   <TableHead className="w-[100px]">Ausente</TableHead>
                   <TableHead>Nombre y Apellido</TableHead>
                   <TableHead>DNI</TableHead>
+                  <TableHead className="w-[120px]">Aviso?</TableHead>
                   <TableHead className="w-[300px]">Observación</TableHead>
                 </TableRow>
               </TableHeader>
@@ -398,6 +430,25 @@ export default function AsistenciaPage() {
                       {alumno.dsApellido}, {alumno.dsNombre}
                     </TableCell>
                     <TableCell>{alumno.dsDNI}</TableCell>
+                    <TableCell>
+                      {faltas.has(alumno.cdAlumno) && (
+                        <Select
+                          value={(avisos[alumno.cdAlumno] || 0).toString()}
+                          onValueChange={(value) =>
+                            handleAvisoChange(alumno.cdAlumno, value)
+                          }
+                          disabled={isReadOnly}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="0">NO</SelectItem>
+                            <SelectItem value="1">SI</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </TableCell>
                     <TableCell>
                       {faltas.has(alumno.cdAlumno) && (
                         <Textarea

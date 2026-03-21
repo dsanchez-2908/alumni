@@ -144,20 +144,35 @@ export async function PUT(
     }
 
     // Agregar novedad si se proporcionó
+    // La novedad se asocia a todas las faltas del año actual del alumno
     if (novedad && novedad.trim().length > 0) {
-      await pool.execute(
-        `INSERT INTO TD_NOVEDADES_ALUMNO 
-          (cdAlumno, dsNovedad, cdUsuario, feAlta, cdEstado) 
-        VALUES (?, ?, ?, NOW(), 1)`,
-        [cdAlumno, novedad.trim(), session.user.cdUsuario]
+      // Obtener las faltas del alumno en el año actual
+      const [faltasAlumno] = await pool.execute<any[]>(
+        `SELECT cdFalta 
+         FROM TD_ASISTENCIAS 
+         WHERE cdAlumno = ? 
+           AND snPresente = 0 
+           AND YEAR(feFalta) = ?`,
+        [cdAlumno, new Date().getFullYear()]
       );
+
+      // Guardar una novedad por cada falta
+      // Esto permite rastrear el motivo específico de cada falta
+      for (const falta of faltasAlumno) {
+        await pool.execute(
+          `INSERT INTO TD_NOVEDADES_ALUMNO 
+            (cdAlumno, cdFalta, dsNovedad, cdUsuario, feAlta, cdEstado) 
+          VALUES (?, ?, ?, ?, NOW(), 1)`,
+          [cdAlumno, falta.cdFalta, novedad.trim(), session.user.cdUsuario]
+        );
+      }
 
       await registrarTraza({
         dsProceso: 'Seguimiento Faltas',
         dsAccion: 'Agregar',
         cdUsuario: session.user.cdUsuario,
         cdElemento: cdAlumno,
-        dsDetalle: `Novedad registrada: ${snContactado ? 'Contactado' : 'No contactado'} - ${novedad.substring(0, 50)}...`,
+        dsDetalle: `Novedad registrada: ${snContactado ? 'Contactado' : 'No contactado'} - ${novedad.substring(0, 50)}... (${faltasAlumno.length} faltas)`,
       });
     }
 

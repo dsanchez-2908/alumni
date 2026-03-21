@@ -226,6 +226,15 @@ export default function ConsultaPagosPage() {
 
   // Función helper para obtener talleres únicos con horarios
   const getTalleresUnicos = (pago: Pago) => {
+    // Para pagos PENDIENTES: usar pago.talleres
+    if (pago.talleres && pago.talleres.length > 0) {
+      return pago.talleres.map(t => ({
+        nombreTaller: t.nombreTaller,
+        horario: '' // Los pendientes no tienen horarios en esta estructura
+      }));
+    }
+    
+    // Para pagos PAGADOS: usar pago.detalles
     if (!pago.detalles || pago.detalles.length === 0) return [];
     
     const talleresMap = new Map();
@@ -277,7 +286,7 @@ export default function ConsultaPagosPage() {
   const exportToExcel = () => {
     const data = pagos.map((pago) => {
       const talleres = getTalleresUnicos(pago);
-      const talleresInfo = talleres.map(t => `${t.nombreTaller} (${t.horario})`).join('; ');
+      const talleresInfo = talleres.map(t => t.horario ? `${t.nombreTaller} (${t.horario})` : t.nombreTaller).join('; ');
       
       const baseData: any = {
         Período: pago.periodo,
@@ -333,7 +342,7 @@ export default function ConsultaPagosPage() {
 
     const body = pagos.map((pago) => {
       const talleres = getTalleresUnicos(pago);
-      const talleresInfo = talleres.map(t => `${t.nombreTaller}\n${t.horario}`).join('\n');
+      const talleresInfo = talleres.map(t => t.horario ? `${t.nombreTaller}\n${t.horario}` : t.nombreTaller).join('\n');
       
       if (estadoPago === 'Pagado') {
         return [
@@ -583,7 +592,9 @@ export default function ConsultaPagosPage() {
                             {talleres.map((taller, idx) => (
                               <div key={idx} className="text-sm">
                                 <div className="font-medium">{taller.nombreTaller}</div>
-                                <div className="text-xs text-indigo-600">{taller.horario}</div>
+                                {taller.horario && (
+                                  <div className="text-xs text-indigo-600">{taller.horario}</div>
+                                )}
                               </div>
                             ))}
                           </div>

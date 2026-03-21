@@ -69,7 +69,7 @@ export default function AlumnosConFaltasPage() {
           Seguimiento de Faltas
         </h1>
         <p className="text-gray-600 mt-1">
-          Alumnos con 2 o más faltas consecutivas que requieren contacto
+          Alumnos con 2 o más faltas consecutivas que NO avisaron y requieren contacto
         </p>
       </div>
 
@@ -84,7 +84,7 @@ export default function AlumnosConFaltasPage() {
             )}
           </CardTitle>
           <CardDescription>
-            Lista de alumnos con ausencias consecutivas sin contactar
+            Lista de alumnos con ausencias consecutivas que NO avisaron y están sin contactar
           </CardDescription>
         </CardHeader>
         <CardContent>

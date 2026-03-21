@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import pool from '@/lib/db';
 
-// GET - Obtener alumnos con 2 o más faltas consecutivas
+// GET - Obtener alumnos con 2 o más faltas consecutivas que NO avisaron
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -38,6 +38,7 @@ export async function GET(request: NextRequest) {
         AND t.nuAnioTaller = ?
         AND YEAR(ast.feFalta) = ?
         AND ast.snPresente = 0
+        AND ast.snAviso = 0
         AND (ast.snContactado IS NULL OR ast.snContactado = 0)
       ORDER BY a.cdAlumno, t.cdTaller, ast.feFalta`,
       [currentYear, currentYear]

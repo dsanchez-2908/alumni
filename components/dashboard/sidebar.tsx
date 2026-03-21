@@ -119,6 +119,11 @@ const menuCategories: MenuCategory[] = [
         href: '/dashboard/faltas',
         roles: ['Administrador', 'Supervisor'],
       },
+      {
+        title: 'Consulta de Faltas',
+        href: '/dashboard/reportes/consulta-faltas',
+        roles: ['Administrador', 'Supervisor'],
+      },
     ],
   },
   {
@@ -156,6 +161,11 @@ const menuCategories: MenuCategory[] = [
       {
         title: 'Seguimiento de Faltas',
         href: '/dashboard/reportes/alumnos-con-faltas',
+        roles: ['Administrador', 'Supervisor'],
+      },
+      {
+        title: 'Pagos por Talleres',
+        href: '/dashboard/reportes/pagos-talleres',
         roles: ['Administrador', 'Supervisor'],
       },
     ],

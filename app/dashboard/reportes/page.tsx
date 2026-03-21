@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileText, Users, Calendar, TrendingUp } from 'lucide-react';
+import { FileText, Users, Calendar, TrendingUp, DollarSign } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function ReportesPage() {
@@ -17,9 +17,15 @@ export default function ReportesPage() {
     },
     {
       title: 'Seguimiento de Faltas',
-      description: 'Alumnos con 2 o más faltas consecutivas que requieren contacto',
+      description: 'Alumnos con 2 o más faltas consecutivas que NO avisaron y requieren contacto',
       icon: <TrendingUp className="h-8 w-8 text-orange-600" />,
       href: '/dashboard/reportes/alumnos-con-faltas',
+    },
+    {
+      title: 'Pagos por Talleres',
+      description: 'Reporte mensual de pagos por taller con estado de cada alumno',
+      icon: <DollarSign className="h-8 w-8 text-green-600" />,
+      href: '/dashboard/reportes/pagos-talleres',
     },
   ];
 

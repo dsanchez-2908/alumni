@@ -36,7 +36,8 @@ export async function GET(
         a.dsDNI,
         f.cdFalta,
         f.snPresente,
-        f.dsObservacion
+        f.dsObservacion,
+        f.snAviso
       FROM TR_ALUMNO_TALLER at
       INNER JOIN TD_ALUMNOS a ON at.cdAlumno = a.cdAlumno
       LEFT JOIN TD_ASISTENCIAS f ON at.cdAlumno = f.cdAlumno 
@@ -101,7 +102,7 @@ export async function POST(
     const alumnosAusentes = new Set(faltas.map(f => f.cdAlumno));
 
     // Preparar datos para insertar TODOS los alumnos
-    const placeholders = alumnos.map(() => '(?, ?, ?, ?, ?, ?)').join(',');
+    const placeholders = alumnos.map(() => '(?, ?, ?, ?, ?, ?, ?)').join(',');
     const values: any[] = [];
     
     alumnos.forEach((alumno: any) => {
@@ -119,6 +120,7 @@ export async function POST(
         fecha,
         snPresente,  // 0 = ausente, 1 = presente, 3 = feriado
         faltaInfo?.dsObservacion || null,
+        faltaInfo?.snAviso || 0,  // 0 = NO avisó, 1 = SI avisó
         cdUsuario
       );
     });
@@ -126,7 +128,7 @@ export async function POST(
     // Insertar asistencia de TODOS los alumnos
     if (values.length > 0) {
       await pool.execute(
-        `INSERT INTO TD_ASISTENCIAS (cdTaller, cdAlumno, feFalta, snPresente, dsObservacion, cdUsuarioRegistro) 
+        `INSERT INTO TD_ASISTENCIAS (cdTaller, cdAlumno, feFalta, snPresente, dsObservacion, snAviso, cdUsuarioRegistro) 
          VALUES ${placeholders}`,
         values
       );
