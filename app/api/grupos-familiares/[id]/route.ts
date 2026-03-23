@@ -77,11 +77,11 @@ export async function PUT(
     );
 
     await registrarTraza({
-      dsProceso: 'TD_GRUPOS_FAMILIARES',
+      dsProceso: 'Grupos Familiares',
       dsAccion: 'Modificar',
       cdUsuario: session.user.cdUsuario,
       cdElemento: cdGrupoFamiliar,
-      dsDetalle: JSON.stringify({ dsNombreGrupo }),
+      dsDetalle: `${dsNombreGrupo} | Tel: ${dsTelefonoContacto || 'N/A'} | Email: ${dsMailContacto || 'N/A'}`,
     });
 
     return NextResponse.json({
@@ -109,6 +109,13 @@ export async function DELETE(
 
     const cdGrupoFamiliar = parseInt(params.id);
 
+    // Obtener el nombre del grupo antes de eliminar
+    const grupoInfo = await executeQuery<any>(
+      `SELECT dsNombreGrupo FROM TD_GRUPOS_FAMILIARES WHERE cdGrupoFamiliar = ?`,
+      [cdGrupoFamiliar]
+    );
+    const nombreGrupo = grupoInfo[0]?.dsNombreGrupo || 'Desconocido';
+
     // Verificar si tiene alumnos asociados
     const alumnos = await executeQuery(
       'SELECT COUNT(*) as total FROM TD_ALUMNOS WHERE cdGrupoFamiliar = ? AND cdEstado = 1',
@@ -129,11 +136,11 @@ export async function DELETE(
     );
 
     await registrarTraza({
-      dsProceso: 'TD_GRUPOS_FAMILIARES',
+      dsProceso: 'Grupos Familiares',
       dsAccion: 'Eliminar',
       cdUsuario: session.user.cdUsuario,
       cdElemento: cdGrupoFamiliar,
-      dsDetalle: JSON.stringify({ cdGrupoFamiliar }),
+      dsDetalle: nombreGrupo,
     });
 
     return NextResponse.json({

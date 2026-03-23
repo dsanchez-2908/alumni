@@ -270,18 +270,26 @@ export async function PUT(
       }
     });
 
+    // Obtener nombres de talleres para la traza
+    let talleresNombres = '';
+    if (talleres && talleres.length > 0) {
+      const [talleresInfo] = await pool.execute<any[]>(
+        `SELECT GROUP_CONCAT(CONCAT(tt.dsNombreTaller, ' ', t.nuAnioTaller) SEPARATOR ', ') as nombres
+         FROM TD_TALLERES t
+         INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
+         WHERE t.cdTaller IN (?)`,
+        [talleres]
+      );
+      talleresNombres = talleresInfo[0]?.nombres || '';
+    }
+
     // Registrar en traza
     await registrarTraza({
-      dsProceso: 'TD_ALUMNOS',
+      dsProceso: 'Alumnos',
       dsAccion: 'Modificar',
       cdUsuario: session.user.cdUsuario,
       cdElemento: cdAlumno,
-      dsDetalle: JSON.stringify({
-        dsNombre,
-        dsApellido,
-        dsDNI,
-        talleres: talleres.length,
-      }),
+      dsDetalle: `${dsNombre} ${dsApellido} | DNI: ${dsDNI} | Talleres: ${talleresNombres || 'Ninguno'}`,
     });
 
     return NextResponse.json({
@@ -309,6 +317,14 @@ export async function DELETE(
 
     const cdAlumno = parseInt(params.id);
 
+    // Obtener información del alumno antes de eliminar
+    const [alumnoInfo] = await executeQuery<any>(
+      `SELECT CONCAT(dsNombre, ' ', dsApellido) as nombreCompleto, dsDNI FROM TD_ALUMNOS WHERE cdAlumno = ?`,
+      [cdAlumno]
+    );
+    const nombreAlumno = alumnoInfo[0]?.nombreCompleto || 'Desconocido';
+    const dniAlumno = alumnoInfo[0]?.dsDNI || '';
+
     // Soft delete del alumno
     await executeQuery(
       `UPDATE TD_ALUMNOS SET cdEstado = 2, feModificacion = NOW()
@@ -325,11 +341,11 @@ export async function DELETE(
 
     // Registrar en traza
     await registrarTraza({
-      dsProceso: 'TD_ALUMNOS',
+      dsProceso: 'Alumnos',
       dsAccion: 'Eliminar',
       cdUsuario: session.user.cdUsuario,
       cdElemento: cdAlumno,
-      dsDetalle: JSON.stringify({ cdAlumno }),
+      dsDetalle: `${nombreAlumno} | DNI: ${dniAlumno}`,
     });
 
     return NextResponse.json({

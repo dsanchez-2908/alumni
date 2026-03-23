@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
-import { update, softDelete, registrarTraza } from '@/lib/db-utils';
+import { update, softDelete, registrarTraza, executeQuery } from '@/lib/db-utils';
 
 // PUT - Actualizar tipo de taller
 export async function PUT(
@@ -52,7 +52,7 @@ export async function PUT(
       dsAccion: 'Modificar',
       cdUsuario: session.user.cdUsuario,
       cdElemento: cdTipoTaller,
-      dsDetalle: `Tipo de taller modificado: ${data.dsNombreTaller}`,
+      dsDetalle: `${data.dsNombreTaller} | Estado: ${data.cdEstado === 1 ? 'Activo' : 'Inactivo'}`,
     });
 
     return NextResponse.json({ 
@@ -82,6 +82,13 @@ export async function DELETE(
 
     const cdTipoTaller = parseInt(params.id);
 
+    // Obtener el nombre del tipo de taller antes de desactivar
+    const [tallerInfo] = await executeQuery<any>(
+      `SELECT dsNombreTaller FROM TD_TIPO_TALLERES WHERE cdTipoTaller = ?`,
+      [cdTipoTaller]
+    );
+    const nombreTaller = tallerInfo?.dsNombreTaller || 'Desconocido';
+
     await softDelete('TD_TIPO_TALLERES', 'cdTipoTaller', cdTipoTaller, 2);
 
     // Registrar en traza
@@ -90,7 +97,7 @@ export async function DELETE(
       dsAccion: 'Modificar',
       cdUsuario: session.user.cdUsuario,
       cdElemento: cdTipoTaller,
-      dsDetalle: 'Tipo de taller desactivado',
+      dsDetalle: `${nombreTaller} | Tipo de taller desactivado`,
     });
 
     return NextResponse.json({ 

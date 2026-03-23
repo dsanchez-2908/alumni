@@ -97,12 +97,19 @@ export async function POST(request: NextRequest) {
 
     await connection.commit();
 
+    // Obtener nombre del alumno principal para la traza
+    const [alumnoData] = await connection.execute<any[]>(
+      `SELECT CONCAT(dsNombre, ' ', dsApellido) as nombreCompleto FROM TD_ALUMNOS WHERE cdAlumno = ?`,
+      [cdAlumnoPrincipal]
+    );
+    const nombreAlumno = alumnoData[0]?.nombreCompleto || 'Desconocido';
+
     await registrarTraza({
       dsProceso: 'Pagos',
       dsAccion: 'Agregar',
       cdUsuario,
       cdElemento: cdPago,
-      dsDetalle: `Pago registrado por $${montoTotal} - ${items.length} items`,
+      dsDetalle: `${nombreAlumno} | $${montoTotal} | ${items.length} items`,
     });
 
     // Preparar variables para respuesta

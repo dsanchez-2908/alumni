@@ -141,11 +141,11 @@ export async function POST(request: NextRequest) {
     const cdGrupoFamiliar = (result as any).insertId;
 
     await registrarTraza({
-      dsProceso: 'TD_GRUPOS_FAMILIARES',
+      dsProceso: 'Grupos Familiares',
       dsAccion: 'Agregar',
       cdUsuario: session.user.cdUsuario,
       cdElemento: cdGrupoFamiliar,
-      dsDetalle: JSON.stringify({ dsNombreGrupo }),
+      dsDetalle: `${dsNombreGrupo} | Tel: ${dsTelefonoContacto || 'N/A'} | Email: ${dsMailContacto || 'N/A'}`,
     });
 
     return NextResponse.json(

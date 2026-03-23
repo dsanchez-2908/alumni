@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileText, Users, Calendar, TrendingUp, DollarSign } from 'lucide-react';
+import { FileText, Users, Calendar, TrendingUp, DollarSign, History } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function ReportesPage() {
@@ -26,6 +26,12 @@ export default function ReportesPage() {
       description: 'Reporte mensual de pagos por taller con estado de cada alumno',
       icon: <DollarSign className="h-8 w-8 text-green-600" />,
       href: '/dashboard/reportes/pagos-talleres',
+    },
+    {
+      title: 'Consulta de Historial',
+      description: 'Consulta el historial de acciones realizadas en el sistema',
+      icon: <History className="h-8 w-8 text-purple-600" />,
+      href: '/dashboard/reportes/consulta-historial',
     },
   ];
 

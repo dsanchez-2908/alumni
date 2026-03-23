@@ -167,12 +167,19 @@ export async function PUT(
         );
       }
 
+      // Obtener nombre del alumno para la traza
+      const [alumnoInfo] = await pool.execute<any[]>(
+        `SELECT CONCAT(dsNombre, ' ', dsApellido) as nombreCompleto FROM TD_ALUMNOS WHERE cdAlumno = ?`,
+        [cdAlumno]
+      );
+      const nombreAlumno = alumnoInfo[0]?.nombreCompleto || 'Desconocido';
+
       await registrarTraza({
         dsProceso: 'Seguimiento Faltas',
         dsAccion: 'Agregar',
         cdUsuario: session.user.cdUsuario,
         cdElemento: cdAlumno,
-        dsDetalle: `Novedad registrada: ${snContactado ? 'Contactado' : 'No contactado'} - ${novedad.substring(0, 50)}... (${faltasAlumno.length} faltas)`,
+        dsDetalle: `${nombreAlumno} | ${novedad.substring(0, 100)}`,
       });
     }
 

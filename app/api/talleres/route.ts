@@ -143,13 +143,20 @@ export async function POST(request: NextRequest) {
 
     const cdTaller = result.insertId;
 
+    // Obtener el nombre del taller para la traza
+    const [tallerInfo] = await pool.execute<any[]>(
+      `SELECT dsNombreTaller FROM TD_TIPO_TALLERES WHERE cdTipoTaller = ?`,
+      [cdTipoTaller]
+    );
+    const nombreTaller = tallerInfo[0]?.dsNombreTaller || 'Desconocido';
+
     // Registrar traza
     await registrarTraza({
       dsProceso: 'Talleres',
       dsAccion: 'Agregar',
       cdUsuario: (session.user as any).cdUsuario,
       cdElemento: cdTaller,
-      dsDetalle: `Taller creado - Año: ${nuAnioTaller}, Tipo: ${cdTipoTaller}`,
+      dsDetalle: `${nombreTaller} | Año ${nuAnioTaller}`,
     });
 
     return NextResponse.json(

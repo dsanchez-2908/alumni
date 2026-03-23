@@ -84,12 +84,27 @@ export async function POST(
           [existing[0].id]
         );
 
+        // Obtener el nombre del alumno y del taller para la traza
+        const [alumnoInfo] = await pool.execute<any[]>(
+          `SELECT CONCAT(dsNombre, ' ', dsApellido) as nombreCompleto FROM TD_ALUMNOS WHERE cdAlumno = ?`,
+          [cdAlumno]
+        );
+        const [tallerInfo] = await pool.execute<any[]>(
+          `SELECT tt.dsNombreTaller, t.nuAnioTaller 
+           FROM TD_TALLERES t 
+           INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller 
+           WHERE t.cdTaller = ?`,
+          [cdTaller]
+        );
+        const nombreAlumno = alumnoInfo[0]?.nombreCompleto || 'Desconocido';
+        const nombreTaller = tallerInfo[0] ? `${tallerInfo[0].dsNombreTaller} ${tallerInfo[0].nuAnioTaller}` : 'Desconocido';
+
         await registrarTraza({
           dsProceso: 'Talleres - Alumnos',
           dsAccion: 'Modificar',
           cdUsuario: (session.user as any).cdUsuario,
           cdElemento: existing[0].id,
-          dsDetalle: `Alumno ${cdAlumno} reactivado en taller ${cdTaller}`,
+          dsDetalle: `${nombreAlumno} reactivado | ${nombreTaller}`,
         });
 
         return NextResponse.json({ message: 'Alumno reactivado en el taller' });
@@ -107,12 +122,27 @@ export async function POST(
       [cdAlumno, cdTaller]
     );
 
+    // Obtener el nombre del alumno y del taller para la traza
+    const [alumnoInfo] = await pool.execute<any[]>(
+      `SELECT CONCAT(dsNombre, ' ', dsApellido) as nombreCompleto FROM TD_ALUMNOS WHERE cdAlumno = ?`,
+      [cdAlumno]
+    );
+    const [tallerInfo] = await pool.execute<any[]>(
+      `SELECT tt.dsNombreTaller, t.nuAnioTaller 
+       FROM TD_TALLERES t 
+       INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller 
+       WHERE t.cdTaller = ?`,
+      [cdTaller]
+    );
+    const nombreAlumno = alumnoInfo[0]?.nombreCompleto || 'Desconocido';
+    const nombreTaller = tallerInfo[0] ? `${tallerInfo[0].dsNombreTaller} ${tallerInfo[0].nuAnioTaller}` : 'Desconocido';
+
     await registrarTraza({
       dsProceso: 'Talleres - Alumnos',
       dsAccion: 'Agregar',
       cdUsuario: (session.user as any).cdUsuario,
       cdElemento: result.insertId,
-      dsDetalle: `Alumno ${cdAlumno} inscrito en taller ${cdTaller}`,
+      dsDetalle: `${nombreAlumno} | ${nombreTaller}`,
     });
 
     return NextResponse.json(

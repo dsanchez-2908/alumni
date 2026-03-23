@@ -168,6 +168,11 @@ const menuCategories: MenuCategory[] = [
         href: '/dashboard/reportes/pagos-talleres',
         roles: ['Administrador', 'Supervisor'],
       },
+      {
+        title: 'Consulta de Historial',
+        href: '/dashboard/reportes/consulta-historial',
+        roles: ['Administrador', 'Supervisor'],
+      },
     ],
   },
 ];

@@ -18,6 +18,22 @@ export async function PUT(
     const id = parseInt(params.alumnoId);
     const { activo } = await request.json();
 
+    // Obtener información del alumno y taller antes de actualizar
+    const [infoPrevia] = await pool.execute<any[]>(
+      `SELECT at.cdAlumno, at.cdTaller, 
+              CONCAT(a.dsNombre, ' ', a.dsApellido) as nombreAlumno,
+              tt.dsNombreTaller, t.nuAnioTaller
+       FROM TR_ALUMNO_TALLER at
+       INNER JOIN TD_ALUMNOS a ON at.cdAlumno = a.cdAlumno
+       INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
+       INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
+       WHERE at.id = ?`,
+      [id]
+    );
+    const info = infoPrevia[0];
+    const nombreAlumno = info?.nombreAlumno || 'Desconocido';
+    const nombreTaller = info ? `${info.dsNombreTaller} ${info.nuAnioTaller}` : 'Desconocido';
+
     if (activo) {
       // Reactivar alumno (cdEstado = 1)
       await pool.execute(
@@ -37,7 +53,7 @@ export async function PUT(
       dsAccion: 'Modificar',
       cdUsuario: (session.user as any).cdUsuario,
       cdElemento: id,
-      dsDetalle: `Alumno ${activo ? 'reactivado' : 'dado de baja'} en taller`,
+      dsDetalle: `${nombreAlumno} ${activo ? 'reactivado' : 'dado de baja'} | ${nombreTaller}`,
     });
 
     return NextResponse.json({ message: 'Estado actualizado exitosamente' });
@@ -63,6 +79,22 @@ export async function DELETE(
 
     const id = parseInt(params.alumnoId);
 
+    // Obtener información del alumno y taller antes de eliminar
+    const [infoPrevia] = await pool.execute<any[]>(
+      `SELECT at.cdAlumno, at.cdTaller, 
+              CONCAT(a.dsNombre, ' ', a.dsApellido) as nombreAlumno,
+              tt.dsNombreTaller, t.nuAnioTaller
+       FROM TR_ALUMNO_TALLER at
+       INNER JOIN TD_ALUMNOS a ON at.cdAlumno = a.cdAlumno
+       INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
+       INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
+       WHERE at.id = ?`,
+      [id]
+    );
+    const info = infoPrevia[0];
+    const nombreAlumno = info?.nombreAlumno || 'Desconocido';
+    const nombreTaller = info ? `${info.dsNombreTaller} ${info.nuAnioTaller}` : 'Desconocido';
+
     await pool.execute(
       'DELETE FROM TR_ALUMNO_TALLER WHERE id = ?',
       [id]
@@ -73,7 +105,7 @@ export async function DELETE(
       dsAccion: 'Eliminar',
       cdUsuario: (session.user as any).cdUsuario,
       cdElemento: id,
-      dsDetalle: 'Inscripción eliminada',
+      dsDetalle: `${nombreAlumno} | ${nombreTaller}`,
     });
 
     return NextResponse.json({ message: 'Inscripción eliminada exitosamente' });
