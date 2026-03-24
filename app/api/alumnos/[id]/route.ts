@@ -273,12 +273,12 @@ export async function PUT(
     // Obtener nombres de talleres para la traza
     let talleresNombres = '';
     if (talleres && talleres.length > 0) {
-      const [talleresInfo] = await pool.execute<any[]>(
+      const talleresInfo = await executeQuery<any>(
         `SELECT GROUP_CONCAT(CONCAT(tt.dsNombreTaller, ' ', t.nuAnioTaller) SEPARATOR ', ') as nombres
          FROM TD_TALLERES t
          INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
-         WHERE t.cdTaller IN (?)`,
-        [talleres]
+         WHERE t.cdTaller IN (${talleres.map(() => '?').join(',')})`,
+        talleres
       );
       talleresNombres = talleresInfo[0]?.nombres || '';
     }
