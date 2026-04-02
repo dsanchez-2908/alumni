@@ -46,6 +46,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { usePermissions } from '@/hooks/use-permissions';
 
 interface Alumno {
   cdAlumno: number;
@@ -145,6 +146,7 @@ const formatHorarioTaller = (taller: Taller): string => {
 
 export default function AlumnosPage() {
   const router = useRouter();
+  const { canEdit, canDelete } = usePermissions();
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
   const [gruposFamiliares, setGruposFamiliares] = useState<GrupoFamiliar[]>([]);
   const [tiposTalleres, setTiposTalleres] = useState<TipoTaller[]>([]);
@@ -914,14 +916,16 @@ export default function AlumnosPage() {
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleOpenDialog(alumno)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      {alumno.dsEstado === 'Activo' && (
+                      {canEdit('alumnos') && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleOpenDialog(alumno)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {canDelete('alumnos') && alumno.dsEstado === 'Activo' && (
                         <Button
                           size="sm"
                           variant="outline"

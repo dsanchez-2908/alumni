@@ -168,6 +168,29 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
     }).format(monto);
   };
 
+  const descargarPDF = async (cdPago: number) => {
+    try {
+      const response = await fetch(`/api/pagos/${cdPago}/pdf`);
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Comprobante_de_Pago_${cdPago.toString().padStart(6, '0')}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        error('Error al generar el PDF');
+      }
+    } catch (err) {
+      console.error('Error al descargar PDF:', err);
+      error('Error al descargar el PDF');
+    }
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto py-8">
@@ -683,6 +706,7 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
                       <TableHead>Tipo</TableHead>
                       <TableHead className="text-right">Importe</TableHead>
                       <TableHead>Observaciones</TableHead>
+                      <TableHead className="text-center">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -724,6 +748,19 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {pago.dsObservacion || '-'}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {pago.cdPago && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => descargarPDF(pago.cdPago)}
+                              title="Descargar comprobante PDF"
+                            >
+                              <FileText className="h-4 w-4 mr-1" />
+                              PDF
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}

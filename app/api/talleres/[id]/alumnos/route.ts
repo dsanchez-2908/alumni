@@ -30,6 +30,8 @@ export async function GET(
         a.dsApellido,
         a.dsDNI,
         a.feNacimiento,
+        a.snDiscapacidad,
+        a.dsObservacionesDiscapacidad,
         e.dsEstado as estado
       FROM TR_ALUMNO_TALLER at
       INNER JOIN TD_ALUMNOS a ON at.cdAlumno = a.cdAlumno

@@ -48,7 +48,7 @@ const menuCategories: MenuCategory[] = [
   {
     title: 'Configuración',
     icon: <Settings className="h-5 w-5" />,
-    roles: ['Administrador', 'Supervisor'],
+    roles: ['Administrador', 'Supervisor', 'Operador', 'Profesor'],
     subItems: [
       {
         title: 'Usuarios',
@@ -68,12 +68,12 @@ const menuCategories: MenuCategory[] = [
       {
         title: 'Talleres',
         href: '/dashboard/talleres',
-        roles: ['Administrador', 'Supervisor'],
+        roles: ['Administrador', 'Supervisor', 'Operador', 'Profesor'],
       },
       {
         title: 'Registro de Precios',
         href: '/dashboard/precios',
-        roles: ['Administrador'],
+        roles: ['Administrador', 'Supervisor'],
       },
     ],
   },
@@ -112,7 +112,7 @@ const menuCategories: MenuCategory[] = [
       {
         title: 'Consulta de Asistencia',
         href: '/dashboard/consulta-asistencia',
-        roles: ['Administrador', 'Supervisor', 'Profesor'],
+        roles: ['Administrador', 'Supervisor'],
       },
       {
         title: 'Historial de Asistencia',
@@ -139,7 +139,7 @@ const menuCategories: MenuCategory[] = [
       {
         title: 'Consulta de Pagos',
         href: '/dashboard/pagos',
-        roles: ['Administrador', 'Supervisor'],
+        roles: ['Administrador'],
       },
       {
         title: 'Pagos del Día',
@@ -166,7 +166,7 @@ const menuCategories: MenuCategory[] = [
       {
         title: 'Pagos por Talleres',
         href: '/dashboard/reportes/pagos-talleres',
-        roles: ['Administrador', 'Supervisor'],
+        roles: ['Administrador'],
       },
       {
         title: 'Consulta de Historial',

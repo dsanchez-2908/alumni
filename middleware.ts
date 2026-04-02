@@ -10,8 +10,8 @@ const routePermissions: { [key: string]: string[] } = {
   '/dashboard/usuarios': ['Administrador'],
   '/dashboard/tipo-talleres': ['Administrador'],
   '/dashboard/personal': ['Administrador', 'Supervisor'],
-  '/dashboard/talleres': ['Administrador', 'Supervisor'],
-  '/dashboard/precios': ['Administrador'],
+  '/dashboard/talleres': ['Administrador', 'Supervisor', 'Operador', 'Profesor'],
+  '/dashboard/precios': ['Administrador', 'Supervisor'],
   
   // Alumnos
   '/dashboard/alumnos/nuevo': ['Administrador', 'Supervisor'],
@@ -20,17 +20,20 @@ const routePermissions: { [key: string]: string[] } = {
   
   // Asistencia
   '/dashboard/registro-asistencia': ['Administrador', 'Supervisor', 'Operador', 'Profesor'],
-  '/dashboard/consulta-asistencia': ['Administrador', 'Supervisor', 'Profesor'],
+  '/dashboard/consulta-asistencia': ['Administrador', 'Supervisor'],
   '/dashboard/faltas': ['Administrador', 'Supervisor'],
+  '/dashboard/reportes/consulta-faltas': ['Administrador', 'Supervisor'],
   
   // Pagos
   '/dashboard/registro-pagos': ['Administrador', 'Supervisor', 'Operador'],
-  '/dashboard/pagos': ['Administrador', 'Supervisor'],
+  '/dashboard/pagos': ['Administrador'],
   '/dashboard/pagos/dia': ['Administrador', 'Supervisor', 'Operador'],
   
   // Reportes
   '/dashboard/reportes/asistencia-por-taller': ['Administrador', 'Supervisor'],
   '/dashboard/reportes/alumnos-con-faltas': ['Administrador', 'Supervisor'],
+  '/dashboard/reportes/pagos-talleres': ['Administrador'],
+  '/dashboard/reportes/consulta-historial': ['Administrador', 'Supervisor'],
 };
 
 export default withAuth(
@@ -49,6 +52,16 @@ export default withAuth(
     // Permitir acceso a rutas de asistencia de talleres para profesores
     // Esta verificación debe ir antes de la búsqueda general de permisos
     if (path.match(/^\/dashboard\/talleres\/\d+\/asistencia/)) {
+      const hasAccess = userRoles.some(role => 
+        ['Administrador', 'Supervisor', 'Operador', 'Profesor'].includes(role)
+      );
+      if (hasAccess) {
+        return NextResponse.next();
+      }
+    }
+
+    // Permitir acceso a detalle de talleres para profesores
+    if (path.match(/^\/dashboard\/talleres\/\d+$/)) {
       const hasAccess = userRoles.some(role => 
         ['Administrador', 'Supervisor', 'Operador', 'Profesor'].includes(role)
       );

@@ -18,7 +18,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ArrowLeft, DollarSign } from 'lucide-react';
+import { ArrowLeft, DollarSign, FileText } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface Precio {
   cdPrecio: number;
@@ -80,6 +82,76 @@ export default function DetallePreciosPage() {
     return date.toLocaleDateString('es-AR');
   };
 
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    
+    // Título
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Lista de Precios', 14, 20);
+    
+    // Fecha de vigencia
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Vigencia desde: ${formatDate(fecha)}`, 14, 30);
+    
+    // Información adicional
+    doc.setFontSize(10);
+    doc.text(`Registrado por: ${precios[0]?.nombreUsuarioAlta || '-'}`, 14, 38);
+    doc.text(`Fecha de registro: ${formatDate(precios[0]?.feAlta)}`, 14, 44);
+    
+    // Tabla de precios
+    autoTable(doc, {
+      startY: 52,
+      head: [[
+        'Tipo Taller',
+        'Completo Efectivo',
+        'Completo Transfer.',
+        'Descuento Efectivo',
+        'Descuento Transfer.'
+      ]],
+      body: precios.map(precio => [
+        precio.dsNombreTaller,
+        formatCurrency(precio.nuPrecioCompletoEfectivo),
+        formatCurrency(precio.nuPrecioCompletoTransferencia),
+        formatCurrency(precio.nuPrecioDescuentoEfectivo),
+        formatCurrency(precio.nuPrecioDescuentoTransferencia)
+      ]),
+      headStyles: {
+        fillColor: [79, 70, 229],
+        fontSize: 10,
+        fontStyle: 'bold'
+      },
+      bodyStyles: {
+        fontSize: 9
+      },
+      columnStyles: {
+        0: { cellWidth: 60 },
+        1: { cellWidth: 32, halign: 'right' },
+        2: { cellWidth: 32, halign: 'right' },
+        3: { cellWidth: 32, halign: 'right' },
+        4: { cellWidth: 32, halign: 'right' }
+      },
+      margin: { top: 52 }
+    });
+    
+    // Pie de página con fecha de impresión
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'italic');
+      doc.text(
+        `Impreso el ${new Date().toLocaleDateString('es-AR')} a las ${new Date().toLocaleTimeString('es-AR')}`,
+        14,
+        doc.internal.pageSize.height - 10
+      );
+    }
+    
+    const fileName = `Precios_${fecha.replace(/\//g, '-')}.pdf`;
+    doc.save(fileName);
+  };
+
   return (
     <div className="container mx-auto py-8">
       <div className="mb-6 flex items-center justify-between">
@@ -92,6 +164,14 @@ export default function DetallePreciosPage() {
             >
               <ArrowLeft className="h-4 w-4" />
               Volver
+            </Button>
+            <Button
+              onClick={exportToPDF}
+              disabled={precios.length === 0}
+              className="gap-2 bg-indigo-600 hover:bg-indigo-700"
+            >
+              <FileText className="h-4 w-4" />
+              Exportar PDF
             </Button>
           </div>
           <h1 className="text-3xl font-bold text-gray-900">

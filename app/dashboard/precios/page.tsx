@@ -29,6 +29,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Plus, DollarSign, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { usePermissions } from '@/hooks/use-permissions';
 
 interface TipoTaller {
   cdTipoTaller: number;
@@ -63,6 +64,7 @@ interface PrecioFormData {
 export default function PreciosPage() {
   const router = useRouter();
   const { success, error } = useToast();
+  const { canCreate } = usePermissions();
   const [tiposTaller, setTiposTaller] = useState<TipoTaller[]>([]);
   const [vigencias, setVigencias] = useState<Vigencia[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -298,13 +300,15 @@ export default function PreciosPage() {
             Gestión de precios por vigencia
           </p>
         </div>
-        <Button
-          onClick={handleOpenDialog}
-          className="gap-2 bg-indigo-600 hover:bg-indigo-700"
-        >
-          <Plus className="h-4 w-4" />
-          Nuevos Precios
-        </Button>
+        {canCreate('precios') && (
+          <Button
+            onClick={handleOpenDialog}
+            className="gap-2 bg-indigo-600 hover:bg-indigo-700"
+          >
+            <Plus className="h-4 w-4" />
+            Nuevos Precios
+          </Button>
+        )}
       </div>
 
       <Card>

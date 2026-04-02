@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -33,6 +34,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { PlusCircle, Pencil, Trash2, Calendar, Users, Eye, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { usePermissions } from '@/hooks/use-permissions';
 
 interface Taller {
   cdTaller: number;
@@ -82,7 +84,9 @@ interface Personal {
 
 export default function TalleresPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const { success, error } = useToast();
+  const { canCreate, canEdit, canDelete, hasRole } = usePermissions();
   const [talleres, setTalleres] = useState<Taller[]>([]);
   const [tiposTaller, setTiposTaller] = useState<TipoTaller[]>([]);
   const [personal, setPersonal] = useState<Personal[]>([]);
@@ -342,6 +346,13 @@ export default function TalleresPage() {
     
     const matchesEstado = estadoFilter === 'Todos' || taller.dsEstado === estadoFilter;
     
+    // Si es Profesor, solo mostrar talleres activos propios
+    if (hasRole('Profesor') && !hasRole(['Administrador', 'Supervisor', 'Operador'])) {
+      const isOwnTaller = session?.user?.cdPersonal === taller.cdPersonal;
+      const isActive = taller.cdEstado === 1; // Solo activos
+      return matchesSearch && matchesEstado && isOwnTaller && isActive;
+    }
+    
     return matchesSearch && matchesEstado;
   });
 
@@ -356,10 +367,12 @@ export default function TalleresPage() {
                 Gestiona los talleres y sus horarios {filteredTalleres.length > 0 && `• Total: ${filteredTalleres.length} ${filteredTalleres.length === 1 ? 'taller' : 'talleres'}`}
               </CardDescription>
             </div>
-            <Button onClick={() => handleOpenDialog()} className="gap-2">
-              <PlusCircle className="h-4 w-4" />
-              Nuevo Taller
-            </Button>
+            {canCreate('talleres') && (
+              <Button onClick={() => handleOpenDialog()} className="gap-2">
+                <PlusCircle className="h-4 w-4" />
+                Nuevo Taller
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -450,22 +463,26 @@ export default function TalleresPage() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleOpenDialog(taller)}
-                          title="Editar"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDelete(taller.cdTaller)}
-                          title="Eliminar"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {canEdit('talleres') && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenDialog(taller)}
+                            title="Editar"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {canDelete('talleres') && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDelete(taller.cdTaller)}
+                            title="Eliminar"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

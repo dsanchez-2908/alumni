@@ -572,6 +572,101 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // Obtener alumnos con discapacidad para profesores
+    let alumnosConDiscapacidad: any[] = [];
+    if (rolPrincipal === 'Profesor' && cdPersonal) {
+      const [alumnosDiscapacidad] = await pool.execute<any[]>(
+        `SELECT
+          CONCAT(a.dsNombre, ' ', a.dsApellido) as nombreAlumno,
+          a.dsApellido,
+          a.dsNombre,
+          tt.dsNombreTaller,
+          t.nuAnioTaller,
+          t.snDomingo, t.snLunes, t.snMartes, t.snMiercoles, 
+          t.snJueves, t.snViernes, t.snSabado,
+          t.dsDomingoHoraDesde, t.dsDomingoHoraHasta,
+          t.dsLunesHoraDesde, t.dsLunesHoraHasta,
+          t.dsMartesHoraDesde, t.dsMartesHoraHasta,
+          t.dsMiercolesHoraDesde, t.dsMiercolesHoraHasta,
+          t.dsJuevesHoraDesde, t.dsJuevesHoraHasta,
+          t.dsViernesHoraDesde, t.dsViernesHoraHasta,
+          t.dsSabadoHoraDesde, t.dsSabadoHoraHasta,
+          a.dsObservacionesDiscapacidad
+        FROM TD_ALUMNOS a
+        INNER JOIN TR_ALUMNO_TALLER at ON a.cdAlumno = at.cdAlumno
+        INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
+        INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
+        WHERE a.snDiscapacidad = 'SI'
+          AND a.cdEstado = 1
+          AND at.cdEstado = 1
+          AND t.cdEstado IN (1, 2)
+          AND t.cdPersonal = ?
+          AND t.nuAnioTaller = ?
+        ORDER BY a.dsApellido, a.dsNombre, tt.dsNombreTaller`,
+        [cdPersonal, currentYear]
+      );
+
+      // Función helper para formatear hora TIME a HH:MM
+      const formatTime = (time: string | null) => {
+        if (!time) return null;
+        return time.substring(0, 5);
+      };
+
+      alumnosConDiscapacidad = alumnosDiscapacidad.map((alumno: any) => {
+        const diasInfo = [];
+        if (alumno.snDomingo) {
+          const desde = formatTime(alumno.dsDomingoHoraDesde);
+          const hasta = formatTime(alumno.dsDomingoHoraHasta);
+          diasInfo.push({ dia: 'Dom', desde, hasta });
+        }
+        if (alumno.snLunes) {
+          const desde = formatTime(alumno.dsLunesHoraDesde);
+          const hasta = formatTime(alumno.dsLunesHoraHasta);
+          diasInfo.push({ dia: 'Lun', desde, hasta });
+        }
+        if (alumno.snMartes) {
+          const desde = formatTime(alumno.dsMartesHoraDesde);
+          const hasta = formatTime(alumno.dsMartesHoraHasta);
+          diasInfo.push({ dia: 'Mar', desde, hasta });
+        }
+        if (alumno.snMiercoles) {
+          const desde = formatTime(alumno.dsMiercolesHoraDesde);
+          const hasta = formatTime(alumno.dsMiercolesHoraHasta);
+          diasInfo.push({ dia: 'Mié', desde, hasta });
+        }
+        if (alumno.snJueves) {
+          const desde = formatTime(alumno.dsJuevesHoraDesde);
+          const hasta = formatTime(alumno.dsJuevesHoraHasta);
+          diasInfo.push({ dia: 'Jue', desde, hasta });
+        }
+        if (alumno.snViernes) {
+          const desde = formatTime(alumno.dsViernesHoraDesde);
+          const hasta = formatTime(alumno.dsViernesHoraHasta);
+          diasInfo.push({ dia: 'Vie', desde, hasta });
+        }
+        if (alumno.snSabado) {
+          const desde = formatTime(alumno.dsSabadoHoraDesde);
+          const hasta = formatTime(alumno.dsSabadoHoraHasta);
+          diasInfo.push({ dia: 'Sáb', desde, hasta });
+        }
+
+        const horarioTexto = diasInfo.map(d => {
+          if (d.desde && d.hasta) {
+            return `${d.dia} ${d.desde}-${d.hasta}`;
+          }
+          return d.dia;
+        }).join(', ');
+
+        return {
+          nombreAlumno: alumno.nombreAlumno,
+          dsNombreTaller: alumno.dsNombreTaller,
+          nuAnioTaller: alumno.nuAnioTaller,
+          horario: horarioTexto,
+          dsObservacionesDiscapacidad: alumno.dsObservacionesDiscapacidad
+        };
+      });
+    }
+
     return NextResponse.json({
       rol: rolPrincipal,
       totales: {
@@ -585,6 +680,7 @@ export async function GET(request: NextRequest) {
       cumpleanos,
       profesoresPendientes,
       misTalleres,
+      alumnosConDiscapacidad,
     });
   } catch (error) {
     console.error('Error al obtener estadísticas:', error);

@@ -28,9 +28,10 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, UserPlus, Search, UserCheck, UserX, Calendar, Users, ClipboardCheck, FileSpreadsheet, FileText, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, UserPlus, Search, UserCheck, UserX, Calendar, Users, ClipboardCheck, FileSpreadsheet, FileText, CheckCircle2, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { usePermissions } from '@/hooks/use-permissions';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -76,6 +77,8 @@ interface AlumnoInscrito {
   feInscripcion: string;
   feBaja: string | null;
   estado: string;
+  snDiscapacidad: 'SI' | 'NO';
+  dsObservacionesDiscapacidad: string | null;
 }
 
 interface AlumnoDisponible {
@@ -90,12 +93,17 @@ export default function TallerDetallePage() {
   const params = useParams();
   const router = useRouter();
   const { success, error, warning } = useToast();
+  const { canDoTallerAction } = usePermissions();
   const cdTaller = parseInt(params.id as string);
 
   const [taller, setTaller] = useState<Taller | null>(null);
   const [alumnosInscritos, setAlumnosInscritos] = useState<AlumnoInscrito[]>([]);
   const [alumnosDisponibles, setAlumnosDisponibles] = useState<AlumnoDisponible[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [discapacidadDialog, setDiscapacidadDialog] = useState<{
+    open: boolean;
+    alumno: AlumnoInscrito | null;
+  }>({ open: false, alumno: null });
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -370,11 +378,12 @@ export default function TallerDetallePage() {
     // Subtítulo
     doc.setFontSize(10);
     doc.text(`Año: ${taller?.nuAnioTaller} | Profesor: ${taller?.nombrePersonal}`, 14, 28);
-    doc.text(`Fecha: ${new Date().toLocaleDateString('es-AR')}`, 14, 34);
+    doc.text(`Horario: ${formatHorario()}`, 14, 34);
+    doc.text(`Fecha: ${new Date().toLocaleDateString('es-AR')}`, 14, 40);
     
     // Tabla
     autoTable(doc, {
-      startY: 40,
+      startY: 46,
       head: [['Apellido', 'Nombre', 'DNI', 'Fecha Nac.', 'Fecha Insc.', 'Estado']],
       body: filteredAlumnos.map((alumno) => [
         alumno.dsApellido,
@@ -412,13 +421,15 @@ export default function TallerDetallePage() {
           <ArrowLeft className="h-4 w-4" />
           Volver a Talleres
         </Button>
-        <Button
-          onClick={() => router.push(`/dashboard/talleres/${cdTaller}/asistencia`)}
-          className="gap-2 bg-indigo-600 hover:bg-indigo-700"
-        >
-          <ClipboardCheck className="h-4 w-4" />
-          Registrar Asistencia
-        </Button>
+        {canDoTallerAction('registrar-asistencia') && (
+          <Button
+            onClick={() => router.push(`/dashboard/talleres/${cdTaller}/asistencia`)}
+            className="gap-2 bg-indigo-600 hover:bg-indigo-700"
+          >
+            <ClipboardCheck className="h-4 w-4" />
+            Registrar Asistencia
+          </Button>
+        )}
       </div>
 
       {/* Información del Taller */}
@@ -489,14 +500,16 @@ export default function TallerDetallePage() {
               </CardDescription>
             </div>
             <div className="flex gap-2">
-              <Button
-                onClick={exportToExcel}
-                variant="outline"
-                disabled={filteredAlumnos.length === 0}
-              >
-                <FileSpreadsheet className="mr-2 h-4 w-4" />
-                Exportar Excel
-              </Button>
+              {canDoTallerAction('exportar-excel') && (
+                <Button
+                  onClick={exportToExcel}
+                  variant="outline"
+                  disabled={filteredAlumnos.length === 0}
+                >
+                  <FileSpreadsheet className="mr-2 h-4 w-4" />
+                  Exportar Excel
+                </Button>
+              )}
               <Button
                 onClick={exportToPDF}
                 variant="outline"
@@ -507,18 +520,22 @@ export default function TallerDetallePage() {
               </Button>
               {taller?.dsEstado === 'Activo' && (
                 <>
-                  <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
-                    <UserPlus className="h-4 w-4" />
-                    Inscribir Alumno
-                  </Button>
-                  <Button 
-                    onClick={handleFinalizarTaller} 
-                    variant="outline"
-                    className="gap-2 border-green-600 text-green-600 hover:bg-green-50"
-                  >
-                    <CheckCircle2 className="h-4 w-4" />
-                    Finalizar Taller
-                  </Button>
+                  {canDoTallerAction('inscribir') && (
+                    <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
+                      <UserPlus className="h-4 w-4" />
+                      Inscribir Alumno
+                    </Button>
+                  )}
+                  {canDoTallerAction('finalizar') && (
+                    <Button 
+                      onClick={handleFinalizarTaller} 
+                      variant="outline"
+                      className="gap-2 border-green-600 text-green-600 hover:bg-green-50"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      Finalizar Taller
+                    </Button>
+                  )}
                 </>
               )}
             </div>
@@ -558,13 +575,14 @@ export default function TallerDetallePage() {
                 <TableHead>DNI</TableHead>
                 <TableHead>Fecha Inscripción</TableHead>
                 <TableHead>Estado</TableHead>
+                <TableHead className="text-center">Discapacidad</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredAlumnos.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-gray-500">
+                  <TableCell colSpan={7} className="text-center text-gray-500">
                     {searchInscritos || estadoFilter !== 'Todos'
                       ? 'No se encontraron alumnos con los filtros aplicados'
                       : 'No hay alumnos inscritos'}
@@ -572,7 +590,10 @@ export default function TallerDetallePage() {
                 </TableRow>
               ) : (
                 filteredAlumnos.map((alumno) => (
-                  <TableRow key={alumno.id}>
+                  <TableRow 
+                    key={alumno.id}
+                    className={alumno.snDiscapacidad === 'SI' ? 'bg-red-50 hover:bg-red-100' : ''}
+                  >
                     <TableCell className="font-medium">{alumno.dsApellido}</TableCell>
                     <TableCell>{alumno.dsNombre}</TableCell>
                     <TableCell>{alumno.dsDNI}</TableCell>
@@ -590,39 +611,60 @@ export default function TallerDetallePage() {
                         {alumno.estado}
                       </span>
                     </TableCell>
+                    <TableCell className="text-center">
+                      {alumno.snDiscapacidad === 'SI' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setDiscapacidadDialog({ open: true, alumno })}
+                          className="gap-2 bg-red-600 text-white hover:bg-red-700"
+                        >
+                          <Eye className="h-4 w-4" />
+                          Ver
+                        </Button>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         {alumno.feBaja ? (
                           <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleCambiarEstado(alumno.id, true)}
-                              className="gap-2"
-                            >
-                              <UserCheck className="h-4 w-4" />
-                              Reactivar
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleQuitarAlumno(alumno.id, alumno.dsNombre, alumno.dsApellido)}
-                              className="gap-2"
-                            >
-                              <UserX className="h-4 w-4" />
-                              Quitar
-                            </Button>
+                            {canDoTallerAction('reactivar') && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleCambiarEstado(alumno.id, true)}
+                                className="gap-2"
+                              >
+                                <UserCheck className="h-4 w-4" />
+                                Reactivar
+                              </Button>
+                            )}
+                            {canDoTallerAction('quitar-alumno') && (
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => handleQuitarAlumno(alumno.id, alumno.dsNombre, alumno.dsApellido)}
+                                className="gap-2"
+                              >
+                                <UserX className="h-4 w-4" />
+                                Quitar
+                              </Button>
+                            )}
                           </>
                         ) : (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleCambiarEstado(alumno.id, false)}
-                            className="gap-2"
-                          >
-                            <UserX className="h-4 w-4" />
-                            Dar de Baja
-                          </Button>
+                          <>
+                            {canDoTallerAction('dar-baja') && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleCambiarEstado(alumno.id, false)}
+                                className="gap-2"
+                              >
+                                <UserX className="h-4 w-4" />
+                                Dar de Baja
+                              </Button>
+                            )}
+                          </>
                         )}
                       </div>
                     </TableCell>
@@ -712,6 +754,58 @@ export default function TallerDetallePage() {
         onConfirm={confirmDialog.onConfirm}
         variant={confirmDialog.variant}
       />
+
+      {/* Modal de Discapacidad */}
+      <Dialog open={discapacidadDialog.open} onOpenChange={(open) => setDiscapacidadDialog({ open, alumno: null })}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-red-600">
+              Información de Discapacidad
+            </DialogTitle>
+            <DialogDescription>
+              Detalles sobre la discapacidad del alumno
+            </DialogDescription>
+          </DialogHeader>
+          {discapacidadDialog.alumno && (
+            <div className="space-y-4">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <Label className="text-sm font-semibold text-gray-700">Alumno</Label>
+                    <p className="text-base font-medium">
+                      {discapacidadDialog.alumno.dsApellido}, {discapacidadDialog.alumno.dsNombre}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold text-gray-700">DNI</Label>
+                    <p className="text-base">{discapacidadDialog.alumno.dsDNI}</p>
+                  </div>
+                </div>
+                
+                <div className="pt-4 border-t border-red-200">
+                  <Label className="text-sm font-semibold text-gray-700 mb-2 block">
+                    Observaciones de Discapacidad
+                  </Label>
+                  <div className="bg-white rounded-md p-3 border border-red-300">
+                    <p className="text-gray-800 whitespace-pre-wrap">
+                      {discapacidadDialog.alumno.dsObservacionesDiscapacidad || 'Sin observaciones registradas'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setDiscapacidadDialog({ open: false, alumno: null })}
+                >
+                  Cerrar
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

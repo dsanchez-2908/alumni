@@ -58,6 +58,14 @@ interface MiTaller {
   cantidadAlumnos: number;
 }
 
+interface AlumnoConDiscapacidad {
+  nombreAlumno: string;
+  dsNombreTaller: string;
+  nuAnioTaller: number;
+  horario: string;
+  dsObservacionesDiscapacidad?: string;
+}
+
 export default function DashboardPage() {
   const { data: session } = useSession();
   const router = useRouter();
@@ -74,6 +82,7 @@ export default function DashboardPage() {
   const [cumpleanos, setCumpleanos] = useState<Cumpleano[]>([]);
   const [profesoresPendientes, setProfesoresPendientes] = useState<ProfesorPendiente[]>([]);
   const [misTalleres, setMisTalleres] = useState<MiTaller[]>([]);
+  const [alumnosConDiscapacidad, setAlumnosConDiscapacidad] = useState<AlumnoConDiscapacidad[]>([]);
 
   useEffect(() => {
     fetchStats();
@@ -89,6 +98,7 @@ export default function DashboardPage() {
         setCumpleanos(data.cumpleanos || []);
         setProfesoresPendientes(data.profesoresPendientes || []);
         setMisTalleres(data.misTalleres || []);
+        setAlumnosConDiscapacidad(data.alumnosConDiscapacidad || []);
       }
     } catch (error) {
       console.error('Error al cargar estadísticas:', error);
@@ -330,6 +340,55 @@ export default function DashboardPage() {
                 <div className="text-center py-8 text-gray-500">
                   <BookOpen className="h-12 w-12 text-gray-300 mx-auto mb-2" />
                   <p className="text-sm">No tienes talleres asignados</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Alumnos con Discapacidad - Solo para Profesor */}
+        {rol === 'Profesor' && (
+          <Card className="border-red-100 shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-xl text-gray-800 flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-red-600" />
+                Alumnos con Discapacidad
+              </CardTitle>
+              <CardDescription>Alumnos a tu cargo que requieren atención especial</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="text-center py-4 text-gray-500">Cargando...</div>
+              ) : alumnosConDiscapacidad.length > 0 ? (
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {alumnosConDiscapacidad.map((alumno, index) => (
+                    <div key={index} className="border border-red-200 rounded-lg p-3 bg-red-50">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-800 text-sm">
+                            {alumno.nombreAlumno}
+                          </p>
+                          <p className="text-xs text-gray-700 mt-1">
+                            <span className="font-medium">Taller:</span> {alumno.dsNombreTaller} ({alumno.nuAnioTaller})
+                          </p>
+                          <p className="text-xs text-gray-600 mt-0.5">
+                            <span className="font-medium">Horario:</span> {alumno.horario}
+                          </p>
+                          {alumno.dsObservacionesDiscapacidad && (
+                            <p className="text-xs text-gray-700 mt-2 p-2 bg-white rounded border border-red-200">
+                              <span className="font-medium">Observaciones:</span> {alumno.dsObservacionesDiscapacidad}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                  <p className="text-sm">No hay alumnos con discapacidad registrada</p>
                 </div>
               )}
             </CardContent>
