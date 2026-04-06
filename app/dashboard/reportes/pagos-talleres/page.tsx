@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -25,6 +25,8 @@ import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
 interface Resultado {
+  mes: number;
+  anio: number;
   cdTaller: number;
   tipoTaller: string;
   horario: string;
@@ -82,11 +84,115 @@ export default function PagosPorTalleresPage() {
   const [horarioSeleccionado, setHorarioSeleccionado] = useState<string>('todos');
   const [profesorSeleccionado, setProfesorSeleccionado] = useState<string>('todos');
   const [pagoSeleccionado, setPagoSeleccionado] = useState<string>('todos');
+  const [loadingFiltros, setLoadingFiltros] = useState(false);
+
+  // Usar ref para rastrear los últimos parámetros de filtros cargados
+  const lastFiltrosParams = useRef<string>('');
+  const isValidating = useRef(false);
 
   // Cargar filtros iniciales al montar el componente
   useEffect(() => {
-    fetchReporte();
+    fetchFiltrosDinamicos();
   }, []);
+
+  // Cargar filtros dinámicos cuando cambian las selecciones
+  useEffect(() => {
+    // Construir string de parámetros actuales
+    const currentParams = `${tipoTallerSeleccionado}|${profesorSeleccionado}|${horarioSeleccionado}`;
+    
+    // Solo cargar si los parámetros realmente cambiaron y no estamos validando
+    if (currentParams !== lastFiltrosParams.current && !isValidating.current) {
+      lastFiltrosParams.current = currentParams;
+      fetchFiltrosDinamicos();
+    }
+  }, [tipoTallerSeleccionado, profesorSeleccionado, horarioSeleccionado]);
+
+  const fetchFiltrosDinamicos = async (
+    overrideTipoTaller?: string,
+    overrideProfesor?: string,
+    overrideHorario?: string
+  ) => {
+    setLoadingFiltros(true);
+    try {
+      const params = new URLSearchParams();
+      
+      const tipoTaller = overrideTipoTaller ?? tipoTallerSeleccionado;
+      const profesor = overrideProfesor ?? profesorSeleccionado;
+      const horario = overrideHorario ?? horarioSeleccionado;
+      
+      if (tipoTaller !== 'todos') {
+        params.append('cdTipoTaller', tipoTaller);
+      }
+      if (profesor !== 'todos') {
+        params.append('cdPersonal', profesor);
+      }
+      if (horario !== 'todos') {
+        params.append('horario', horario);
+      }
+
+      const response = await fetch(`/api/reportes/pagos-talleres/filtros?${params}`);
+      
+      if (!response.ok) {
+        throw new Error('Error al cargar filtros');
+      }
+
+      const data: Filtros = await response.json();
+      setFiltros(data);
+
+      // Si se pasaron overrides, actualizar el ref con esos valores
+      if (overrideTipoTaller !== undefined || overrideProfesor !== undefined || overrideHorario !== undefined) {
+        lastFiltrosParams.current = `${tipoTaller}|${profesor}|${horario}`;
+      }
+
+      // Validar selecciones actuales con los nuevos filtros (solo si no estamos reseteando)
+      if (overrideTipoTaller === undefined && overrideProfesor === undefined && overrideHorario === undefined) {
+        isValidating.current = true;
+
+        // Validar tipo de taller
+        if (tipoTallerSeleccionado !== 'todos') {
+          const tallerValido = data.tiposTalleres.some(
+            (t) => t.cdTipoTaller.toString() === tipoTallerSeleccionado
+          );
+          if (!tallerValido) {
+            setTipoTallerSeleccionado('todos');
+          }
+        }
+
+        // Validar profesor
+        if (profesorSeleccionado !== 'todos') {
+          const profesorValido = data.profesores.some(
+            (p) => p.cdPersonal.toString() === profesorSeleccionado
+          );
+          if (!profesorValido) {
+            setProfesorSeleccionado('todos');
+          }
+        }
+
+        // Validar horario
+        if (horarioSeleccionado !== 'todos') {
+          const horarioValido = data.horarios.some((h) => h === horarioSeleccionado);
+          if (!horarioValido) {
+            setHorarioSeleccionado('todos');
+          }
+        }
+
+        // Delay para permitir que los estados se actualicen antes de permitir nuevas cargas
+        setTimeout(() => {
+          isValidating.current = false;
+        }, 100);
+      } else {
+        // Si estamos reseteando, no necesitamos validar
+        isValidating.current = false;
+      }
+
+    } catch (error: any) {
+      console.error('Error al cargar filtros dinámicos:', error);
+      toast.error('Error al cargar filtros');
+      isValidating.current = false;
+    } finally {
+      setLoadingFiltros(false);
+    }
+  };
 
   const fetchReporte = async () => {
     if (!mesSeleccionado || !anioSeleccionado) {
@@ -124,7 +230,7 @@ export default function PagosPorTalleresPage() {
       const data: ReporteData = await response.json();
       setResultados(data.resultados);
       setTotales(data.totales);
-      setFiltros(data.filtros);
+      // No actualizar filtros aquí - se manejan con fetchFiltrosDinamicos
     } catch (error: any) {
       console.error('Error al cargar reporte:', error);
       toast.error(error.message || 'Error al cargar el reporte');
@@ -144,6 +250,25 @@ export default function PagosPorTalleresPage() {
     setHorarioSeleccionado('todos');
     setProfesorSeleccionado('todos');
     setPagoSeleccionado('todos');
+    
+    // Recargar todos los filtros disponibles forzando 'todos' para evitar usar estados antiguos
+    fetchFiltrosDinamicos('todos', 'todos', 'todos');
+  };
+
+  const handleTipoTallerChange = (value: string) => {
+    setTipoTallerSeleccionado(value);
+    // Los filtros dinámicos se actualizarán automáticamente
+    // y la validación reseteará selecciones inválidas
+  };
+
+  const handleProfesorChange = (value: string) => {
+    setProfesorSeleccionado(value);
+    // Los filtros dinámicos se actualizarán automáticamente
+  };
+
+  const handleHorarioChange = (value: string) => {
+    setHorarioSeleccionado(value);
+    // Los filtros dinámicos se actualizarán automáticamente
   };
 
   const exportToExcel = () => {
@@ -153,6 +278,8 @@ export default function PagosPorTalleresPage() {
     }
 
     const data: any[] = resultados.map((row) => ({
+      'Año': row.anio,
+      'Mes': mesesNombres[row.mes - 1],
       'Tipo de Taller': row.tipoTaller,
       'Horario': row.horario,
       'Profesor': row.profesor,
@@ -165,6 +292,8 @@ export default function PagosPorTalleresPage() {
 
     // Agregar fila de totales
     data.push({
+      'Año': '',
+      'Mes': '',
       'Tipo de Taller': '',
       'Horario': '',
       'Profesor': '',
@@ -175,6 +304,8 @@ export default function PagosPorTalleresPage() {
       'Monto': '',
     });
     data.push({
+      'Año': '',
+      'Mes': '',
       'Tipo de Taller': '',
       'Horario': '',
       'Profesor': '',
@@ -185,6 +316,8 @@ export default function PagosPorTalleresPage() {
       'Monto': totales.pagado.toFixed(2),
     });
     data.push({
+      'Año': '',
+      'Mes': '',
       'Tipo de Taller': '',
       'Horario': '',
       'Profesor': '',
@@ -195,6 +328,8 @@ export default function PagosPorTalleresPage() {
       'Monto': totales.pendiente.toFixed(2),
     });
     data.push({
+      'Año': '',
+      'Mes': '',
       'Tipo de Taller': '',
       'Horario': '',
       'Profesor': '',
@@ -291,7 +426,11 @@ export default function PagosPorTalleresPage() {
             {/* Tipo de Taller (Opcional) */}
             <div className="space-y-2">
               <Label htmlFor="tipoTaller">Tipo de Taller</Label>
-              <Select value={tipoTallerSeleccionado} onValueChange={setTipoTallerSeleccionado}>
+              <Select 
+                value={tipoTallerSeleccionado} 
+                onValueChange={handleTipoTallerChange}
+                disabled={loadingFiltros}
+              >
                 <SelectTrigger id="tipoTaller">
                   <SelectValue placeholder="Todos" />
                 </SelectTrigger>
@@ -308,8 +447,17 @@ export default function PagosPorTalleresPage() {
 
             {/* Horario (Opcional) */}
             <div className="space-y-2">
-              <Label htmlFor="horario">Horario</Label>
-              <Select value={horarioSeleccionado} onValueChange={setHorarioSeleccionado}>
+              <Label htmlFor="horario">
+                Horario
+                {tipoTallerSeleccionado === 'todos' && (
+                  <span className="text-xs text-gray-500 ml-1">(Selecciona tipo de taller)</span>
+                )}
+              </Label>
+              <Select 
+                value={horarioSeleccionado} 
+                onValueChange={handleHorarioChange}
+                disabled={loadingFiltros}
+              >
                 <SelectTrigger id="horario">
                   <SelectValue placeholder="Todos" />
                 </SelectTrigger>
@@ -327,7 +475,11 @@ export default function PagosPorTalleresPage() {
             {/* Profesor (Opcional) */}
             <div className="space-y-2">
               <Label htmlFor="profesor">Profesor</Label>
-              <Select value={profesorSeleccionado} onValueChange={setProfesorSeleccionado}>
+              <Select 
+                value={profesorSeleccionado} 
+                onValueChange={handleProfesorChange}
+                disabled={loadingFiltros}
+              >
                 <SelectTrigger id="profesor">
                   <SelectValue placeholder="Todos" />
                 </SelectTrigger>
@@ -456,6 +608,8 @@ export default function PagosPorTalleresPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Año</TableHead>
+                    <TableHead>Mes</TableHead>
                     <TableHead>Tipo de Taller</TableHead>
                     <TableHead className="min-w-[200px]">Horario</TableHead>
                     <TableHead>Profesor</TableHead>
@@ -469,6 +623,8 @@ export default function PagosPorTalleresPage() {
                 <TableBody>
                   {resultados.map((row, index) => (
                     <TableRow key={index}>
+                      <TableCell>{row.anio}</TableCell>
+                      <TableCell>{mesesNombres[row.mes - 1]}</TableCell>
                       <TableCell className="font-medium">{row.tipoTaller}</TableCell>
                       <TableCell className="text-sm">{row.horario}</TableCell>
                       <TableCell>{row.profesor}</TableCell>

@@ -42,6 +42,10 @@ export async function GET(request: NextRequest) {
     // Construir la query principal
     let query = `
       SELECT 
+        -- Periodo del reporte
+        ? as mes,
+        ? as anio,
+        
         -- Datos del Taller
         t.cdTaller,
         tt.dsNombreTaller as tipoTaller,
@@ -65,13 +69,13 @@ export async function GET(request: NextRequest) {
         a.cdAlumno,
         CONCAT(a.dsApellido, ', ', a.dsNombre) as alumno,
         
-        -- ¿Pagó?
+        -- ¿Pagó? (basado solo en el detalle del taller específico)
         IF(pd.cdPagoDetalle IS NOT NULL, 'SI', 'NO') as pago,
         
-        -- Fecha de pago (solo si pagó)
+        -- Fecha de pago (solo del pago que corresponde a este taller)
         DATE_FORMAT(pag.fePago, '%d/%m/%Y') as fechaPago,
         
-        -- Modo de pago (solo si pagó)
+        -- Modo de pago (solo del pago que corresponde a este taller)
         pd.dsTipoPago as modoPago,
         
         -- Monto: si pagó muestra el monto pagado, si no pagó muestra el precio por transferencia
@@ -109,21 +113,26 @@ export async function GET(request: NextRequest) {
           AND feInicioVigencia <= LAST_DAY(CONCAT(?, '-', LPAD(?, 2, '0'), '-01'))
         )
       
-      -- Pagos del periodo
-      LEFT JOIN TD_PAGOS pag ON a.cdAlumno = pag.cdAlumno
-        AND pag.nuMes = ?
-        AND pag.nuAnio = ?
-      
-      -- Detalle de pago por taller
-      LEFT JOIN TD_PAGOS_DETALLE pd ON pag.cdPago = pd.cdPago
-        AND pd.cdTaller = t.cdTaller
+      -- Detalle de pago por taller (PRIMERO buscamos el detalle específico del taller)
+      LEFT JOIN TD_PAGOS_DETALLE pd ON pd.cdTaller = t.cdTaller
         AND pd.cdAlumno = a.cdAlumno
+        AND EXISTS (
+          SELECT 1 FROM TD_PAGOS p 
+          WHERE p.cdPago = pd.cdPago 
+          AND p.cdAlumno = a.cdAlumno
+          AND p.nuMes = ?
+          AND p.nuAnio = ?
+        )
+      
+      -- Pagos del periodo (solo vinculado al detalle encontrado)
+      LEFT JOIN TD_PAGOS pag ON pag.cdPago = pd.cdPago
+        AND pag.cdAlumno = a.cdAlumno
       
       WHERE 1=1
     `;
 
-    // Agregar parámetros para los subconsultas de precio
-    queryParams.push(anio, mes, mes, anio);
+    // Agregar parámetros para mes y año en el SELECT, y para los subconsultas de precio y detalle
+    queryParams.push(mes, anio, anio, mes, mes, anio);
 
     // Aplicar filtros opcionales
     if (cdTipoTaller) {
