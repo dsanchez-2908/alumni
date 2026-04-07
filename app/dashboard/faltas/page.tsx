@@ -282,7 +282,7 @@ export default function FaltasPage() {
                     {faltas.map((falta) => (
                       <TableRow key={falta.cdFalta}>
                         <TableCell>
-                          {new Date(falta.feFalta).toLocaleDateString('es-AR')}
+                          {new Date(falta.feFalta).toLocaleDateString('es-AR', { timeZone: 'UTC' })}
                         </TableCell>
                         <TableCell>
                           {falta.dsNombreTaller} ({falta.nuAnioTaller})

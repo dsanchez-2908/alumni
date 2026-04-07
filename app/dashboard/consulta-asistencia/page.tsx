@@ -225,6 +225,7 @@ export default function ConsultaAsistenciaPage() {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
+        timeZone: 'UTC',
       });
     } catch (error) {
       return 'Fecha inválida';
@@ -237,7 +238,7 @@ export default function ConsultaAsistenciaPage() {
       if (isNaN(date.getTime())) {
         return 'N/A';
       }
-      return date.toLocaleDateString('es-AR');
+      return date.toLocaleDateString('es-AR', { timeZone: 'UTC' });
     } catch (error) {
       return 'N/A';
     }

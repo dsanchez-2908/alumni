@@ -174,20 +174,11 @@ export default function DetalleAlumnoFaltasPage() {
   const formatFecha = (fecha: string) => {
     if (!fecha) return 'N/A';
     try {
-      // Intentar parsear la fecha tal cual viene
       const date = new Date(fecha);
-      
-      // Verificar si la fecha es válida
       if (isNaN(date.getTime())) {
-        // Si no es válida, intentar con el formato YYYY-MM-DD agregando hora local
-        const dateWithTime = new Date(fecha + 'T00:00:00');
-        if (isNaN(dateWithTime.getTime())) {
-          return 'Fecha inválida';
-        }
-        return dateWithTime.toLocaleDateString('es-AR');
+        return 'Fecha inválida';
       }
-      
-      return date.toLocaleDateString('es-AR');
+      return date.toLocaleDateString('es-AR', { timeZone: 'UTC' });
     } catch (error) {
       console.error('Error al formatear fecha:', fecha, error);
       return 'Fecha inválida';

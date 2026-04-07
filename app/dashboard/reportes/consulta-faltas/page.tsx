@@ -137,7 +137,7 @@ export default function ConsultaFaltasPage() {
     }
 
     const data: any[] = faltas.map((falta) => ({
-      'Fecha': new Date(falta.feFalta).toLocaleDateString('es-AR'),
+      'Fecha': new Date(falta.feFalta).toLocaleDateString('es-AR', { timeZone: 'UTC' }),
       'Tipo de Taller': falta.tipoTaller,
       'Horario': falta.horario,
       'Profesor': falta.profesor,
@@ -395,7 +395,7 @@ export default function ConsultaFaltasPage() {
                     {faltas.map((falta) => (
                       <TableRow key={falta.cdFalta}>
                         <TableCell className="whitespace-nowrap text-sm">
-                          {new Date(falta.feFalta).toLocaleDateString('es-AR')}
+                          {new Date(falta.feFalta).toLocaleDateString('es-AR', { timeZone: 'UTC' })}
                         </TableCell>
                         <TableCell className="text-sm">{falta.tipoTaller}</TableCell>
                         <TableCell className="text-sm">{falta.horario}</TableCell>

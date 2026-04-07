@@ -157,7 +157,7 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
 
   const formatFecha = (fecha: string) => {
     if (!fecha) return '-';
-    return new Date(fecha).toLocaleDateString('es-AR');
+    return new Date(fecha).toLocaleDateString('es-AR', { timeZone: 'UTC' });
   };
 
   const formatMoneda = (monto: number) => {

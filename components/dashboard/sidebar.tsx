@@ -85,7 +85,7 @@ const menuCategories: MenuCategory[] = [
       {
         title: 'Nuevo Alumno',
         href: '/dashboard/alumnos/nuevo',
-        roles: ['Administrador', 'Supervisor'],
+        roles: ['Administrador', 'Supervisor', 'Operador'],
       },
       {
         title: 'Consulta de Alumnos',

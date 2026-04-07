@@ -129,10 +129,18 @@ export async function GET(request: NextRequest) {
         AND pag.cdAlumno = a.cdAlumno
       
       WHERE 1=1
+        -- Solo mostrar alumnos cuyo taller ya había comenzado en el mes consultado
+        AND (
+          YEAR(t.feInicioTaller) < ? 
+          OR (YEAR(t.feInicioTaller) = ? AND MONTH(t.feInicioTaller) <= ?)
+        )
     `;
 
     // Agregar parámetros para mes y año en el SELECT, y para los subconsultas de precio y detalle
     queryParams.push(mes, anio, anio, mes, mes, anio);
+    
+    // Agregar parámetros para la validación de fecha de inicio del taller
+    queryParams.push(anio, anio, mes);
 
     // Aplicar filtros opcionales
     if (cdTipoTaller) {

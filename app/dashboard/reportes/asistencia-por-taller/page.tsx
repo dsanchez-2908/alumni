@@ -160,11 +160,9 @@ export default function AsistenciaPorTallerPage() {
   const formatearFecha = (fechaStr: string): string => {
     if (!fechaStr) return '-';
     try {
-      // Parsear fecha en formato YYYY-MM-DD
-      const [year, month, day] = fechaStr.split('T')[0].split('-');
-      const fecha = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      const fecha = new Date(fechaStr);
       if (isNaN(fecha.getTime())) return '-';
-      return fecha.toLocaleDateString('es-AR');
+      return fecha.toLocaleDateString('es-AR', { timeZone: 'UTC' });
     } catch {
       return '-';
     }

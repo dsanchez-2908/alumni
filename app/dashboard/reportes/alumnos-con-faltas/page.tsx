@@ -58,7 +58,7 @@ export default function AlumnosConFaltasPage() {
   };
 
   const formatFecha = (fecha: string) => {
-    return new Date(fecha + 'T00:00:00').toLocaleDateString('es-AR');
+    return new Date(fecha).toLocaleDateString('es-AR', { timeZone: 'UTC' });
   };
 
   return (

@@ -30,7 +30,8 @@ interface Cumpleano {
   nombre: string;
   feNacimiento: string;
   fechaCumple: string;
-  diasFaltantes: number;
+  diasFaltantes?: number;
+  diasPasados?: number;
   esHoy: boolean;
 }
 
@@ -64,6 +65,7 @@ interface AlumnoConDiscapacidad {
   nuAnioTaller: number;
   horario: string;
   dsObservacionesDiscapacidad?: string;
+  dsObservaciones?: string;
 }
 
 export default function DashboardPage() {
@@ -80,6 +82,7 @@ export default function DashboardPage() {
     alumnosConSeguimiento: 0,
   });
   const [cumpleanos, setCumpleanos] = useState<Cumpleano[]>([]);
+  const [cumpleanosPasados, setCumpleanosPasados] = useState<Cumpleano[]>([]);
   const [profesoresPendientes, setProfesoresPendientes] = useState<ProfesorPendiente[]>([]);
   const [misTalleres, setMisTalleres] = useState<MiTaller[]>([]);
   const [alumnosConDiscapacidad, setAlumnosConDiscapacidad] = useState<AlumnoConDiscapacidad[]>([]);
@@ -95,7 +98,8 @@ export default function DashboardPage() {
         const data = await response.json();
         setRol(data.rol || '');
         setStats(data.totales);
-        setCumpleanos(data.cumpleanos || []);
+        setCumpleanos(data.cumpleanosProximos || []);
+        setCumpleanosPasados(data.cumpleanosPasados || []);
         setProfesoresPendientes(data.profesoresPendientes || []);
         setMisTalleres(data.misTalleres || []);
         setAlumnosConDiscapacidad(data.alumnosConDiscapacidad || []);
@@ -257,143 +261,89 @@ export default function DashboardPage() {
           <CardContent>
             {loading ? (
               <div className="text-center py-4 text-gray-500">Cargando...</div>
-            ) : cumpleanos.length > 0 ? (
-              <div className="space-y-3">
-                {cumpleanos.map((cumple, index) => (
-                  <div 
-                    key={index} 
-                    className={`flex items-center justify-between p-3 rounded-lg ${
-                      cumple.esHoy 
-                        ? 'bg-gradient-to-r from-pink-100 to-rose-100 border-2 border-pink-300' 
-                        : 'bg-pink-50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Cake className={`h-5 w-5 ${cumple.esHoy ? 'text-pink-600' : 'text-pink-500'}`} />
-                      <div>
-                        <p className="font-medium text-gray-800 text-sm">
-                          {cumple.nombre}
-                          {cumple.esHoy && (
-                            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-pink-600 text-white">
-                              ¡Hoy!
+            ) : (
+              <div className="space-y-4">
+                {/* Próximos Cumpleaños */}
+                {cumpleanos.length > 0 ? (
+                  <div>
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Próximos Cumpleaños</h3>
+                    <div className="space-y-2">
+                      {cumpleanos.map((cumple, index) => (
+                        <div 
+                          key={`proximo-${index}`} 
+                          className={`flex items-center justify-between p-3 rounded-lg ${
+                            cumple.esHoy 
+                              ? 'bg-gradient-to-r from-pink-100 to-rose-100 border-2 border-pink-300' 
+                              : 'bg-pink-50'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Cake className={`h-5 w-5 ${cumple.esHoy ? 'text-pink-600' : 'text-pink-500'}`} />
+                            <div>
+                              <p className="font-medium text-gray-800 text-sm">
+                                {cumple.nombre}
+                                {cumple.esHoy && (
+                                  <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-pink-600 text-white">
+                                    ¡Hoy!
+                                  </span>
+                                )}
+                              </p>
+                              <p className="text-xs text-gray-600">
+                                {cumple.tipo} - {cumple.fechaCumple}
+                              </p>
+                            </div>
+                          </div>
+                          {!cumple.esHoy && (
+                            <span className="text-xs text-gray-600 bg-white px-2 py-1 rounded">
+                              {cumple.diasFaltantes === 0 ? 'Mañana' : `en ${cumple.diasFaltantes} día${cumple.diasFaltantes !== undefined && cumple.diasFaltantes > 1 ? 's' : ''}`}
                             </span>
                           )}
-                        </p>
-                        <p className="text-xs text-gray-600">
-                          {cumple.tipo} - {cumple.fechaCumple}
-                        </p>
-                      </div>
+                        </div>
+                      ))}
                     </div>
-                    {!cumple.esHoy && (
-                      <span className="text-xs text-gray-600 bg-white px-2 py-1 rounded">
-                        {cumple.diasFaltantes === 0 ? 'Mañana' : `en ${cumple.diasFaltantes} día${cumple.diasFaltantes > 1 ? 's' : ''}`}
-                      </span>
-                    )}
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <Cake className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-                <p className="text-sm">No hay cumpleaños próximos</p>
+                ) : (
+                  cumpleanosPasados.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      <Cake className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                      <p className="text-sm">No hay cumpleaños próximos</p>
+                    </div>
+                  )
+                )}
+
+                {/* Cumpleaños Pasados Recientes */}
+                {cumpleanosPasados.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 mt-4">Últimos Cumpleaños</h3>
+                    <div className="space-y-2">
+                      {cumpleanosPasados.map((cumple, index) => (
+                        <div 
+                          key={`pasado-${index}`} 
+                          className="flex items-center justify-between p-2 rounded-lg bg-gray-50"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Cake className="h-4 w-4 text-gray-400" />
+                            <div>
+                              <p className="font-medium text-gray-700 text-sm">
+                                {cumple.nombre}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {cumple.tipo} - {cumple.fechaCumple}
+                              </p>
+                            </div>
+                          </div>
+                          <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded">
+                            hace {cumple.diasPasados} día{cumple.diasPasados !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
         </Card>
-
-        {/* Mis Talleres - Solo para Profesor */}
-        {rol === 'Profesor' && (
-          <Card className="border-blue-100 shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-xl text-gray-800 flex items-center gap-2">
-                <BookOpen className="h-5 w-5 text-blue-600" />
-                Mis Talleres
-              </CardTitle>
-              <CardDescription>Talleres a tu cargo este año</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="text-center py-4 text-gray-500">Cargando...</div>
-              ) : misTalleres.length > 0 ? (
-                <div className="space-y-4 max-h-96 overflow-y-auto">
-                  {misTalleres.map((taller) => (
-                    <div key={taller.cdTaller} className="border border-blue-200 rounded-lg p-3 bg-blue-50">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <BookOpen className="h-5 w-5 text-blue-600" />
-                          <div>
-                            <p className="font-medium text-gray-800 text-sm">
-                              {taller.dsNombreTaller} ({taller.nuAnioTaller})
-                            </p>
-                            <p className="text-xs text-gray-600">{taller.diasClase}</p>
-                          </div>
-                        </div>
-                        <div className="text-center">
-                          <Users className="h-4 w-4 text-blue-600 mx-auto" />
-                          <span className="text-xs text-blue-700 font-medium">{taller.cantidadAlumnos}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <BookOpen className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-                  <p className="text-sm">No tienes talleres asignados</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Alumnos con Discapacidad - Solo para Profesor */}
-        {rol === 'Profesor' && (
-          <Card className="border-red-100 shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-xl text-gray-800 flex items-center gap-2">
-                <AlertCircle className="h-5 w-5 text-red-600" />
-                Alumnos con Discapacidad
-              </CardTitle>
-              <CardDescription>Alumnos a tu cargo que requieren atención especial</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="text-center py-4 text-gray-500">Cargando...</div>
-              ) : alumnosConDiscapacidad.length > 0 ? (
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {alumnosConDiscapacidad.map((alumno, index) => (
-                    <div key={index} className="border border-red-200 rounded-lg p-3 bg-red-50">
-                      <div className="flex items-start gap-2">
-                        <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-                        <div className="flex-1">
-                          <p className="font-medium text-gray-800 text-sm">
-                            {alumno.nombreAlumno}
-                          </p>
-                          <p className="text-xs text-gray-700 mt-1">
-                            <span className="font-medium">Taller:</span> {alumno.dsNombreTaller} ({alumno.nuAnioTaller})
-                          </p>
-                          <p className="text-xs text-gray-600 mt-0.5">
-                            <span className="font-medium">Horario:</span> {alumno.horario}
-                          </p>
-                          {alumno.dsObservacionesDiscapacidad && (
-                            <p className="text-xs text-gray-700 mt-2 p-2 bg-white rounded border border-red-200">
-                              <span className="font-medium">Observaciones:</span> {alumno.dsObservacionesDiscapacidad}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-                  <p className="text-sm">No hay alumnos con discapacidad registrada</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
 
         {/* Asistencias Pendientes */}
         <Card className="border-orange-100 shadow-lg">
@@ -455,6 +405,105 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Alumnos con Discapacidad u Observaciones - Solo para Profesor */}
+        {rol === 'Profesor' && (
+          <Card className="border-red-100 shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-xl text-gray-800 flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-red-600" />
+                Alumnos con Discapacidad u Observaciones
+              </CardTitle>
+              <CardDescription>Alumnos a tu cargo que requieren atención especial</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="text-center py-4 text-gray-500">Cargando...</div>
+              ) : alumnosConDiscapacidad.length > 0 ? (
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {alumnosConDiscapacidad.map((alumno, index) => (
+                    <div key={index} className="border border-red-200 rounded-lg p-3 bg-red-50">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-800 text-sm">
+                            {alumno.nombreAlumno}
+                          </p>
+                          <p className="text-xs text-gray-700 mt-1">
+                            <span className="font-medium">Taller:</span> {alumno.dsNombreTaller} ({alumno.nuAnioTaller})
+                          </p>
+                          <p className="text-xs text-gray-600 mt-0.5">
+                            <span className="font-medium">Horario:</span> {alumno.horario}
+                          </p>
+                          {alumno.dsObservacionesDiscapacidad && (
+                            <p className="text-xs text-gray-700 mt-2 p-2 bg-white rounded border border-red-200">
+                              <span className="font-medium">Discapacidad:</span> {alumno.dsObservacionesDiscapacidad}
+                            </p>
+                          )}
+                          {alumno.dsObservaciones && (
+                            <p className="text-xs text-gray-700 mt-2 p-2 bg-white rounded border border-red-200">
+                              <span className="font-medium">Observaciones:</span> {alumno.dsObservaciones}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                  <p className="text-sm">No hay alumnos con discapacidad u observaciones registradas</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Mis Talleres - Solo para Profesor */}
+        {rol === 'Profesor' && (
+          <Card className="border-blue-100 shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-xl text-gray-800 flex items-center gap-2">
+                <BookOpen className="h-5 w-5 text-blue-600" />
+                Mis Talleres
+              </CardTitle>
+              <CardDescription>Talleres a tu cargo este año</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="text-center py-4 text-gray-500">Cargando...</div>
+              ) : misTalleres.length > 0 ? (
+                <div className="space-y-4 max-h-96 overflow-y-auto">
+                  {misTalleres.map((taller) => (
+                    <div key={taller.cdTaller} className="border border-blue-200 rounded-lg p-3 bg-blue-50">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <BookOpen className="h-5 w-5 text-blue-600" />
+                          <div>
+                            <p className="font-medium text-gray-800 text-sm">
+                              {taller.dsNombreTaller} ({taller.nuAnioTaller})
+                            </p>
+                            <p className="text-xs text-gray-600">{taller.diasClase}</p>
+                          </div>
+                        </div>
+                        <div className="text-center">
+                          <Users className="h-4 w-4 text-blue-600 mx-auto" />
+                          <span className="text-xs text-blue-700 font-medium">{taller.cantidadAlumnos}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <BookOpen className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                  <p className="text-sm">No tienes talleres asignados</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Info Card */}

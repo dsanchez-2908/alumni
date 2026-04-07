@@ -94,6 +94,7 @@ export default function NuevoAlumnoPage() {
   const [loading, setLoading] = useState(false);
   const [gruposFamiliares, setGruposFamiliares] = useState<GrupoFamiliar[]>([]);
   const [talleres, setTalleres] = useState<Taller[]>([]);
+  const [searchTalleres, setSearchTalleres] = useState('');
 
   const [formData, setFormData] = useState({
     dsNombre: '',
@@ -645,8 +646,30 @@ export default function NuevoAlumnoPage() {
             {talleres.length === 0 ? (
               <p className="text-gray-500 text-sm">No hay talleres activos disponibles</p>
             ) : (
-              <div className="grid grid-cols-2 gap-3 max-h-64 overflow-y-auto border rounded-lg p-4">
-                {talleres.map((taller) => (
+              <div className="space-y-3">
+                <div>
+                  <Label htmlFor="search-talleres">Buscar taller</Label>
+                  <Input
+                    id="search-talleres"
+                    type="text"
+                    placeholder="Buscar por nombre, profesor, horario..."
+                    value={searchTalleres}
+                    onChange={(e) => setSearchTalleres(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3 max-h-64 overflow-y-auto border rounded-lg p-4">
+                  {talleres
+                    .filter((taller) => {
+                      const searchLower = searchTalleres.toLowerCase();
+                      return (
+                        taller.dsNombreTaller.toLowerCase().includes(searchLower) ||
+                        taller.nuAnioTaller.toString().includes(searchLower) ||
+                        (taller.nombrePersonal && taller.nombrePersonal.toLowerCase().includes(searchLower)) ||
+                        formatHorarioTaller(taller).toLowerCase().includes(searchLower)
+                      );
+                    })
+                    .map((taller) => (
                   <div key={taller.cdTaller} className="flex items-start space-x-2">
                     <Checkbox
                       id={`taller-${taller.cdTaller}`}
@@ -668,7 +691,21 @@ export default function NuevoAlumnoPage() {
                       </span>
                     </label>
                   </div>
-                ))}
+                  ))}
+                  {talleres.filter((taller) => {
+                    const searchLower = searchTalleres.toLowerCase();
+                    return (
+                      taller.dsNombreTaller.toLowerCase().includes(searchLower) ||
+                      taller.nuAnioTaller.toString().includes(searchLower) ||
+                      (taller.nombrePersonal && taller.nombrePersonal.toLowerCase().includes(searchLower)) ||
+                      formatHorarioTaller(taller).toLowerCase().includes(searchLower)
+                    );
+                  }).length === 0 && searchTalleres && (
+                    <div className="col-span-2 text-center py-4 text-gray-500 text-sm">
+                      No se encontraron talleres que coincidan con &quot;{searchTalleres}&quot;
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </CardContent>

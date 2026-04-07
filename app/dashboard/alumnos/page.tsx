@@ -153,6 +153,7 @@ export default function AlumnosPage() {
   const [talleres, setTalleres] = useState<Taller[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchTalleres, setSearchTalleres] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentId, setCurrentId] = useState<number | null>(null);
@@ -409,6 +410,7 @@ export default function AlumnosPage() {
         cdEstado: 1,
       });
     }
+    setSearchTalleres('');
     setIsDialogOpen(true);
   };
 
@@ -430,6 +432,7 @@ export default function AlumnosPage() {
 
       if (response.ok) {
         setMessage({ type: 'success', text: data.message });
+        setSearchTalleres('');
         setIsDialogOpen(false);
         fetchData();
       } else {
@@ -1426,8 +1429,26 @@ export default function AlumnosPage() {
                 <h3 className="font-semibold text-lg mb-3">Talleres</h3>
                 <div className="grid gap-2">
                   <Label>Talleres a inscribir (opcional)</Label>
+                  <div className="mb-2">
+                    <Input
+                      type="text"
+                      placeholder="Buscar por nombre, profesor, horario..."
+                      value={searchTalleres}
+                      onChange={(e) => setSearchTalleres(e.target.value)}
+                    />
+                  </div>
                   <div className="grid grid-cols-2 gap-3 border rounded-lg p-4 max-h-48 overflow-y-auto">
-                    {talleres.map((taller) => (
+                    {talleres
+                      .filter((taller) => {
+                        const searchLower = searchTalleres.toLowerCase();
+                        return (
+                          taller.dsNombreTaller.toLowerCase().includes(searchLower) ||
+                          taller.nuAnioTaller.toString().includes(searchLower) ||
+                          (taller.nombrePersonal && taller.nombrePersonal.toLowerCase().includes(searchLower)) ||
+                          formatHorarioTaller(taller).toLowerCase().includes(searchLower)
+                        );
+                      })
+                      .map((taller) => (
                       <div key={taller.cdTaller} className="flex items-start space-x-2">
                         <Checkbox
                           id={`taller-${taller.cdTaller}`}
@@ -1450,6 +1471,19 @@ export default function AlumnosPage() {
                         </label>
                       </div>
                     ))}
+                    {talleres.filter((taller) => {
+                      const searchLower = searchTalleres.toLowerCase();
+                      return (
+                        taller.dsNombreTaller.toLowerCase().includes(searchLower) ||
+                        taller.nuAnioTaller.toString().includes(searchLower) ||
+                        (taller.nombrePersonal && taller.nombrePersonal.toLowerCase().includes(searchLower)) ||
+                        formatHorarioTaller(taller).toLowerCase().includes(searchLower)
+                      );
+                    }).length === 0 && searchTalleres && (
+                      <div className="col-span-2 text-center py-4 text-gray-500 text-sm">
+                        No se encontraron talleres que coincidan con &quot;{searchTalleres}&quot;
+                      </div>
+                    )}
                   </div>
                   {talleres.length === 0 && (
                     <p className="text-sm text-amber-600">

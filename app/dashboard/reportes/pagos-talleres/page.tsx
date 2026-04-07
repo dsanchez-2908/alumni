@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Loader2, FileSpreadsheet, DollarSign, TrendingUp, AlertCircle } from 'lucide-react';
+import { Loader2, FileSpreadsheet, DollarSign, TrendingUp, AlertCircle, Users, CheckCircle2, XCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
@@ -572,6 +572,42 @@ export default function PagosPorTalleresPage() {
             <CardContent>
               <div className="text-2xl font-bold text-indigo-600">
                 {formatCurrency(totales.total)}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total de Alumnos</CardTitle>
+              <Users className="h-4 w-4 text-blue-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-600">
+                {resultados.length}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total SI pago</CardTitle>
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-emerald-600">
+                {resultados.filter(r => r.pago === 'SI').length}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total NO pago</CardTitle>
+              <XCircle className="h-4 w-4 text-red-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">
+                {resultados.filter(r => r.pago === 'NO').length}
               </div>
             </CardContent>
           </Card>

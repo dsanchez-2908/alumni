@@ -208,11 +208,13 @@ export async function GET(request: NextRequest) {
     }
     // OPERADOR: No necesita stats completos, solo cumpleaños y asistencias
 
-    // Obtener próximos 5 cumpleaños según el rol
-    let cumpleanosRaw: any[];
+    // Obtener próximos 5 y últimos 5 cumpleaños según el rol
+    let cumpleanosProximosRaw: any[];
+    let cumpleanosPasadosRaw: any[];
+    
     if (rolPrincipal === 'Profesor' && cdPersonal) {
-      // PROFESOR: Solo cumpleaños de sus alumnos
-      [cumpleanosRaw] = await pool.execute<any[]>(
+      // PROFESOR: Solo cumpleaños de sus alumnos - PRÓXIMOS
+      [cumpleanosProximosRaw] = await pool.execute<any[]>(
         `SELECT 
           tipo,
           nombre,
@@ -253,9 +255,52 @@ export async function GET(request: NextRequest) {
         LIMIT 5`,
         [cdPersonal, currentYear]
       );
+      
+      // PROFESOR: Solo cumpleaños de sus alumnos - PASADOS
+      [cumpleanosPasadosRaw] = await pool.execute<any[]>(
+        `SELECT 
+          tipo,
+          nombre,
+          feNacimiento,
+          fechaCumple,
+          ABS(diasPasados) as diasPasados
+        FROM (
+          SELECT 
+            'Alumno' as tipo,
+            CONCAT(a.dsNombre, ' ', a.dsApellido) as nombre,
+            a.feNacimiento,
+            DATE_FORMAT(a.feNacimiento, '%d/%m') as fechaCumple,
+            CASE 
+              WHEN DATE_FORMAT(CURDATE(), '%m-%d') = DATE_FORMAT(a.feNacimiento, '%m-%d') THEN 0
+              WHEN DATE_FORMAT(a.feNacimiento, '%m-%d') < DATE_FORMAT(CURDATE(), '%m-%d') THEN 
+                DATEDIFF(
+                  CURDATE(),
+                  DATE(CONCAT(YEAR(CURDATE()), '-', DATE_FORMAT(a.feNacimiento, '%m-%d')))
+                )
+              ELSE 
+                DATEDIFF(
+                  CURDATE(),
+                  DATE(CONCAT(YEAR(CURDATE()) - 1, '-', DATE_FORMAT(a.feNacimiento, '%m-%d')))
+                )
+            END as diasPasados
+          FROM TD_ALUMNOS a
+          INNER JOIN TR_ALUMNO_TALLER at ON a.cdAlumno = at.cdAlumno
+          INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
+          WHERE a.cdEstado = 1 
+            AND a.feNacimiento IS NOT NULL
+            AND t.cdPersonal = ?
+            AND t.nuAnioTaller = ?
+            AND at.cdEstado = 1
+            AND DATE_FORMAT(CURDATE(), '%m-%d') != DATE_FORMAT(a.feNacimiento, '%m-%d')
+        ) AS cumpleanos_pasados
+        WHERE diasPasados > 0 AND diasPasados <= 30
+        ORDER BY diasPasados ASC, nombre ASC
+        LIMIT 5`,
+        [cdPersonal, currentYear]
+      );
     } else {
-      // ADMINISTRADOR, SUPERVISOR, OPERADOR: Todos los cumpleaños (alumnos y profesores)
-      [cumpleanosRaw] = await pool.execute<any[]>(
+      // ADMINISTRADOR, SUPERVISOR, OPERADOR: Todos los cumpleaños - PRÓXIMOS
+      [cumpleanosProximosRaw] = await pool.execute<any[]>(
         `SELECT 
           tipo,
           nombre,
@@ -313,12 +358,76 @@ export async function GET(request: NextRequest) {
         ORDER BY diasFaltantes ASC, nombre ASC
         LIMIT 5`
       );
+      
+      // ADMINISTRADOR, SUPERVISOR, OPERADOR: Todos los cumpleaños - PASADOS
+      [cumpleanosPasadosRaw] = await pool.execute<any[]>(
+        `SELECT 
+          tipo,
+          nombre,
+          feNacimiento,
+          fechaCumple,
+          ABS(diasPasados) as diasPasados
+        FROM (
+          SELECT 
+            'Alumno' as tipo,
+            CONCAT(dsNombre, ' ', dsApellido) as nombre,
+            feNacimiento,
+            DATE_FORMAT(feNacimiento, '%d/%m') as fechaCumple,
+            CASE 
+              WHEN DATE_FORMAT(CURDATE(), '%m-%d') = DATE_FORMAT(feNacimiento, '%m-%d') THEN 0
+              WHEN DATE_FORMAT(feNacimiento, '%m-%d') < DATE_FORMAT(CURDATE(), '%m-%d') THEN 
+                DATEDIFF(
+                  CURDATE(),
+                  DATE(CONCAT(YEAR(CURDATE()), '-', DATE_FORMAT(feNacimiento, '%m-%d')))
+                )
+              ELSE 
+                DATEDIFF(
+                  CURDATE(),
+                  DATE(CONCAT(YEAR(CURDATE()) - 1, '-', DATE_FORMAT(feNacimiento, '%m-%d')))
+                )
+            END as diasPasados
+          FROM TD_ALUMNOS 
+          WHERE cdEstado = 1 AND feNacimiento IS NOT NULL
+            AND DATE_FORMAT(CURDATE(), '%m-%d') != DATE_FORMAT(feNacimiento, '%m-%d')
+          
+          UNION ALL
+          
+          SELECT 
+            'Profesor' as tipo,
+            dsNombreCompleto as nombre,
+            feNacimiento,
+            DATE_FORMAT(feNacimiento, '%d/%m') as fechaCumple,
+            CASE 
+              WHEN DATE_FORMAT(CURDATE(), '%m-%d') = DATE_FORMAT(feNacimiento, '%m-%d') THEN 0
+              WHEN DATE_FORMAT(feNacimiento, '%m-%d') < DATE_FORMAT(CURDATE(), '%m-%d') THEN 
+                DATEDIFF(
+                  CURDATE(),
+                  DATE(CONCAT(YEAR(CURDATE()), '-', DATE_FORMAT(feNacimiento, '%m-%d')))
+                )
+              ELSE 
+                DATEDIFF(
+                  CURDATE(),
+                  DATE(CONCAT(YEAR(CURDATE()) - 1, '-', DATE_FORMAT(feNacimiento, '%m-%d')))
+                )
+            END as diasPasados
+          FROM TD_PERSONAL 
+          WHERE cdEstado = 1 AND dsTipoPersonal = 'Profesor' AND feNacimiento IS NOT NULL
+            AND DATE_FORMAT(CURDATE(), '%m-%d') != DATE_FORMAT(feNacimiento, '%m-%d')
+        ) AS cumpleanos_pasados_combined
+        WHERE diasPasados > 0 AND diasPasados <= 30
+        ORDER BY diasPasados ASC, nombre ASC
+        LIMIT 5`
+      );
     }
     
     // Asegurar que esHoy sea booleano en JavaScript
-    const cumpleanos = cumpleanosRaw.map((c: any) => ({
+    const cumpleanosProximos = cumpleanosProximosRaw.map((c: any) => ({
       ...c,
       esHoy: c.esHoy === 1 || c.esHoy === true
+    }));
+    
+    const cumpleanosPasados = cumpleanosPasadosRaw.map((c: any) => ({
+      ...c
     }));
 
     // Obtener profesores con fechas pendientes de asistencia
@@ -392,7 +501,7 @@ export async function GET(request: NextRequest) {
       const fechaInicio = new Date(taller.feInicioTaller);
       let fechaActual = new Date(fechaInicio);
 
-      while (fechaActual <= fechaHoy) {
+      while (fechaActual < fechaHoy) {
         const diaSemana = fechaActual.getDay();
         const fechaStr = fechaActual.toISOString().split('T')[0];
 
@@ -591,12 +700,13 @@ export async function GET(request: NextRequest) {
           t.dsJuevesHoraDesde, t.dsJuevesHoraHasta,
           t.dsViernesHoraDesde, t.dsViernesHoraHasta,
           t.dsSabadoHoraDesde, t.dsSabadoHoraHasta,
-          a.dsObservacionesDiscapacidad
+          a.dsObservacionesDiscapacidad,
+          a.dsObservaciones
         FROM TD_ALUMNOS a
         INNER JOIN TR_ALUMNO_TALLER at ON a.cdAlumno = at.cdAlumno
         INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
         INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
-        WHERE a.snDiscapacidad = 'SI'
+        WHERE (a.snDiscapacidad = 'SI' OR (a.dsObservaciones IS NOT NULL AND a.dsObservaciones != ''))
           AND a.cdEstado = 1
           AND at.cdEstado = 1
           AND t.cdEstado IN (1, 2)
@@ -662,7 +772,8 @@ export async function GET(request: NextRequest) {
           dsNombreTaller: alumno.dsNombreTaller,
           nuAnioTaller: alumno.nuAnioTaller,
           horario: horarioTexto,
-          dsObservacionesDiscapacidad: alumno.dsObservacionesDiscapacidad
+          dsObservacionesDiscapacidad: alumno.dsObservacionesDiscapacidad,
+          dsObservaciones: alumno.dsObservaciones
         };
       });
     }
@@ -677,7 +788,8 @@ export async function GET(request: NextRequest) {
         alumnosPagoMesesAnteriores: alumnosMesesAnteriores,
         alumnosConSeguimiento: alumnosConSeguimiento,
       },
-      cumpleanos,
+      cumpleanosProximos,
+      cumpleanosPasados,
       profesoresPendientes,
       misTalleres,
       alumnosConDiscapacidad,

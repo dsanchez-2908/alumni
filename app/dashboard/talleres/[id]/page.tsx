@@ -79,6 +79,7 @@ interface AlumnoInscrito {
   estado: string;
   snDiscapacidad: 'SI' | 'NO';
   dsObservacionesDiscapacidad: string | null;
+  dsObservaciones: string | null;
 }
 
 interface AlumnoDisponible {
@@ -575,7 +576,7 @@ export default function TallerDetallePage() {
                 <TableHead>DNI</TableHead>
                 <TableHead>Fecha Inscripción</TableHead>
                 <TableHead>Estado</TableHead>
-                <TableHead className="text-center">Discapacidad</TableHead>
+                <TableHead className="text-center">Discapacidad/Observaciones</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
@@ -592,7 +593,7 @@ export default function TallerDetallePage() {
                 filteredAlumnos.map((alumno) => (
                   <TableRow 
                     key={alumno.id}
-                    className={alumno.snDiscapacidad === 'SI' ? 'bg-red-50 hover:bg-red-100' : ''}
+                    className={(alumno.snDiscapacidad === 'SI' || alumno.dsObservaciones) ? 'bg-red-50 hover:bg-red-100' : ''}
                   >
                     <TableCell className="font-medium">{alumno.dsApellido}</TableCell>
                     <TableCell>{alumno.dsNombre}</TableCell>
@@ -612,7 +613,7 @@ export default function TallerDetallePage() {
                       </span>
                     </TableCell>
                     <TableCell className="text-center">
-                      {alumno.snDiscapacidad === 'SI' && (
+                      {(alumno.snDiscapacidad === 'SI' || alumno.dsObservaciones) && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -760,11 +761,8 @@ export default function TallerDetallePage() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-red-600">
-              Información de Discapacidad
+              Información de Discapacidad u Observaciones
             </DialogTitle>
-            <DialogDescription>
-              Detalles sobre la discapacidad del alumno
-            </DialogDescription>
           </DialogHeader>
           {discapacidadDialog.alumno && (
             <div className="space-y-4">
@@ -782,16 +780,31 @@ export default function TallerDetallePage() {
                   </div>
                 </div>
                 
-                <div className="pt-4 border-t border-red-200">
-                  <Label className="text-sm font-semibold text-gray-700 mb-2 block">
-                    Observaciones de Discapacidad
-                  </Label>
-                  <div className="bg-white rounded-md p-3 border border-red-300">
-                    <p className="text-gray-800 whitespace-pre-wrap">
-                      {discapacidadDialog.alumno.dsObservacionesDiscapacidad || 'Sin observaciones registradas'}
-                    </p>
+                {discapacidadDialog.alumno.dsObservacionesDiscapacidad && (
+                  <div className="pt-4 border-t border-red-200">
+                    <Label className="text-sm font-semibold text-gray-700 mb-2 block">
+                      Observaciones de Discapacidad
+                    </Label>
+                    <div className="bg-white rounded-md p-3 border border-red-300">
+                      <p className="text-gray-800 whitespace-pre-wrap">
+                        {discapacidadDialog.alumno.dsObservacionesDiscapacidad}
+                      </p>
+                    </div>
                   </div>
-                </div>
+                )}
+                
+                {discapacidadDialog.alumno.dsObservaciones && (
+                  <div className={`pt-4 ${discapacidadDialog.alumno.dsObservacionesDiscapacidad ? 'border-t border-red-200' : ''}`}>
+                    <Label className="text-sm font-semibold text-gray-700 mb-2 block">
+                      Observaciones Generales
+                    </Label>
+                    <div className="bg-white rounded-md p-3 border border-red-300">
+                      <p className="text-gray-800 whitespace-pre-wrap">
+                        {discapacidadDialog.alumno.dsObservaciones}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
               
               <div className="flex justify-end">

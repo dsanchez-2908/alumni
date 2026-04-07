@@ -14,7 +14,7 @@ const routePermissions: { [key: string]: string[] } = {
   '/dashboard/precios': ['Administrador', 'Supervisor'],
   
   // Alumnos
-  '/dashboard/alumnos/nuevo': ['Administrador', 'Supervisor'],
+  '/dashboard/alumnos/nuevo': ['Administrador', 'Supervisor', 'Operador'],
   '/dashboard/alumnos': ['Administrador', 'Supervisor', 'Operador'],
   '/dashboard/grupos-familiares': ['Administrador', 'Supervisor'],
   
