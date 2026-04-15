@@ -66,8 +66,14 @@ export async function GET(request: NextRequest) {
          INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
          WHERE a.cdEstado = 1
            AND at.cdEstado = 1
+           AND at.feBaja IS NULL
            AND t.cdEstado IN (1, 2)
            AND t.nuAnioTaller = ?
+           -- El alumno debe estar inscrito antes o durante el mes actual
+           AND (
+             YEAR(at.feInscripcion) < ? 
+             OR (YEAR(at.feInscripcion) = ? AND MONTH(at.feInscripcion) <= ?)
+           )
            AND NOT EXISTS (
              SELECT 1 FROM TD_PAGOS p
              INNER JOIN TD_PAGOS_DETALLE pd ON p.cdPago = pd.cdPago
@@ -76,7 +82,7 @@ export async function GET(request: NextRequest) {
                AND p.nuMes = ?
                AND p.nuAnio = ?
            )`,
-        [currentYear, currentMonth, currentYear]
+        [currentYear, currentYear, currentYear, currentMonth, currentMonth, currentYear]
       );
       alumnosMesActual = alumnosMesActualRows[0]?.total || 0;
 
@@ -95,10 +101,14 @@ export async function GET(request: NextRequest) {
            ) mes
            WHERE a.cdEstado = 1
              AND at.cdEstado = 1
+             AND at.feBaja IS NULL
              AND t.cdEstado IN (1, 2)
              AND t.nuAnioTaller = ?
              AND mes.mes < ?
-             AND mes.mes >= MONTH(t.feInicioTaller)
+             -- El mes debe ser >= al mes de inscripción del alumno
+             AND mes.mes >= MONTH(at.feInscripcion)
+             -- Y la inscripción debe ser de este año o antes
+             AND YEAR(at.feInscripcion) <= ?
              AND NOT EXISTS (
                SELECT 1 FROM TD_PAGOS p
                INNER JOIN TD_PAGOS_DETALLE pd ON p.cdPago = pd.cdPago
@@ -108,7 +118,7 @@ export async function GET(request: NextRequest) {
                  AND p.nuAnio = ?
              )
          ) sub`,
-        [currentYear, currentMonth, currentYear]
+        [currentYear, currentMonth, currentYear, currentYear]
       );
       alumnosMesesAnteriores = alumnosMesesAnterioresRows[0]?.total || 0;
 

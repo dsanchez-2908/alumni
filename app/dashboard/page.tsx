@@ -4,6 +4,22 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { 
   Users, 
   GraduationCap, 
@@ -13,8 +29,12 @@ import {
   Calendar,
   AlertCircle,
   Clock,
-  DollarSign
+  DollarSign,
+  FileSpreadsheet,
+  Loader2
 } from 'lucide-react';
+import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
 
 interface Stats {
   alumnos: number;
@@ -68,6 +88,15 @@ interface AlumnoConDiscapacidad {
   dsObservaciones?: string;
 }
 
+interface DetalleFechaPendiente {
+  cdPersonal: number;
+  profesor: string;
+  cdTaller: number;
+  tipoTaller: string;
+  horario: string;
+  fechaPendiente: string;
+}
+
 export default function DashboardPage() {
   const { data: session } = useSession();
   const router = useRouter();
@@ -86,6 +115,9 @@ export default function DashboardPage() {
   const [profesoresPendientes, setProfesoresPendientes] = useState<ProfesorPendiente[]>([]);
   const [misTalleres, setMisTalleres] = useState<MiTaller[]>([]);
   const [alumnosConDiscapacidad, setAlumnosConDiscapacidad] = useState<AlumnoConDiscapacidad[]>([]);
+  const [modalDetalleAbierto, setModalDetalleAbierto] = useState(false);
+  const [detalleFechasPendientes, setDetalleFechasPendientes] = useState<DetalleFechaPendiente[]>([]);
+  const [loadingDetalle, setLoadingDetalle] = useState(false);
 
   useEffect(() => {
     fetchStats();
@@ -109,6 +141,56 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchDetalleAsistenciasPendientes = async () => {
+    setLoadingDetalle(true);
+    try {
+      const response = await fetch('/api/dashboard/asistencias-pendientes-detalle');
+      if (response.ok) {
+        const data = await response.json();
+        setDetalleFechasPendientes(data);
+        setModalDetalleAbierto(true);
+      } else {
+        toast.error('Error al cargar el detalle de asistencias pendientes');
+      }
+    } catch (error) {
+      console.error('Error al cargar detalle de asistencias pendientes:', error);
+      toast.error('Error al cargar el detalle de asistencias pendientes');
+    } finally {
+      setLoadingDetalle(false);
+    }
+  };
+
+  const exportarDetalleExcel = () => {
+    if (detalleFechasPendientes.length === 0) {
+      toast.error('No hay datos para exportar');
+      return;
+    }
+
+    const data = detalleFechasPendientes.map((item) => ({
+      'Profesor': item.profesor,
+      'Tipo de Taller': item.tipoTaller,
+      'Horario': item.horario,
+      'Fecha Pendiente': new Date(item.fechaPendiente).toLocaleDateString('es-AR'),
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Asistencias Pendientes');
+
+    // Ajustar ancho de columnas
+    const columnWidths = [
+      { wch: 30 }, // Profesor
+      { wch: 35 }, // Tipo de Taller
+      { wch: 40 }, // Horario
+      { wch: 15 }, // Fecha Pendiente
+    ];
+    worksheet['!cols'] = columnWidths;
+
+    const fileName = `asistencias_pendientes_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+    toast.success('Archivo Excel exportado correctamente');
   };
 
   // Configurar stats cards según el rol
@@ -348,14 +430,21 @@ export default function DashboardPage() {
         {/* Asistencias Pendientes */}
         <Card className="border-orange-100 shadow-lg">
           <CardHeader>
-            <CardTitle className="text-xl text-gray-800 flex items-center gap-2">
+            <CardTitle 
+              className="text-xl text-gray-800 flex items-center gap-2 cursor-pointer hover:text-orange-600 transition-colors"
+              onClick={fetchDetalleAsistenciasPendientes}
+            >
               <AlertCircle className="h-5 w-5 text-orange-600" />
               Asistencias Pendientes
+              {loadingDetalle && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
             </CardTitle>
             <CardDescription>
               {rol === 'Profesor' 
                 ? 'Fechas de asistencia sin registrar en tus talleres' 
                 : 'Profesores con fechas de asistencia sin registrar'}
+              <span className="block text-xs text-orange-600 mt-1 italic">
+                Haz clic en el título para ver el detalle completo
+              </span>
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -526,6 +615,78 @@ export default function DashboardPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Modal: Detalle de Asistencias Pendientes */}
+      <Dialog open={modalDetalleAbierto} onOpenChange={setModalDetalleAbierto}>
+        <DialogContent className="max-w-6xl max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-orange-600" />
+              Detalle de Asistencias Pendientes
+            </DialogTitle>
+            <DialogDescription>
+              {rol === 'Profesor' 
+                ? 'Fechas específicas sin registrar en tus talleres' 
+                : 'Todas las fechas pendientes de registro por profesor y taller'}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-auto">
+            {loadingDetalle ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
+                <span className="ml-2 text-gray-600">Cargando detalle...</span>
+              </div>
+            ) : detalleFechasPendientes.length > 0 ? (
+              <>
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-sm text-gray-600">
+                    Total de fechas pendientes: <span className="font-semibold text-orange-600">{detalleFechasPendientes.length}</span>
+                  </p>
+                  <Button onClick={exportarDetalleExcel} variant="outline" size="sm">
+                    <FileSpreadsheet className="mr-2 h-4 w-4" />
+                    Exportar a Excel
+                  </Button>
+                </div>
+                
+                <div className="border rounded-lg">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-muted">
+                      <TableRow>
+                        {(rol === 'Administrador' || rol === 'Supervisor') && (
+                          <TableHead className="w-[200px]">Profesor</TableHead>
+                        )}
+                        <TableHead className="w-[250px]">Tipo de Taller</TableHead>
+                        <TableHead className="w-[300px]">Horario</TableHead>
+                        <TableHead className="w-[120px]">Fecha Pendiente</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {detalleFechasPendientes.map((item, index) => (
+                        <TableRow key={index}>
+                          {(rol === 'Administrador' || rol === 'Supervisor') && (
+                            <TableCell className="text-sm">{item.profesor}</TableCell>
+                          )}
+                          <TableCell className="text-sm">{item.tipoTaller}</TableCell>
+                          <TableCell className="text-sm text-gray-600">{item.horario}</TableCell>
+                          <TableCell className="text-sm font-medium">
+                            {new Date(item.fechaPendiente).toLocaleDateString('es-AR')}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-12 text-gray-500">
+                <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                <p className="text-sm">¡Todas las asistencias están al día!</p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

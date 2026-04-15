@@ -98,6 +98,7 @@ export async function GET(request: NextRequest) {
       -- Alumnos inscritos activamente
       INNER JOIN TR_ALUMNO_TALLER at ON t.cdTaller = at.cdTaller
         AND at.cdEstado = 1  -- Solo alumnos activos en el taller
+        AND at.feBaja IS NULL  -- Sin fecha de baja
       
       -- Datos del alumno
       INNER JOIN TD_ALUMNOS a ON at.cdAlumno = a.cdAlumno
@@ -129,10 +130,10 @@ export async function GET(request: NextRequest) {
         AND pag.cdAlumno = a.cdAlumno
       
       WHERE 1=1
-        -- Solo mostrar alumnos cuyo taller ya había comenzado en el mes consultado
+        -- Solo mostrar alumnos que estaban inscritos antes o durante el mes consultado
         AND (
-          YEAR(t.feInicioTaller) < ? 
-          OR (YEAR(t.feInicioTaller) = ? AND MONTH(t.feInicioTaller) <= ?)
+          YEAR(at.feInscripcion) < ? 
+          OR (YEAR(at.feInscripcion) = ? AND MONTH(at.feInscripcion) <= ?)
         )
     `;
 

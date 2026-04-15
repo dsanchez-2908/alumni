@@ -29,7 +29,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Search, DollarSign, Save, Download, MessageCircle } from 'lucide-react';
+import { Search, DollarSign, Save, Download, MessageCircle, AlertTriangle, X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -37,6 +37,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
 
 interface Alumno {
   cdAlumno: number;
@@ -67,6 +68,19 @@ interface ItemPago {
   montoExcepcion?: number;
 }
 
+interface DeudaAnterior {
+  cdAlumno: number;
+  nombreAlumno: string;
+  cdTaller: number;
+  nombreTaller: string;
+  horario: string;
+  mes: number;
+  mesNombre: string;
+  anio: number;
+  periodo: string;
+  importe: number;
+}
+
 export default function RegistroPagosPage() {
   const { success, error, warning } = useToast();
   
@@ -94,6 +108,10 @@ export default function RegistroPagosPage() {
   const [cantidadTalleresTotal, setCantidadTalleresTotal] = useState(0);
   const [pagosPrevios, setPagosPrevios] = useState<any[]>([]);
   const [cantidadPagosCompletos, setCantidadPagosCompletos] = useState(0);
+  
+  // Estado para deudas anteriores
+  const [deudasAnteriores, setDeudasAnteriores] = useState<DeudaAnterior[]>([]);
+  const [mostrarAdvertencia, setMostrarAdvertencia] = useState(false);
 
   // Recalcular montos cuando cambian los items o los datos de pagos previos
   useEffect(() => {
@@ -125,8 +143,24 @@ export default function RegistroPagosPage() {
   const seleccionarAlumno = async (alumno: Alumno) => {
     setAlumnoSeleccionado(alumno);
     setLoading(true);
+    setDeudasAnteriores([]);
+    setMostrarAdvertencia(false);
     
     try {
+      // Primero verificar si hay deudas de meses anteriores
+      const deudasResponse = await fetch(
+        `/api/alumnos/${alumno.cdAlumno}/deudas-anteriores?mes=${mesSeleccionado}&anio=${anioSeleccionado}`
+      );
+      
+      if (deudasResponse.ok) {
+        const deudasData = await deudasResponse.json();
+        if (deudasData.deudas && deudasData.deudas.length > 0) {
+          setDeudasAnteriores(deudasData.deudas);
+          setMostrarAdvertencia(true);
+        }
+      }
+      
+      // Luego cargar las cuotas del período seleccionado
       // Si tiene grupo familiar, buscar cuotas del grupo completo
       // Si no tiene, buscar solo las cuotas del alumno individual
       const baseEndpoint = alumno.cdGrupoFamiliar
@@ -197,6 +231,8 @@ export default function RegistroPagosPage() {
     setCantidadTalleresTotal(0);
     setPagosPrevios([]);
     setCantidadPagosCompletos(0);
+    setDeudasAnteriores([]);
+    setMostrarAdvertencia(false);
   };
 
   // Cargar contactos de notificación cuando cambian los items
@@ -633,6 +669,73 @@ export default function RegistroPagosPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Advertencia de deudas anteriores */}
+      {mostrarAdvertencia && deudasAnteriores.length > 0 && alumnoSeleccionado && (
+        <Card className="mb-6 border-orange-300 bg-orange-50">
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-orange-600" />
+                <div>
+                  <CardTitle className="text-orange-900">
+                    ⚠️ Deudas de Meses Anteriores
+                  </CardTitle>
+                  <CardDescription className="text-orange-700">
+                    El alumno {alumnoSeleccionado.dsApellido}, {alumnoSeleccionado.dsNombre} tiene {deudasAnteriores.length} cuota{deudasAnteriores.length > 1 ? 's' : ''} pendiente{deudasAnteriores.length > 1 ? 's' : ''} de mes{deudasAnteriores.length > 1 ? 'es' : ''} anterior{deudasAnteriores.length > 1 ? 'es' : ''}
+                  </CardDescription>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setMostrarAdvertencia(false)}
+                className="text-orange-600 hover:text-orange-800 hover:bg-orange-100"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="border rounded-lg overflow-hidden bg-white">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-orange-100">
+                    <TableHead className="font-semibold text-orange-900">Alumno</TableHead>
+                    <TableHead className="font-semibold text-orange-900">Taller</TableHead>
+                    <TableHead className="font-semibold text-orange-900">Horario</TableHead>
+                    <TableHead className="font-semibold text-orange-900">Período</TableHead>
+                    <TableHead className="font-semibold text-orange-900 text-right">Importe</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {deudasAnteriores.map((deuda, index) => (
+                    <TableRow key={index} className="hover:bg-orange-50">
+                      <TableCell className="font-medium">{deuda.nombreAlumno}</TableCell>
+                      <TableCell className="font-medium">{deuda.nombreTaller}</TableCell>
+                      <TableCell className="text-sm text-gray-600">{deuda.horario}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-300">
+                          {deuda.periodo}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        ${deuda.importe.toFixed(2)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="mt-3 p-3 bg-orange-100 rounded-md border border-orange-200">
+              <p className="text-sm text-orange-900">
+                <span className="font-semibold">Nota:</span> Esta es solo una advertencia informativa. 
+                Puede continuar registrando el pago del período seleccionado si lo desea.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Cuotas a pagar */}
       {alumnoSeleccionado && items.length > 0 && (
