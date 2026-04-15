@@ -91,6 +91,9 @@ export default function ConsultaFaltasPage() {
     }
 
     setLoading(true);
+    // Limpiar resultados anteriores para evitar mezcla de datos
+    setFaltas([]);
+    
     try {
       const params = new URLSearchParams({
         fechaDesde,
@@ -119,6 +122,11 @@ export default function ConsultaFaltasPage() {
       }
 
       const data: ReporteData = await response.json();
+      console.log('Datos recibidos de la API:', {
+        totalFaltas: data.faltas.length,
+        faltas: data.faltas,
+        alumnosEnResultado: [...new Set(data.faltas.map(f => f.alumno))]
+      });
       setFaltas(data.faltas);
       setFiltros(data.filtros);
 
@@ -369,7 +377,7 @@ export default function ConsultaFaltasPage() {
           <CardContent>
             <div className="border rounded-lg">
               <div className="max-h-[600px] overflow-y-auto overflow-x-auto">
-                <Table>
+                <Table key={`tabla-faltas-${faltas.length}-${faltas[0]?.cdFalta || 'empty'}`}>
                   <TableHeader className="sticky top-0 bg-muted">
                     <TableRow>
                       <TableHead className="w-[100px]">Fecha</TableHead>
