@@ -20,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { AlumnoSearchInput } from '@/components/ui/alumno-search-input';
 import { Loader2, FileSpreadsheet, AlertTriangle, Calendar } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -318,22 +319,13 @@ export default function ConsultaFaltasPage() {
             </div>
 
             {/* Alumno */}
-            <div className="space-y-2">
-              <Label htmlFor="alumno">Alumno</Label>
-              <Select value={alumnoSeleccionado} onValueChange={setAlumnoSeleccionado}>
-                <SelectTrigger id="alumno">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos</SelectItem>
-                  {filtros.alumnos.map((alumno) => (
-                    <SelectItem key={alumno.cdAlumno} value={alumno.cdAlumno.toString()}>
-                      {alumno.nombreCompleto}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <AlumnoSearchInput
+              alumnos={filtros.alumnos}
+              value={alumnoSeleccionado}
+              onValueChange={setAlumnoSeleccionado}
+              label="Alumno"
+              placeholder="Escribe para buscar alumno..."
+            />
           </div>
 
           <div className="flex gap-2 mt-4">

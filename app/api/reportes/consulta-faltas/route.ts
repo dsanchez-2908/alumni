@@ -112,9 +112,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Filtro por Tipo de Taller
-    if (cdTipoTaller) {
-      queryConditions.push('tt.cdTipoTaller = ?');
-      queryParams.push(parseInt(cdTipoTaller));
+    if (cdTipoTaller && cdTipoTaller !== 'todos') {
+      const tipoTallerId = parseInt(cdTipoTaller);
+      if (!isNaN(tipoTallerId)) {
+        queryConditions.push('tt.cdTipoTaller = ?');
+        queryParams.push(tipoTallerId);
+      }
     }
 
     // Filtro por Horario
@@ -132,15 +135,21 @@ export async function GET(request: NextRequest) {
     }
 
     // Filtro por Profesor
-    if (cdPersonal) {
-      queryConditions.push('p.cdPersonal = ?');
-      queryParams.push(parseInt(cdPersonal));
+    if (cdPersonal && cdPersonal !== 'todos') {
+      const personalId = parseInt(cdPersonal);
+      if (!isNaN(personalId)) {
+        queryConditions.push('p.cdPersonal = ?');
+        queryParams.push(personalId);
+      }
     }
 
     // Filtro por Alumno
-    if (cdAlumno) {
-      queryConditions.push('a.cdAlumno = ?');
-      queryParams.push(parseInt(cdAlumno));
+    if (cdAlumno && cdAlumno !== 'todos') {
+      const alumnoId = parseInt(cdAlumno);
+      if (!isNaN(alumnoId)) {
+        queryConditions.push('a.cdAlumno = ?');
+        queryParams.push(alumnoId);
+      }
     }
 
     // Agregar condiciones a la query
