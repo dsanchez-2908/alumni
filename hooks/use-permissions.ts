@@ -133,9 +133,9 @@ export function usePermissions() {
       return false;
     }
 
-    // Operador solo puede dar de baja
+    // Operador puede inscribir, dar de baja y reactivar
     if (hasRole('Operador')) {
-      return action === 'dar-baja' || action === 'reactivar';
+      return action === 'inscribir' || action === 'dar-baja' || action === 'reactivar';
     }
 
     // Supervisor puede hacer todo
