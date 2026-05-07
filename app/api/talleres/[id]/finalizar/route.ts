@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import pool from '@/lib/db';
-import { registrarTraza } from '@/lib/db-utils';
+import { registrarTraza, actualizarEstadoAlumno } from '@/lib/db-utils';
 
 // POST - Finalizar taller y sus alumnos activos
 export async function POST(
@@ -47,6 +47,15 @@ export async function POST(
       [cdTaller]
     );
 
+    // Obtener los alumnos activos del taller antes de finalizarlos
+    const [alumnosActivos]: any = await connection.execute(
+      `SELECT DISTINCT cdAlumno 
+       FROM TR_ALUMNO_TALLER 
+       WHERE cdTaller = ? 
+       AND cdEstado = 1`,
+      [cdTaller]
+    );
+
     // Finalizar todos los alumnos activos del taller (cdEstado = 1)
     const [result]: any = await connection.execute(
       `UPDATE TR_ALUMNO_TALLER 
@@ -59,6 +68,11 @@ export async function POST(
     const alumnosFinalizados = result.affectedRows;
 
     await connection.commit();
+
+    // Actualizar el estado de cada alumno basándose en sus talleres activos restantes
+    for (const alumno of alumnosActivos) {
+      await actualizarEstadoAlumno(alumno.cdAlumno);
+    }
 
     await registrarTraza({
       dsProceso: 'Talleres',

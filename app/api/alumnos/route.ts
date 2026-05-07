@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import pool from '@/lib/db';
-import { registrarTraza } from '@/lib/db-utils';
+import { registrarTraza, actualizarEstadoAlumno } from '@/lib/db-utils';
 
 interface Alumno {
   cdAlumno: number;
@@ -326,6 +326,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Determinar el estado inicial del alumno
+    // Si se le asignan talleres, será Activo (1), si no, Inactivo (2)
+    const cdEstadoInicial = talleres.length > 0 ? 1 : 2;
+
     // Insertar alumno
     const [result] = await pool.execute<any>(
       `INSERT INTO TD_ALUMNOS (
@@ -359,7 +363,7 @@ export async function POST(request: NextRequest) {
         cdEstado,
         feAlta,
         feModificacion
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
         dsNombre,
         dsApellido,
@@ -388,6 +392,7 @@ export async function POST(request: NextRequest) {
         dsDNIContacto2 || null,
         dsTelefonoContacto2 || null,
         dsMailContacto2 || null,
+        cdEstadoInicial, // Estado automático basado en talleres
       ]
     );
 

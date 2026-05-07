@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
     let totalProfesores = 0;
     let alumnosMesActual = 0;
     let alumnosMesesAnteriores = 0;
+    let alumnosInactivosConDeudas = 0;
     let alumnosConSeguimiento = 0;
 
     // ADMINISTRADOR y SUPERVISOR: Dashboard completo
@@ -121,6 +122,44 @@ export async function GET(request: NextRequest) {
         [currentYear, currentMonth, currentYear, currentYear]
       );
       alumnosMesesAnteriores = alumnosMesesAnterioresRows[0]?.total || 0;
+
+      // Contar alumnos INACTIVOS con deudas pendientes
+      const [alumnosInactivosConDeudasRows] = await pool.execute<any[]>(
+        `SELECT COUNT(DISTINCT sub.cdAlumno) as total
+         FROM (
+           SELECT DISTINCT a.cdAlumno, mes.mes
+           FROM TD_ALUMNOS a
+           INNER JOIN TR_ALUMNO_TALLER at ON a.cdAlumno = at.cdAlumno
+           INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
+           CROSS JOIN (
+             SELECT 1 as mes UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 
+             UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 
+             UNION SELECT 9 UNION SELECT 10 UNION SELECT 11 UNION SELECT 12
+           ) mes
+           WHERE a.cdEstado = 2  -- Alumno INACTIVO
+             AND at.cdEstado = 5  -- Taller INCOMPLETO
+             AND at.feBaja IS NOT NULL
+             AND t.nuAnioTaller = ?
+             -- El mes debe estar entre la inscripción y la baja
+             AND mes.mes >= MONTH(at.feInscripcion)
+             AND mes.mes <= MONTH(at.feBaja)
+             -- Y la inscripción/baja deben ser de este año o antes
+             AND (
+               (YEAR(at.feInscripcion) = ? AND YEAR(at.feBaja) = ?)
+               OR YEAR(at.feInscripcion) < ?
+             )
+             AND NOT EXISTS (
+               SELECT 1 FROM TD_PAGOS p
+               INNER JOIN TD_PAGOS_DETALLE pd ON p.cdPago = pd.cdPago
+               WHERE pd.cdAlumno = a.cdAlumno
+                 AND pd.cdTaller = at.cdTaller
+                 AND p.nuMes = mes.mes
+                 AND p.nuAnio = ?
+             )
+         ) sub`,
+        [currentYear, currentYear, currentYear, currentYear, currentYear]
+      );
+      alumnosInactivosConDeudas = alumnosInactivosConDeudasRows[0]?.total || 0;
 
       // Contar alumnos con seguimiento de faltas (2 o más faltas consecutivas sin contactar)
       const [ausenciasRows] = await pool.execute<any[]>(
@@ -796,6 +835,7 @@ export async function GET(request: NextRequest) {
         profesores: totalProfesores,
         alumnosPagoMesActual: alumnosMesActual,
         alumnosPagoMesesAnteriores: alumnosMesesAnteriores,
+        alumnosInactivosConDeudas: alumnosInactivosConDeudas || 0,
         alumnosConSeguimiento: alumnosConSeguimiento,
       },
       cumpleanosProximos,

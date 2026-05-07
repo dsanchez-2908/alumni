@@ -118,6 +118,7 @@ export default function ConsultaPagosPage() {
   const [mes, setMes] = useState('0');
   const [anio, setAnio] = useState('');
   const [estadoPago, setEstadoPago] = useState('Pagado'); // Solo pagados por ahora
+  const [estadoAlumno, setEstadoAlumno] = useState('todos'); // todos, activos, inactivos
 
   // Estado
   const [pagos, setPagos] = useState<Pago[]>([]);
@@ -142,6 +143,7 @@ export default function ConsultaPagosPage() {
       if (mes && mes !== '0') params.append('mes', mes);
       if (anio) params.append('anio', anio);
       params.append('estadoPago', estadoPago);
+      params.append('estadoAlumno', estadoAlumno);
 
       const response = await fetch(`/api/pagos?${params.toString()}`);
       if (response.ok) {
@@ -456,6 +458,21 @@ export default function ConsultaPagosPage() {
                 <SelectContent>
                   <SelectItem value="Pagado">Pagado</SelectItem>
                   <SelectItem value="Pendiente">Pendiente</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Estado del Alumno */}
+            <div>
+              <Label htmlFor="estadoAlumno">Estado Alumno</Label>
+              <Select value={estadoAlumno} onValueChange={setEstadoAlumno}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="activos">Activos</SelectItem>
+                  <SelectItem value="inactivos">Inactivos</SelectItem>
                 </SelectContent>
               </Select>
             </div>

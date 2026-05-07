@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import pool from '@/lib/db';
-import { registrarTraza } from '@/lib/db-utils';
+import { registrarTraza, actualizarEstadoAlumno } from '@/lib/db-utils';
 
 // GET - Obtener alumnos del taller
 export async function GET(
@@ -110,6 +110,9 @@ export async function POST(
           dsDetalle: `${nombreAlumno} reactivado | ${nombreTaller}`,
         });
 
+        // Actualizar estado del alumno a Activo
+        await actualizarEstadoAlumno(cdAlumno);
+
         return NextResponse.json({ message: 'Alumno reactivado en el taller' });
       }
       
@@ -147,6 +150,9 @@ export async function POST(
       cdElemento: result.insertId,
       dsDetalle: `${nombreAlumno} | ${nombreTaller}`,
     });
+
+    // Actualizar estado del alumno a Activo
+    await actualizarEstadoAlumno(cdAlumno);
 
     return NextResponse.json(
       { message: 'Alumno inscrito exitosamente' },

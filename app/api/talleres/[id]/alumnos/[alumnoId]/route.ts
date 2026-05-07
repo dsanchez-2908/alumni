@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import pool from '@/lib/db';
-import { registrarTraza } from '@/lib/db-utils';
+import { registrarTraza, actualizarEstadoAlumno, verificarDeudasPendientes } from '@/lib/db-utils';
 
 // PUT - Cambiar estado del alumno en el taller (dar de baja/reactivar)
 export async function PUT(
@@ -16,7 +16,7 @@ export async function PUT(
     }
 
     const id = parseInt(params.alumnoId);
-    const { activo } = await request.json();
+    const { activo, forzarBaja } = await request.json();
 
     // Obtener información del alumno y taller antes de actualizar
     const [infoPrevia] = await pool.execute<any[]>(
@@ -40,12 +40,32 @@ export async function PUT(
         'UPDATE TR_ALUMNO_TALLER SET cdEstado = 1, feBaja = NULL WHERE id = ?',
         [id]
       );
+      
+      // Actualizar estado del alumno (probablemente a Activo)
+      await actualizarEstadoAlumno(info.cdAlumno);
     } else {
-      // Dar de baja alumno (cdEstado = 2)
+      // Dar de baja alumno
+      // Primero verificar si tiene deudas pendientes
+      const deudas = await verificarDeudasPendientes(info.cdAlumno, info.cdTaller);
+      
+      // Si tiene deudas y no se forzó la baja, devolver advertencia
+      if (deudas.tieneDeudas && !forzarBaja) {
+        return NextResponse.json({
+          advertencia: true,
+          tieneDeudas: true,
+          mensaje: `El alumno tiene ${deudas.cantidadMeses} mes(es) pendiente(s) de pago por un total de $${deudas.montoTotal.toFixed(2)}. ¿Desea dar de baja igualmente?`,
+          detalles: deudas.detalles,
+        }, { status: 200 });
+      }
+      
+      // Dar de baja con estado "Incompleto" (cdEstado = 5)
       await pool.execute(
-        'UPDATE TR_ALUMNO_TALLER SET cdEstado = 2, feBaja = NOW() WHERE id = ?',
+        'UPDATE TR_ALUMNO_TALLER SET cdEstado = 5, feBaja = NOW() WHERE id = ?',
         [id]
       );
+      
+      // Verificar si el alumno tiene otros talleres activos y actualizar su estado
+      await actualizarEstadoAlumno(info.cdAlumno);
     }
 
     await registrarTraza({
@@ -66,7 +86,7 @@ export async function PUT(
   }
 }
 
-// DELETE - Eliminar inscripción (opcional, si lo prefieres puedes solo usar PUT para dar de baja)
+// DELETE - Quitar alumno del taller (marcar como Incompleto)
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string; alumnoId: string } }
@@ -78,6 +98,14 @@ export async function DELETE(
     }
 
     const id = parseInt(params.alumnoId);
+    
+    let forzarEliminacion = false;
+    try {
+      const body = await request.json();
+      forzarEliminacion = body.forzarEliminacion || false;
+    } catch (e) {
+      // Si no hay body, forzarEliminacion es false por defecto
+    }
 
     // Obtener información del alumno y taller antes de eliminar
     const [infoPrevia] = await pool.execute<any[]>(
@@ -95,20 +123,37 @@ export async function DELETE(
     const nombreAlumno = info?.nombreAlumno || 'Desconocido';
     const nombreTaller = info ? `${info.dsNombreTaller} ${info.nuAnioTaller}` : 'Desconocido';
 
+    // Verificar si tiene deudas pendientes
+    const deudas = await verificarDeudasPendientes(info.cdAlumno, info.cdTaller);
+    
+    // Si tiene deudas y no se forzó la eliminación, devolver advertencia
+    if (deudas.tieneDeudas && !forzarEliminacion) {
+      return NextResponse.json({
+        advertencia: true,
+        tieneDeudas: true,
+        mensaje: `El alumno tiene ${deudas.cantidadMeses} mes(es) pendiente(s) de pago por un total de $${deudas.montoTotal.toFixed(2)}. Si quita al alumno, se perderá el registro de la deuda. ¿Desea quitar igualmente?`,
+        detalles: deudas.detalles,
+      }, { status: 200 });
+    }
+
+    // QUITAR: Eliminar completamente el registro (se pierde historial de deudas)
     await pool.execute(
       'DELETE FROM TR_ALUMNO_TALLER WHERE id = ?',
       [id]
     );
+
+    // Verificar si el alumno tiene otros talleres activos y actualizar su estado
+    await actualizarEstadoAlumno(info.cdAlumno);
 
     await registrarTraza({
       dsProceso: 'Talleres - Alumnos',
       dsAccion: 'Eliminar',
       cdUsuario: (session.user as any).cdUsuario,
       cdElemento: id,
-      dsDetalle: `${nombreAlumno} | ${nombreTaller}`,
+      dsDetalle: `${nombreAlumno} | ${nombreTaller} | Eliminado completamente`,
     });
 
-    return NextResponse.json({ message: 'Inscripción eliminada exitosamente' });
+    return NextResponse.json({ message: 'Alumno quitado del taller exitosamente' });
   } catch (error: any) {
     console.error('Error al eliminar inscripción:', error);
     return NextResponse.json(

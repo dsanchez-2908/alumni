@@ -100,8 +100,10 @@ export async function GET(request: NextRequest) {
         AND at.cdEstado = 1  -- Solo alumnos activos en el taller
         AND at.feBaja IS NULL  -- Sin fecha de baja
       
-      -- Datos del alumno
+      -- Alumno
       INNER JOIN TD_ALUMNOS a ON at.cdAlumno = a.cdAlumno
+        AND a.cdEstado = 1  -- Solo alumnos activos
+        AND at.feBaja IS NULL  -- Sin fecha de baja
       
       -- Precio del taller (último precio vigente)
       LEFT JOIN TD_PRECIOS_TALLERES prec ON tt.cdTipoTaller = prec.cdTipoTaller

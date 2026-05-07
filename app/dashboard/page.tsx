@@ -42,6 +42,7 @@ interface Stats {
   profesores: number;
   alumnosPagoMesActual: number;
   alumnosPagoMesesAnteriores: number;
+  alumnosInactivosConDeudas: number;
   alumnosConSeguimiento: number;
 }
 
@@ -108,6 +109,7 @@ export default function DashboardPage() {
     profesores: 0,
     alumnosPagoMesActual: 0,
     alumnosPagoMesesAnteriores: 0,
+    alumnosInactivosConDeudas: 0,
     alumnosConSeguimiento: 0,
   });
   const [cumpleanos, setCumpleanos] = useState<Cumpleano[]>([]);
@@ -264,6 +266,13 @@ export default function DashboardPage() {
         icon: <DollarSign className="h-8 w-8 text-red-600" />,
         description: 'Alumnos con deuda acumulada',
         color: 'from-red-500 to-red-600',
+      },
+      {
+        title: 'Deben Pagar - Alumnos Inactivos',
+        value: loading ? '...' : stats.alumnosInactivosConDeudas.toString(),
+        icon: <DollarSign className="h-8 w-8 text-purple-600" />,
+        description: 'Exalumnos con deuda pendiente',
+        color: 'from-purple-500 to-purple-600',
       },
     ];
   };

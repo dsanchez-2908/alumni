@@ -137,6 +137,50 @@ export async function GET(
       [cdAlumno]
     );
 
+    // 4.5. Talleres incompletos (dados de baja antes de finalizar)
+    const [talleresIncompletos] = await pool.execute<any[]>(
+      `SELECT 
+        t.cdTaller,
+        tt.dsNombreTaller,
+        t.nuAnioTaller,
+        p.dsNombreCompleto as nombreProfesor,
+        at.feInscripcion,
+        at.feBaja,
+        et.dsEstado as estadoEnTaller,
+        t.snDomingo, t.snLunes, t.snMartes, t.snMiercoles, 
+        t.snJueves, t.snViernes, t.snSabado,
+        t.dsDescripcionHorarios,
+        t.dsDomingoHoraDesde, t.dsDomingoHoraHasta,
+        t.dsLunesHoraDesde, t.dsLunesHoraHasta,
+        t.dsMartesHoraDesde, t.dsMartesHoraHasta,
+        t.dsMiercolesHoraDesde, t.dsMiercolesHoraHasta,
+        t.dsJuevesHoraDesde, t.dsJuevesHoraHasta,
+        t.dsViernesHoraDesde, t.dsViernesHoraHasta,
+        t.dsSabadoHoraDesde, t.dsSabadoHoraHasta,
+        (
+          SELECT COUNT(*) 
+          FROM TD_ASISTENCIAS f 
+          WHERE f.cdAlumno = at.cdAlumno 
+            AND f.cdTaller = at.cdTaller 
+            AND f.snPresente = 1
+        ) as cantidadPresentes,
+        (
+          SELECT COUNT(*) 
+          FROM TD_ASISTENCIAS f 
+          WHERE f.cdAlumno = at.cdAlumno 
+            AND f.cdTaller = at.cdTaller 
+            AND f.snPresente = 0
+        ) as cantidadAusentes
+      FROM TR_ALUMNO_TALLER at
+      INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
+      INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
+      INNER JOIN TD_PERSONAL p ON t.cdPersonal = p.cdPersonal
+      INNER JOIN TD_ESTADOS et ON at.cdEstado = et.cdEstado
+      WHERE at.cdAlumno = ? AND at.cdEstado = 5
+      ORDER BY at.feBaja DESC, t.nuAnioTaller DESC`,
+      [cdAlumno]
+    );
+
     // 5. Pagos realizados (detalle de cada item)
     const [pagosRealizados] = await pool.execute<any[]>(
       `SELECT 
@@ -201,7 +245,8 @@ export async function GET(
           ORDER BY tp.feInicioVigencia DESC
           LIMIT 1
         ) as precio,
-        MIN(at.feInscripcion) as feInscripcion
+        MIN(at.feInscripcion) as feInscripcion,
+        at.feBaja
       FROM TR_ALUMNO_TALLER at
       INNER JOIN TD_ALUMNOS a ON at.cdAlumno = a.cdAlumno
       INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
@@ -216,15 +261,15 @@ export async function GET(
           WHERE cdAlumno = ?
         )
       )
-      AND at.cdEstado = 1
+      AND at.cdEstado IN (1, 5)
       AND t.cdEstado = 1
-      AND a.cdEstado != 3
+      AND a.cdEstado IN (1, 2)
       GROUP BY a.cdAlumno, t.cdTaller, tt.cdTipoTaller, tt.dsNombreTaller, t.nuAnioTaller, p.dsNombreCompleto,
                t.snDomingo, t.snLunes, t.snMartes, t.snMiercoles, t.snJueves, t.snViernes, t.snSabado, t.dsDescripcionHorarios,
                t.dsDomingoHoraDesde, t.dsDomingoHoraHasta, t.dsLunesHoraDesde, t.dsLunesHoraHasta,
                t.dsMartesHoraDesde, t.dsMartesHoraHasta, t.dsMiercolesHoraDesde, t.dsMiercolesHoraHasta,
                t.dsJuevesHoraDesde, t.dsJuevesHoraHasta, t.dsViernesHoraDesde, t.dsViernesHoraHasta,
-               t.dsSabadoHoraDesde, t.dsSabadoHoraHasta`,
+               t.dsSabadoHoraDesde, t.dsSabadoHoraHasta, at.feBaja`,
       [cdAlumno, cdAlumno]
     );
 
@@ -266,6 +311,10 @@ export async function GET(
     for (const inscripcion of inscripciones) {
       const fechaInscripcion = new Date(inscripcion.feInscripcion);
       const hoy = new Date();
+      
+      // Si hay fecha de baja, generar pendientes solo hasta esa fecha
+      // Si no hay fecha de baja, generar hasta hoy
+      const fechaLimite = inscripcion.feBaja ? new Date(inscripcion.feBaja) : hoy;
       
       let fecha = new Date(fechaInscripcion.getFullYear(), fechaInscripcion.getMonth(), 1);
       
@@ -320,7 +369,7 @@ export async function GET(
         return d.dia;
       }).join(', ');
       
-      while (fecha <= hoy) {
+      while (fecha <= fechaLimite) {
         const mes = fecha.getMonth() + 1;
         const anio = fecha.getFullYear();
         const key = `${inscripcion.cdAlumno}-${inscripcion.cdTaller}-${mes}-${anio}`;
@@ -453,6 +502,7 @@ export async function GET(
 
     const talleresActivosFormateados = formatearDiasYHorarios(talleresActivos);
     const talleresFinalizadosFormateados = formatearDiasYHorarios(talleresFinalizados);
+    const talleresIncompletosFormateados = formatearDiasYHorarios(talleresIncompletos);
     const pagosRealizadosFormateados = formatearDiasYHorarios(pagosRealizados);
     const faltasFormateadas = formatearDiasYHorarios(faltas);
 
@@ -463,12 +513,14 @@ export async function GET(
       miembrosGrupo,
       talleresActivos: talleresActivosFormateados,
       talleresFinalizados: talleresFinalizadosFormateados,
+      talleresIncompletos: talleresIncompletosFormateados,
       pagosRealizados: pagosRealizadosFormateados,
       pagosPendientes,
       faltas: faltasFormateadas,
       resumen: {
         totalTalleresActivos: talleresActivos.length,
         totalTalleresFinalizados: talleresFinalizados.length,
+        totalTalleresIncompletos: talleresIncompletos.length,
         totalPagosRealizados: pagosRealizados.length,
         montoPagadoTotal: pagosRealizados.reduce((sum: number, p: any) => sum + parseFloat(p.nuMonto || 0), 0),
         totalPagosPendientes: pagosPendientes.length,

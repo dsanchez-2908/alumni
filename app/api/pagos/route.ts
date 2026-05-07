@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
     const mes = searchParams.get('mes');
     const anio = searchParams.get('anio');
     const estadoPago = searchParams.get('estadoPago') || 'Pagado';
+    const estadoAlumno = searchParams.get('estadoAlumno') || 'todos'; // 'todos', 'activos', 'inactivos'
 
     // Si busca pendientes, usar lógica diferente
     if (estadoPago === 'Pendiente') {
@@ -247,15 +248,16 @@ async function consultarPendientes(searchParams: URLSearchParams) {
     const searchAlumno = searchParams.get('searchAlumno');
     const mes = searchParams.get('mes');
     const anio = searchParams.get('anio');
+    const estadoAlumno = searchParams.get('estadoAlumno') || 'todos'; // 'todos', 'activos', 'inactivos'
 
     // Determinar el período a consultar
     const fechaActual = new Date();
     const mesActual = fechaActual.getMonth() + 1;
     const anioActual = fechaActual.getFullYear();
     
-    // Si se especifica mes y año, consultar solo ese período
-    const consultarPeriodoEspecifico = mes && mes !== '0' && anio;
-    const mesConsulta = mes && mes !== '0' ? parseInt(mes) : mesActual;
+    // Si se especifica mes, consultar solo ese período
+    const consultarPeriodoEspecifico = mes && mes !== '0';
+    const mesConsulta = mes && mes !== '0' ? parseInt(mes) : null;
     const anioConsulta = anio ? parseInt(anio) : anioActual;
 
     // Obtener todos los alumnos con talleres activos (incluyendo feInscripcion y feInicioTaller)
@@ -273,15 +275,30 @@ async function consultarPendientes(searchParams: URLSearchParams) {
         tt.dsNombreTaller,
         t.nuAnioTaller,
         t.feInicioTaller,
-        at.feInscripcion
+        at.feInscripcion,
+        at.feBaja,
+        at.cdEstado as cdEstadoTaller
       FROM TD_ALUMNOS a
       INNER JOIN TR_ALUMNO_TALLER at ON a.cdAlumno = at.cdAlumno
       INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
       INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
       LEFT JOIN TR_ALUMNO_GRUPO_FAMILIAR agf ON a.cdAlumno = agf.cdAlumno
       LEFT JOIN TD_GRUPOS_FAMILIARES gf ON agf.cdGrupoFamiliar = gf.cdGrupoFamiliar
-      WHERE a.cdEstado = 1
-        AND at.feBaja IS NULL
+      WHERE 1=1
+    `;
+
+    // Filtro por estado del alumno
+    if (estadoAlumno === 'activos') {
+      queryAlumnos += ` AND a.cdEstado = 1`;
+    } else if (estadoAlumno === 'inactivos') {
+      queryAlumnos += ` AND a.cdEstado = 2`;
+    } else {
+      // 'todos': incluir activos (1) e inactivos (2), excluir bajas (3)
+      queryAlumnos += ` AND a.cdEstado IN (1, 2)`;
+    }
+
+    queryAlumnos += `
+        AND (at.feBaja IS NULL OR at.cdEstado = 5)
         AND t.cdEstado IN (1, 2)
         AND t.nuAnioTaller = ?
     `;
@@ -355,45 +372,57 @@ async function consultarPendientes(searchParams: URLSearchParams) {
       const mesInicio = fechaInicio.getMonth() + 1;
       const anioInicio = fechaInicio.getFullYear();
       
-      // Si consultamos un período específico
+      // Determinar el límite superior: si tiene feBaja, usar esa fecha, sino usar hoy
+      let mesFin = mesActual;
+      let anioFin = anioActual;
+      
+      if (at.feBaja) {
+        const fechaBaja = new Date(at.feBaja);
+        mesFin = fechaBaja.getMonth() + 1;
+        anioFin = fechaBaja.getFullYear();
+      }
+      
+      // Si consultamos un período específico (solo un mes)
       if (consultarPeriodoEspecifico) {
+        const mesConsultaFinal = mesConsulta!;
+        
         // Verificar que el mes consultado esté dentro del rango válido
-        // (después de la inscripción y hasta el mes actual)
+        // (después de la inscripción y hasta el mes actual o fecha de baja)
         const esDespuesDeInscripcion = 
           anioConsulta > anioInicio || 
-          (anioConsulta === anioInicio && mesConsulta >= mesInicio);
+          (anioConsulta === anioInicio && mesConsultaFinal >= mesInicio);
         
-        const esAntesOIgualQueHoy = 
-          anioConsulta < anioActual || 
-          (anioConsulta === anioActual && mesConsulta <= mesActual);
+        const esAntesOIgualQueLimite = 
+          anioConsulta < anioFin || 
+          (anioConsulta === anioFin && mesConsultaFinal <= mesFin);
         
-        if (esDespuesDeInscripcion && esAntesOIgualQueHoy) {
-          const key = `${at.cdAlumno}-${at.cdTaller}-${mesConsulta}-${anioConsulta}`;
+        if (esDespuesDeInscripcion && esAntesOIgualQueLimite) {
+          const key = `${at.cdAlumno}-${at.cdTaller}-${mesConsultaFinal}-${anioConsulta}`;
           if (!pagoSet.has(key)) {
             pendientesDetallados.push({
               ...at,
-              mesPendiente: mesConsulta,
+              mesPendiente: mesConsultaFinal,
               anioPendiente: anioConsulta,
             });
           }
         }
       } else {
-        // Buscar TODOS los meses pendientes desde la inscripción hasta el mes actual
+        // Buscar TODOS los meses pendientes desde la inscripción hasta el límite (mes actual o fecha de baja)
         // Si el alumno se inscribió este año, empezar desde su mes de inscripción
-        const mesInicioIteracion = (anioInicio === anioActual) ? mesInicio : 1;
+        const mesInicioIteracion = (anioInicio === anioFin) ? mesInicio : 1;
         
-        for (let m = mesInicioIteracion; m <= mesActual; m++) {
+        for (let m = mesInicioIteracion; m <= mesFin; m++) {
           // Si es el año de inscripción, validar que sea >= al mes de inscripción
-          if (anioInicio === anioActual && m < mesInicio) {
+          if (anioInicio === anioFin && m < mesInicio) {
             continue;
           }
           
-          const key = `${at.cdAlumno}-${at.cdTaller}-${m}-${anioActual}`;
+          const key = `${at.cdAlumno}-${at.cdTaller}-${m}-${anioFin}`;
           if (!pagoSet.has(key)) {
             pendientesDetallados.push({
               ...at,
               mesPendiente: m,
-              anioPendiente: anioActual,
+              anioPendiente: anioFin,
             });
           }
         }

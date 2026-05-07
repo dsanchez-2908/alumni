@@ -1492,27 +1492,6 @@ export default function AlumnosPage() {
                   )}
                 </div>
               </div>
-
-              {/* Estado */}
-              {isEditing && (
-                <div className="grid gap-2">
-                  <Label htmlFor="cdEstado">Estado</Label>
-                  <Select
-                    value={formData.cdEstado.toString()}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, cdEstado: parseInt(value) })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">Activo</SelectItem>
-                      <SelectItem value="2">Inactivo</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
             </div>
             <DialogFooter>
               <Button

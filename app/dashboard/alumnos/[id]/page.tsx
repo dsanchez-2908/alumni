@@ -49,12 +49,14 @@ interface AlumnoDetalle {
   miembrosGrupo: any[];
   talleresActivos: any[];
   talleresFinalizados: any[];
+  talleresIncompletos: any[];
   pagosRealizados: any[];
   pagosPendientes: any[];
   faltas: any[];
   resumen: {
     totalTalleresActivos: number;
     totalTalleresFinalizados: number;
+    totalTalleresIncompletos: number;
     totalPagosRealizados: number;
     montoPagadoTotal: number;
     totalPagosPendientes: number;
@@ -211,7 +213,7 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
     );
   }
 
-  const { alumno, grupoFamiliar, miembrosGrupo, talleresActivos, talleresFinalizados, pagosRealizados, pagosPendientes, faltas, resumen } = data;
+  const { alumno, grupoFamiliar, miembrosGrupo, talleresActivos, talleresFinalizados, talleresIncompletos, pagosRealizados, pagosPendientes, faltas, resumen } = data;
 
   return (
     <div className="container mx-auto py-8">
@@ -669,6 +671,63 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
                           {taller.horarioClase && ` (${taller.horarioClase})`}
                         </TableCell>
                         <TableCell>{formatFecha(taller.feFinalizacion)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Talleres Incompletos */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Talleres Incompletos</CardTitle>
+              <CardDescription>
+                Talleres dados de baja antes de finalizar
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!talleresIncompletos || talleresIncompletos.length === 0 ? (
+                <p className="text-muted-foreground text-center py-4">
+                  No tiene talleres incompletos
+                </p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Taller</TableHead>
+                      <TableHead>Año</TableHead>
+                      <TableHead>Profesor</TableHead>
+                      <TableHead className="min-w-[200px]">Días y Horario</TableHead>
+                      <TableHead>Fecha Inscripción</TableHead>
+                      <TableHead>Fecha Baja</TableHead>
+                      <TableHead className="text-center">Presentes</TableHead>
+                      <TableHead className="text-center">Ausentes</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {talleresIncompletos.map((taller) => (
+                      <TableRow key={taller.cdTaller}>
+                        <TableCell className="font-medium">{taller.dsNombreTaller}</TableCell>
+                        <TableCell>{taller.nuAnioTaller}</TableCell>
+                        <TableCell>{taller.nombreProfesor}</TableCell>
+                        <TableCell className="text-sm min-w-[200px] whitespace-normal">
+                          {taller.diasClase || '-'}
+                          {taller.horarioClase && ` (${taller.horarioClase})`}
+                        </TableCell>
+                        <TableCell>{formatFecha(taller.feInscripcion)}</TableCell>
+                        <TableCell>{formatFecha(taller.feBaja)}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="default" className="bg-green-600">
+                            {taller.cantidadPresentes || 0}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="destructive">
+                            {taller.cantidadAusentes || 0}
+                          </Badge>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

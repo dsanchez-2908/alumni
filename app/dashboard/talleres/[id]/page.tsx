@@ -231,16 +231,36 @@ export default function TallerDetallePage() {
     });
   };
 
-  const cambiarEstadoConfirmado = async (id: number, activo: boolean) => {
+  const cambiarEstadoConfirmado = async (id: number, activo: boolean, forzarBaja = false) => {
     const accion = activo ? 'reactivar' : 'dar de baja';
     try {
       const response = await fetch(`/api/talleres/${cdTaller}/alumnos/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ activo }),
+        body: JSON.stringify({ activo, forzarBaja }),
       });
 
       if (response.ok) {
+        const data = await response.json();
+        
+        // Verificar si hay advertencia de deudas
+        if (data.advertencia && data.tieneDeudas) {
+          const detalleDeudas = data.detalles
+            .map((d: any) => `  • Mes ${d.mes}/${d.anio}: $${d.monto.toFixed(2)}`)
+            .join('\n');
+          
+          setConfirmDialog({
+            open: true,
+            title: '⚠️ Alumno con deudas pendientes',
+            description: `${data.mensaje}\n\nDetalle de deudas:\n${detalleDeudas}\n\n¿Desea dar de baja igualmente?`,
+            variant: 'destructive',
+            onConfirm: () => cambiarEstadoConfirmado(id, activo, true),
+          });
+          return;
+        }
+        
+        // Cerrar el diálogo de confirmación
+        setConfirmDialog({ ...confirmDialog, open: false });
         success(`Alumno ${activo ? 'reactivado' : 'dado de baja'} exitosamente`);
         fetchAlumnosInscritos();
       } else {
@@ -262,13 +282,35 @@ export default function TallerDetallePage() {
     });
   };
 
-  const quitarAlumnoConfirmado = async (id: number) => {
+  const quitarAlumnoConfirmado = async (id: number, forzarEliminacion = false) => {
     try {
       const response = await fetch(`/api/talleres/${cdTaller}/alumnos/${id}`, {
         method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ forzarEliminacion }),
       });
 
       if (response.ok) {
+        const data = await response.json();
+        
+        // Verificar si hay advertencia de deudas
+        if (data.advertencia && data.tieneDeudas) {
+          const detalleDeudas = data.detalles
+            .map((d: any) => `  • Mes ${d.mes}/${d.anio}: $${d.monto.toFixed(2)}`)
+            .join('\n');
+          
+          setConfirmDialog({
+            open: true,
+            title: '⚠️ Alumno con deudas pendientes',
+            description: `${data.mensaje}\n\nDetalle de deudas:\n${detalleDeudas}\n\nADVERTENCIA: Si quita al alumno, se perderá el registro de la deuda y el taller incompleto. ¿Desea quitar igualmente?`,
+            variant: 'destructive',
+            onConfirm: () => quitarAlumnoConfirmado(id, true),
+          });
+          return;
+        }
+        
+        // Cerrar el diálogo de confirmación
+        setConfirmDialog({ ...confirmDialog, open: false });
         success('Alumno quitado del taller exitosamente');
         fetchAlumnosInscritos();
       } else {
@@ -564,6 +606,8 @@ export default function TallerDetallePage() {
                 <SelectItem value="Todos">Todos los estados</SelectItem>
                 <SelectItem value="Activo">Activo</SelectItem>
                 <SelectItem value="Inactivo">Inactivo</SelectItem>
+                <SelectItem value="Incompleto">Incompleto</SelectItem>
+                <SelectItem value="Finalizado">Finalizado</SelectItem>
               </SelectContent>
             </Select>
           </div>

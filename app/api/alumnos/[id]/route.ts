@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
-import { executeQuery, executeTransaction } from '@/lib/db-utils';
+import { executeQuery, executeTransaction, actualizarEstadoAlumno } from '@/lib/db-utils';
 import { registrarTraza } from '@/lib/db-utils';
 
 export async function GET(
@@ -125,7 +125,7 @@ export async function PUT(
       dsMailContacto2,
       cdGrupoFamiliar,
       talleres = [],
-      cdEstado,
+      // cdEstado ya no se recibe desde el frontend, se calculará automáticamente
     } = body;
 
     // Validaciones
@@ -160,7 +160,7 @@ export async function PUT(
 
     // Usar transacción para actualizar alumno y talleres
     await executeTransaction(async (connection) => {
-      // Actualizar datos del alumno
+      // Actualizar datos del alumno (sin cdEstado, se calculará automáticamente)
       await connection.query(
         `UPDATE TD_ALUMNOS SET
           dsNombre = ?,
@@ -190,7 +190,6 @@ export async function PUT(
           dsDNIContacto2 = ?,
           dsTelefonoContacto2 = ?,
           dsMailContacto2 = ?,
-          cdEstado = ?,
           feModificacion = NOW()
          WHERE cdAlumno = ?`,
         [
@@ -221,7 +220,6 @@ export async function PUT(
           dsDNIContacto2 || null,
           dsTelefonoContacto2 || null,
           dsMailContacto2 || null,
-          cdEstado,
           cdAlumno,
         ]
       );
@@ -244,11 +242,15 @@ export async function PUT(
         );
       }
 
-      // Actualizar inscripciones: dar de baja todas las existentes
+      // Actualizar inscripciones: marcar como Incompleto las que ya no están en la lista
       await connection.query(
-        `UPDATE TR_ALUMNO_TALLER SET cdEstado = 2, feBaja = NOW()
-         WHERE cdAlumno = ? AND feBaja IS NULL`,
-        [cdAlumno]
+        `UPDATE TR_ALUMNO_TALLER 
+         SET cdEstado = 5, feBaja = NOW()
+         WHERE cdAlumno = ? 
+           AND feBaja IS NULL 
+           AND cdEstado = 1
+           ${talleres.length > 0 ? 'AND cdTaller NOT IN (?)' : ''}`,
+        talleres.length > 0 ? [cdAlumno, talleres] : [cdAlumno]
       );
 
       // Crear o reactivar inscripciones
@@ -269,6 +271,9 @@ export async function PUT(
         await Promise.all(inscripcionesPromises);
       }
     });
+
+    // Actualizar estado del alumno automáticamente basándose en sus talleres activos
+    await actualizarEstadoAlumno(cdAlumno);
 
     // Obtener nombres de talleres para la traza
     let talleresNombres = '';
