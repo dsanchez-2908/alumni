@@ -58,6 +58,13 @@ export async function GET(request: NextRequest) {
     const grupoFamiliar = searchParams.get('grupoFamiliar');
     const tipoTaller = searchParams.get('tipoTaller');
     const estado = searchParams.get('estado');
+    const feInscripcionDesde = searchParams.get('feInscripcionDesde');
+    const feInscripcionHasta = searchParams.get('feInscripcionHasta');
+    const feAltaDesde = searchParams.get('feAltaDesde');
+    const feAltaHasta = searchParams.get('feAltaHasta');
+    const feBajaDesde = searchParams.get('feBajaDesde');
+    const feBajaHasta = searchParams.get('feBajaHasta');
+    const estadoTaller = searchParams.get('estadoTaller');
 
     // Construir query con filtros opcionales
     let query = `SELECT 
@@ -82,7 +89,11 @@ export async function GET(request: NextRequest) {
         END as dsEstado,
         a.cdEstado,
         GROUP_CONCAT(
-          DISTINCT tt.dsNombreTaller
+          DISTINCT CASE 
+            WHEN at.feBaja IS NULL AND at.cdEstado = 1 
+            THEN tt.dsNombreTaller 
+            ELSE NULL 
+          END
           ORDER BY tt.dsNombreTaller
           SEPARATOR ', '
         ) as talleres,
@@ -90,7 +101,7 @@ export async function GET(request: NextRequest) {
        FROM TD_ALUMNOS a
        LEFT JOIN TR_ALUMNO_GRUPO_FAMILIAR agf ON a.cdAlumno = agf.cdAlumno
        LEFT JOIN TD_GRUPOS_FAMILIARES gf ON agf.cdGrupoFamiliar = gf.cdGrupoFamiliar
-       LEFT JOIN TR_ALUMNO_TALLER at ON a.cdAlumno = at.cdAlumno AND at.feBaja IS NULL
+       LEFT JOIN TR_ALUMNO_TALLER at ON a.cdAlumno = at.cdAlumno
        LEFT JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
        LEFT JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
        WHERE 1=1`;
@@ -153,6 +164,45 @@ export async function GET(request: NextRequest) {
     if (tipoTaller) {
       query += ` AND t.cdTipoTaller = ?`;
       params.push(parseInt(tipoTaller));
+    }
+
+    // Filtro de fecha de inscripción
+    if (feInscripcionDesde) {
+      query += ` AND at.feInscripcion >= ?`;
+      params.push(feInscripcionDesde);
+    }
+
+    if (feInscripcionHasta) {
+      query += ` AND at.feInscripcion <= ?`;
+      params.push(feInscripcionHasta);
+    }
+
+    // Filtro de fecha de alta del alumno
+    if (feAltaDesde) {
+      query += ` AND a.feAlta >= ?`;
+      params.push(feAltaDesde);
+    }
+
+    if (feAltaHasta) {
+      query += ` AND a.feAlta <= ?`;
+      params.push(feAltaHasta);
+    }
+
+    // Filtro de fecha de baja
+    if (feBajaDesde) {
+      query += ` AND at.feBaja >= ?`;
+      params.push(feBajaDesde);
+    }
+
+    if (feBajaHasta) {
+      query += ` AND at.feBaja <= ?`;
+      params.push(feBajaHasta);
+    }
+
+    // Filtro de estado del taller (Activo/Incompleto/Finalizado)
+    if (estadoTaller) {
+      query += ` AND at.cdEstado = ?`;
+      params.push(parseInt(estadoTaller));
     }
 
     query += `
