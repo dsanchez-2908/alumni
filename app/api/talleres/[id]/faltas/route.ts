@@ -26,7 +26,7 @@ export async function GET(
       );
     }
 
-    // Obtener todos los alumnos activos del taller
+    // Obtener todos los alumnos activos del taller que ya estaban inscriptos en esa fecha
     const [alumnos] = await pool.execute<any[]>(
       `SELECT 
         at.id as inscripcionId,
@@ -45,8 +45,9 @@ export async function GET(
         AND f.feFalta = ?
       WHERE at.cdTaller = ? 
         AND at.feBaja IS NULL
+        AND at.feInscripcion <= ?
       ORDER BY a.dsApellido, a.dsNombre`,
-      [fecha, cdTaller]
+      [fecha, cdTaller, fecha]
     );
 
     return NextResponse.json(alumnos);
@@ -82,14 +83,15 @@ export async function POST(
 
     const cdUsuario = (session.user as any).cdUsuario;
 
-    // Obtener todos los alumnos activos del taller
+    // Obtener todos los alumnos activos del taller que ya estaban inscriptos en esa fecha
     const [alumnos] = await pool.execute<any[]>(
       `SELECT a.cdAlumno
        FROM TR_ALUMNO_TALLER at
        INNER JOIN TD_ALUMNOS a ON at.cdAlumno = a.cdAlumno
        WHERE at.cdTaller = ? 
-         AND at.feBaja IS NULL`,
-      [cdTaller]
+         AND at.feBaja IS NULL
+         AND at.feInscripcion <= ?`,
+      [cdTaller, fecha]
     );
 
     // Primero, eliminar todas las asistencias existentes para esta fecha y taller
