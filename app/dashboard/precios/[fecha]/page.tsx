@@ -18,7 +18,19 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ArrowLeft, DollarSign, FileText } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { ArrowLeft, DollarSign, FileText, Pencil } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { usePermissions } from '@/hooks/use-permissions';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -39,9 +51,20 @@ export default function DetallePreciosPage() {
   const router = useRouter();
   const params = useParams();
   const fecha = decodeURIComponent(params.fecha as string);
+  const { success, error: showError } = useToast();
+  const { isAdmin } = usePermissions();
 
   const [precios, setPrecios] = useState<Precio[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedPrecio, setSelectedPrecio] = useState<Precio | null>(null);
+  const [editingValues, setEditingValues] = useState({
+    nuPrecioCompletoEfectivo: 0,
+    nuPrecioCompletoTransferencia: 0,
+    nuPrecioDescuentoEfectivo: 0,
+    nuPrecioDescuentoTransferencia: 0,
+  });
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (fecha) {
@@ -80,6 +103,71 @@ export default function DetallePreciosPage() {
     // Si la fecha viene en formato YYYY-MM-DD, añadir tiempo para evitar problemas de zona horaria
     const date = new Date(dateString + 'T00:00:00');
     return date.toLocaleDateString('es-AR');
+  };
+
+  const handleEditClick = (precio: Precio) => {
+    if (!isAdmin()) {
+      showError('Acceso denegado', 'Solo los administradores pueden modificar precios');
+      return;
+    }
+    setSelectedPrecio(precio);
+    setEditingValues({
+      nuPrecioCompletoEfectivo: precio.nuPrecioCompletoEfectivo,
+      nuPrecioCompletoTransferencia: precio.nuPrecioCompletoTransferencia,
+      nuPrecioDescuentoEfectivo: precio.nuPrecioDescuentoEfectivo,
+      nuPrecioDescuentoTransferencia: precio.nuPrecioDescuentoTransferencia,
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedPrecio) return;
+
+    setIsSaving(true);
+    try {
+      const response = await fetch(`/api/precios/${selectedPrecio.cdPrecio}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(editingValues),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        
+        // Mostrar mensaje específico para error 403 (Forbidden)
+        if (response.status === 403) {
+          throw new Error('No tienes permisos para modificar precios. Solo los administradores pueden realizar esta acción.');
+        }
+        
+        throw new Error(error.error || 'Error al actualizar el precio');
+      }
+
+      const result = await response.json();
+
+      success(
+        'Precio actualizado',
+        'Los precios han sido actualizados correctamente.'
+      );
+
+      // Actualizar la lista local
+      setPrecios(precios.map(p => 
+        p.cdPrecio === selectedPrecio.cdPrecio 
+          ? { ...p, ...editingValues }
+          : p
+      ));
+
+      setIsEditDialogOpen(false);
+    } catch (error: any) {
+      console.error('Error al actualizar precio:', error);
+      showError(
+        'Error',
+        error.message || 'No se pudo actualizar el precio'
+      );
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const exportToPDF = () => {
@@ -227,6 +315,7 @@ export default function DetallePreciosPage() {
                       <TableHead className="text-right">
                         Descuento Transfer.
                       </TableHead>
+                      <TableHead className="text-center">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -247,6 +336,19 @@ export default function DetallePreciosPage() {
                         <TableCell className="text-right text-blue-600">
                           {formatCurrency(precio.nuPrecioDescuentoTransferencia)}
                         </TableCell>
+                        <TableCell className="text-center">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditClick(precio)}
+                            disabled={!isAdmin()}
+                            className="gap-2"
+                            title={!isAdmin() ? 'Solo administradores pueden editar precios' : ''}
+                          >
+                            <Pencil className="h-4 w-4" />
+                            Editar
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -256,6 +358,117 @@ export default function DetallePreciosPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Modal de Edición */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Precios</DialogTitle>
+            <DialogDescription>
+              Modifica los precios para {selectedPrecio?.dsNombreTaller}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="precioCompletoEfectivo">
+                Precio Completo - Efectivo
+              </Label>
+              <Input
+                id="precioCompletoEfectivo"
+                type="number"
+                step="0.01"
+                min="0"
+                value={editingValues.nuPrecioCompletoEfectivo}
+                onChange={(e) =>
+                  setEditingValues({
+                    ...editingValues,
+                    nuPrecioCompletoEfectivo: parseFloat(e.target.value) || 0,
+                  })
+                }
+                required
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="precioCompletoTransferencia">
+                Precio Completo - Transferencia
+              </Label>
+              <Input
+                id="precioCompletoTransferencia"
+                type="number"
+                step="0.01"
+                min="0"
+                value={editingValues.nuPrecioCompletoTransferencia}
+                onChange={(e) =>
+                  setEditingValues({
+                    ...editingValues,
+                    nuPrecioCompletoTransferencia: parseFloat(e.target.value) || 0,
+                  })
+                }
+                required
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="precioDescuentoEfectivo">
+                Precio con Descuento - Efectivo
+              </Label>
+              <Input
+                id="precioDescuentoEfectivo"
+                type="number"
+                step="0.01"
+                min="0"
+                value={editingValues.nuPrecioDescuentoEfectivo}
+                onChange={(e) =>
+                  setEditingValues({
+                    ...editingValues,
+                    nuPrecioDescuentoEfectivo: parseFloat(e.target.value) || 0,
+                  })
+                }
+                required
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="precioDescuentoTransferencia">
+                Precio con Descuento - Transferencia
+              </Label>
+              <Input
+                id="precioDescuentoTransferencia"
+                type="number"
+                step="0.01"
+                min="0"
+                value={editingValues.nuPrecioDescuentoTransferencia}
+                onChange={(e) =>
+                  setEditingValues({
+                    ...editingValues,
+                    nuPrecioDescuentoTransferencia: parseFloat(e.target.value) || 0,
+                  })
+                }
+                required
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsEditDialogOpen(false)}
+              disabled={isSaving}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSaveEdit}
+              disabled={isSaving}
+              className="bg-indigo-600 hover:bg-indigo-700"
+            >
+              {isSaving ? 'Guardando...' : 'Guardar Cambios'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
