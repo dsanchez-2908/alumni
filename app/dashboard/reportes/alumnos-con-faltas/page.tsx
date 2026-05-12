@@ -12,6 +12,8 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { Loader2, AlertTriangle, Phone, Eye } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -37,15 +39,16 @@ export default function AlumnosConFaltasPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [alumnos, setAlumnos] = useState<AlumnoConFaltas[]>([]);
+  const [sinAviso, setSinAviso] = useState(true);
 
   useEffect(() => {
     fetchAlumnos();
-  }, []);
+  }, [sinAviso]);
 
   const fetchAlumnos = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/reportes/alumnos-con-faltas');
+      const response = await fetch(`/api/reportes/alumnos-con-faltas?sinAviso=${sinAviso}`);
       if (response.ok) {
         const data = await response.json();
         setAlumnos(data.alumnos);
@@ -69,7 +72,7 @@ export default function AlumnosConFaltasPage() {
           Seguimiento de Faltas
         </h1>
         <p className="text-gray-600 mt-1">
-          Alumnos con 2 o más faltas consecutivas que NO avisaron y requieren contacto
+          Alumnos con 2 o más faltas consecutivas sin contactar
         </p>
       </div>
 
@@ -84,10 +87,23 @@ export default function AlumnosConFaltasPage() {
             )}
           </CardTitle>
           <CardDescription>
-            Lista de alumnos con ausencias consecutivas que NO avisaron y están sin contactar
+            Lista de alumnos con ausencias consecutivas sin contactar
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="mb-4 flex items-center space-x-2">
+            <Checkbox 
+              id="sinAviso" 
+              checked={sinAviso}
+              onChange={(e) => setSinAviso(e.target.checked)}
+            />
+            <Label 
+              htmlFor="sinAviso" 
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+            >
+              Mostrar solo alumnos que NO avisaron
+            </Label>
+          </div>
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />

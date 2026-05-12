@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
-import { executeQuery, executeTransaction, actualizarEstadoAlumno } from '@/lib/db-utils';
+import { executeQuery, executeTransaction, actualizarEstadoAlumno, verificarDeudasAlumnoInactivo } from '@/lib/db-utils';
 import { registrarTraza } from '@/lib/db-utils';
 
 export async function GET(
@@ -125,8 +125,38 @@ export async function PUT(
       dsMailContacto2,
       cdGrupoFamiliar,
       talleres = [],
+      forzarEdicion = false,
       // cdEstado ya no se recibe desde el frontend, se calculará automáticamente
     } = body;
+
+    // Verificar el estado actual del alumno
+    const alumnoActual = await executeQuery(
+      'SELECT cdEstado FROM TD_ALUMNOS WHERE cdAlumno = ?',
+      [cdAlumno]
+    );
+
+    if (alumnoActual.length === 0) {
+      return NextResponse.json(
+        { error: 'Alumno no encontrado' },
+        { status: 404 }
+      );
+    }
+
+    const estadoActual = alumnoActual[0].cdEstado;
+
+    // Si el alumno está inactivo (cdEstado = 2) y se le están asociando talleres, verificar deudas
+    if (estadoActual === 2 && talleres.length > 0 && !forzarEdicion) {
+      const deudas = await verificarDeudasAlumnoInactivo(cdAlumno);
+
+      if (deudas.tieneDeudas) {
+        return NextResponse.json({
+          advertencia: true,
+          tieneDeudas: true,
+          mensaje: `El alumno está inactivo y tiene ${deudas.cantidadMeses} mes(es) pendiente(s) de pago en ${deudas.cantidadTalleres} taller(es) por un total de $${deudas.montoTotal.toFixed(2)}. ¿Desea inscribirlo igualmente?`,
+          detalles: deudas.detalles,
+        }, { status: 200 });
+      }
+    }
 
     // Validaciones
     if (!dsNombre || !dsApellido || !dsDNI || !dsSexo || !feNacimiento) {

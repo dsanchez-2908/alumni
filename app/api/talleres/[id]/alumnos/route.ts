@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import pool from '@/lib/db';
-import { registrarTraza, actualizarEstadoAlumno } from '@/lib/db-utils';
+import { registrarTraza, actualizarEstadoAlumno, verificarDeudasAlumnoInactivo } from '@/lib/db-utils';
 
 // GET - Obtener alumnos del taller
 export async function GET(
@@ -64,13 +64,46 @@ export async function POST(
     }
 
     const cdTaller = parseInt(params.id);
-    const { cdAlumno } = await request.json();
+    const { cdAlumno, forzarInscripcion } = await request.json();
 
     if (!cdAlumno) {
       return NextResponse.json(
         { error: 'cdAlumno es requerido' },
         { status: 400 }
       );
+    }
+
+    // Verificar el estado del alumno
+    const [alumnoData] = await pool.execute<any[]>(
+      'SELECT cdEstado FROM TD_ALUMNOS WHERE cdAlumno = ?',
+      [cdAlumno]
+    );
+
+    if (alumnoData.length === 0) {
+      return NextResponse.json(
+        { error: 'Alumno no encontrado' },
+        { status: 404 }
+      );
+    }
+
+    const alumnoEstado = alumnoData[0].cdEstado;
+
+    // Si el alumno está inactivo (cdEstado = 2), verificar deudas
+    if (alumnoEstado === 2 && !forzarInscripcion) {
+      const deudas = await verificarDeudasAlumnoInactivo(cdAlumno);
+
+      if (deudas.tieneDeudas) {
+        const detalleDeudas = deudas.detalles
+          .map((d: any) => `  • ${d.taller} - ${d.mes}/${d.anio}: $${d.monto.toFixed(2)}`)
+          .join('\n');
+
+        return NextResponse.json({
+          advertencia: true,
+          tieneDeudas: true,
+          mensaje: `El alumno está inactivo y tiene ${deudas.cantidadMeses} mes(es) pendiente(s) de pago en ${deudas.cantidadTalleres} taller(es) por un total de $${deudas.montoTotal.toFixed(2)}. ¿Desea inscribirlo igualmente?`,
+          detalles: deudas.detalles,
+        }, { status: 200 });
+      }
     }
 
     // Verificar si ya está inscrito

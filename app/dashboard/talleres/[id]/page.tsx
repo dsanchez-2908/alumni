@@ -197,15 +197,35 @@ export default function TallerDetallePage() {
     });
   };
 
-  const inscribirAlumnoConfirmado = async (cdAlumno: number) => {
+  const inscribirAlumnoConfirmado = async (cdAlumno: number, forzarInscripcion = false) => {
     try {
       const response = await fetch(`/api/talleres/${cdTaller}/alumnos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cdAlumno }),
+        body: JSON.stringify({ cdAlumno, forzarInscripcion }),
       });
 
       if (response.ok) {
+        const data = await response.json();
+
+        // Verificar si hay advertencia de deudas
+        if (data.advertencia && data.tieneDeudas) {
+          const detalleDeudas = data.detalles
+            .map((d: any) => `  • ${d.taller} - ${d.mes}/${d.anio}: $${d.monto.toFixed(2)}`)
+            .join('\n');
+
+          setConfirmDialog({
+            open: true,
+            title: '⚠️ Alumno inactivo con deudas pendientes',
+            description: `${data.mensaje}\n\nDetalle de deudas:\n${detalleDeudas}\n\n¿Desea inscribirlo igualmente?`,
+            variant: 'destructive',
+            onConfirm: () => inscribirAlumnoConfirmado(cdAlumno, true),
+          });
+          return;
+        }
+
+        // Cerrar el diálogo de confirmación
+        setConfirmDialog({ ...confirmDialog, open: false });
         success('Alumno inscrito exitosamente');
         setIsDialogOpen(false);
         setSearchTerm('');

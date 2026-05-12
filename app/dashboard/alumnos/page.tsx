@@ -44,9 +44,11 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { usePermissions } from '@/hooks/use-permissions';
+import * as XLSX from 'xlsx';
 
 interface Alumno {
   cdAlumno: number;
@@ -181,6 +183,13 @@ export default function AlumnosPage() {
     grupoFamiliar: 'todos',
     tipoTaller: 'todos',
     estado: 'todos',
+    feInscripcionDesde: '',
+    feInscripcionHasta: '',
+    feAltaDesde: '',
+    feAltaHasta: '',
+    feBajaDesde: '',
+    feBajaHasta: '',
+    estadoTaller: 'todos',
   });
 
   const [formData, setFormData] = useState({
@@ -261,6 +270,13 @@ export default function AlumnosPage() {
       if (filters.grupoFamiliar && filters.grupoFamiliar !== 'todos') params.append('grupoFamiliar', filters.grupoFamiliar);
       if (filters.tipoTaller && filters.tipoTaller !== 'todos') params.append('tipoTaller', filters.tipoTaller);
       if (filters.estado && filters.estado !== 'todos') params.append('estado', filters.estado);
+      if (filters.feInscripcionDesde) params.append('feInscripcionDesde', filters.feInscripcionDesde);
+      if (filters.feInscripcionHasta) params.append('feInscripcionHasta', filters.feInscripcionHasta);
+      if (filters.feAltaDesde) params.append('feAltaDesde', filters.feAltaDesde);
+      if (filters.feAltaHasta) params.append('feAltaHasta', filters.feAltaHasta);
+      if (filters.feBajaDesde) params.append('feBajaDesde', filters.feBajaDesde);
+      if (filters.feBajaHasta) params.append('feBajaHasta', filters.feBajaHasta);
+      if (filters.estadoTaller && filters.estadoTaller !== 'todos') params.append('estadoTaller', filters.estadoTaller);
 
       const [alumnosRes, talleresRes] = await Promise.all([
         fetch(`/api/alumnos?${params.toString()}`),
@@ -313,6 +329,13 @@ export default function AlumnosPage() {
       grupoFamiliar: 'todos',
       tipoTaller: 'todos',
       estado: 'todos',
+      feInscripcionDesde: '',
+      feInscripcionHasta: '',
+      feAltaDesde: '',
+      feAltaHasta: '',
+      feBajaDesde: '',
+      feBajaHasta: '',
+      estadoTaller: 'todos',
     });
     setSearchTerm('');
     setPagination((prev) => ({ ...prev, page: 1 }));
@@ -414,7 +437,7 @@ export default function AlumnosPage() {
     setIsDialogOpen(true);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent, forzarEdicion = false) => {
     e.preventDefault();
     setMessage(null);
 
@@ -425,7 +448,7 @@ export default function AlumnosPage() {
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, forzarEdicion }),
       });
 
       const data = await response.json();
@@ -469,6 +492,45 @@ export default function AlumnosPage() {
     } catch (error) {
       setMessage({ type: 'error', text: 'Error al desactivar el alumno' });
     }
+  };
+
+  const exportToExcel = () => {
+    const data = alumnos.map((alumno) => ({
+      'Nombre Completo': alumno.dsNombreCompleto,
+      'DNI': alumno.dsDNI,
+      'Sexo': alumno.dsSexo,
+      'Fecha Nacimiento': alumno.feNacimiento ? new Date(alumno.feNacimiento).toLocaleDateString('es-AR') : '',
+      'Edad': alumno.edad,
+      'Grupo Familiar': alumno.dsGrupoFamiliar || 'Individual',
+      'Talleres': alumno.dsTalleres || 'Sin talleres',
+      'Celular': alumno.dsTelefonoCelular || '',
+      'Teléfono': alumno.dsTelefonoFijo || '',
+      'Email': alumno.dsMail || '',
+      'Instagram': alumno.dsInstagram || '',
+      'Facebook': alumno.dsFacebook || '',
+      'Domicilio': alumno.dsDomicilio || '',
+      'Discapacidad': alumno.snDiscapacidad === 1 ? 'Sí' : 'No',
+      'Observaciones Discapacidad': alumno.dsObservacionesDiscapacidad || '',
+      'Observaciones': alumno.dsObservaciones || '',
+      'Contacto 1': alumno.dsNombreCompletoContacto1 || '',
+      'Parentesco 1': alumno.dsParentescoContacto1 || '',
+      'DNI Contacto 1': alumno.dsDNIContacto1 || '',
+      'Teléfono Contacto 1': alumno.dsTelefonoContacto1 || '',
+      'Email Contacto 1': alumno.dsMailContacto1 || '',
+      'Contacto 2': alumno.dsNombreCompletoContacto2 || '',
+      'Parentesco 2': alumno.dsParentescoContacto2 || '',
+      'DNI Contacto 2': alumno.dsDNIContacto2 || '',
+      'Teléfono Contacto 2': alumno.dsTelefonoContacto2 || '',
+      'Email Contacto 2': alumno.dsMailContacto2 || '',
+      'Estado': alumno.dsEstado,
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Alumnos');
+    
+    const fileName = `Alumnos_${new Date().toLocaleDateString('es-AR').replace(/\//g, '-')}.xlsx`;
+    XLSX.writeFile(wb, fileName);
   };
 
   const handleTallerToggle = (cdTaller: number) => {
@@ -749,6 +811,82 @@ export default function AlumnosPage() {
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* Fecha Inscripción */}
+                  <div className="grid gap-2">
+                    <Label>Fecha Inscripción</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="date"
+                        value={filters.feInscripcionDesde}
+                        onChange={(e) => setFilters({ ...filters, feInscripcionDesde: e.target.value })}
+                        placeholder="Desde"
+                      />
+                      <Input
+                        type="date"
+                        value={filters.feInscripcionHasta}
+                        onChange={(e) => setFilters({ ...filters, feInscripcionHasta: e.target.value })}
+                        placeholder="Hasta"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Fecha Alta Alumno */}
+                  <div className="grid gap-2">
+                    <Label>Fecha Alta Alumno</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="date"
+                        value={filters.feAltaDesde}
+                        onChange={(e) => setFilters({ ...filters, feAltaDesde: e.target.value })}
+                        placeholder="Desde"
+                      />
+                      <Input
+                        type="date"
+                        value={filters.feAltaHasta}
+                        onChange={(e) => setFilters({ ...filters, feAltaHasta: e.target.value })}
+                        placeholder="Hasta"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Fecha Baja */}
+                  <div className="grid gap-2">
+                    <Label>Fecha Baja en Taller</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="date"
+                        value={filters.feBajaDesde}
+                        onChange={(e) => setFilters({ ...filters, feBajaDesde: e.target.value })}
+                        placeholder="Desde"
+                      />
+                      <Input
+                        type="date"
+                        value={filters.feBajaHasta}
+                        onChange={(e) => setFilters({ ...filters, feBajaHasta: e.target.value })}
+                        placeholder="Hasta"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Estado Taller */}
+                  <div className="grid gap-2">
+                    <Label htmlFor="filtro-estado-taller">Estado Taller</Label>
+                    <Select
+                      value={filters.estadoTaller}
+                      onValueChange={(value) => setFilters({ ...filters, estadoTaller: value })}
+                    >
+                      <SelectTrigger id="filtro-estado-taller">
+                        <SelectValue placeholder="Todos" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos</SelectItem>
+                        <SelectItem value="1">Activo</SelectItem>
+                        <SelectItem value="5">Incompleto</SelectItem>
+                        <SelectItem value="4">Finalizado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
                 <div className="flex justify-end gap-2 pt-2 border-t">
@@ -828,27 +966,37 @@ export default function AlumnosPage() {
               </CardDescription>
             </div>
             
-            {/* Selector de registros por página */}
-            <div className="flex items-center gap-2">
-              <Label htmlFor="limit-select" className="text-sm text-gray-600">
-                Mostrar:
-              </Label>
-              <Select
-                value={pagination.limit.toString()}
-                onValueChange={(value) => handleLimitChange(parseInt(value))}
-              >
-                <SelectTrigger id="limit-select" className="w-[100px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="5">5</SelectItem>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="25">25</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                  <SelectItem value="100">100</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Botón Exportar Excel */}
+            <Button
+              onClick={exportToExcel}
+              variant="outline"
+              size="sm"
+              disabled={alumnos.length === 0}
+            >
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              Exportar Excel
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Label htmlFor="limit-select" className="text-sm text-gray-600">
+              Mostrar:
+            </Label>
+            <Select
+              value={pagination.limit.toString()}
+              onValueChange={(value) => handleLimitChange(parseInt(value))}
+            >
+              <SelectTrigger id="limit-select" className="w-[100px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">5</SelectItem>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardHeader>
         <CardContent>

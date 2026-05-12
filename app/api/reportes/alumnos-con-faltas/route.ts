@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import pool from '@/lib/db';
 
-// GET - Obtener alumnos con 2 o más faltas consecutivas que NO avisaron
+// GET - Obtener alumnos con 2 o más faltas consecutivas sin contactar
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -11,11 +11,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
+    // Obtener parámetro sinAviso (por defecto true)
+    const { searchParams } = new URL(request.url);
+    const sinAviso = searchParams.get('sinAviso') !== 'false';
+
     const currentYear = new Date().getFullYear();
 
-    // Obtener todas las ausencias del año actual para alumnos activos en talleres activos
-    const [ausencias] = await pool.execute<any[]>(
-      `SELECT 
+    // Construir la query dinámicamente según el filtro sinAviso
+    let query = `SELECT 
         a.cdAlumno,
         a.dsNombre,
         a.dsApellido,
@@ -37,12 +40,20 @@ export async function GET(request: NextRequest) {
         AND t.cdEstado = 1
         AND t.nuAnioTaller = ?
         AND YEAR(ast.feFalta) = ?
-        AND ast.snPresente = 0
-        AND ast.snAviso = 0
+        AND ast.snPresente = 0`;
+    
+    // Solo agregar el filtro de snAviso si está activado
+    if (sinAviso) {
+      query += `
+        AND ast.snAviso = 0`;
+    }
+    
+    query += `
         AND (ast.snContactado IS NULL OR ast.snContactado = 0)
-      ORDER BY a.cdAlumno, t.cdTaller, ast.feFalta`,
-      [currentYear, currentYear]
-    );
+      ORDER BY a.cdAlumno, t.cdTaller, ast.feFalta`;
+
+    // Obtener todas las ausencias del año actual para alumnos activos en talleres activos
+    const [ausencias] = await pool.execute<any[]>(query, [currentYear, currentYear]);
 
     // Agrupar por alumno y taller, y buscar faltas consecutivas
     const alumnosConFaltas: any[] = [];

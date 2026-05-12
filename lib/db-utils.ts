@@ -358,3 +358,66 @@ export async function verificarDeudasPendientes(
     return { tieneDeudas: false, cantidadMeses: 0, montoTotal: 0, detalles: [] };
   }
 }
+
+/**
+ * Verifica si un alumno inactivo tiene deudas pendientes en TODOS sus talleres incompletos
+ * @returns Objeto con información sobre las deudas pendientes totales
+ */
+export async function verificarDeudasAlumnoInactivo(
+  cdAlumno: number
+): Promise<{
+  tieneDeudas: boolean;
+  cantidadTalleres: number;
+  cantidadMeses: number;
+  montoTotal: number;
+  detalles: Array<{ taller: string; mes: number; anio: number; monto: number }>;
+}> {
+  try {
+    // Obtener todos los talleres incompletos del alumno
+    const talleresIncompletosQuery = `
+      SELECT at.cdTaller, tt.dsNombreTaller, t.nuAnioTaller, at.feInscripcion, at.feBaja
+      FROM TR_ALUMNO_TALLER at
+      INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
+      INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
+      WHERE at.cdAlumno = ? AND at.cdEstado = 5
+    `;
+    
+    const talleresIncompletos = await executeQuery<RowDataPacket>(talleresIncompletosQuery, [cdAlumno]);
+    
+    if (talleresIncompletos.length === 0) {
+      return { tieneDeudas: false, cantidadTalleres: 0, cantidadMeses: 0, montoTotal: 0, detalles: [] };
+    }
+    
+    const detallesDeuda: Array<{ taller: string; mes: number; anio: number; monto: number }> = [];
+    
+    // Para cada taller incompleto, verificar deudas
+    for (const taller of talleresIncompletos) {
+      const deudasTaller = await verificarDeudasPendientes(cdAlumno, taller.cdTaller);
+      
+      if (deudasTaller.tieneDeudas) {
+        deudasTaller.detalles.forEach(d => {
+          detallesDeuda.push({
+            taller: `${taller.dsNombreTaller} ${taller.nuAnioTaller}`,
+            mes: d.mes,
+            anio: d.anio,
+            monto: d.monto,
+          });
+        });
+      }
+    }
+    
+    const montoTotal = detallesDeuda.reduce((sum, d) => sum + d.monto, 0);
+    const talleresConDeuda = new Set(detallesDeuda.map(d => d.taller)).size;
+    
+    return {
+      tieneDeudas: detallesDeuda.length > 0,
+      cantidadTalleres: talleresConDeuda,
+      cantidadMeses: detallesDeuda.length,
+      montoTotal,
+      detalles: detallesDeuda,
+    };
+  } catch (error) {
+    console.error('Error al verificar deudas del alumno inactivo:', error);
+    return { tieneDeudas: false, cantidadTalleres: 0, cantidadMeses: 0, montoTotal: 0, detalles: [] };
+  }
+}
