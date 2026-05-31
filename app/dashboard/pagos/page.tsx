@@ -33,8 +33,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Search, Eye, FileText, DollarSign, FileSpreadsheet } from 'lucide-react';
+import { Search, Eye, FileText, DollarSign, FileSpreadsheet, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { usePermissions } from '@/hooks/use-permissions';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -108,7 +110,8 @@ interface Pago {
 }
 
 export default function ConsultaPagosPage() {
-  const { error } = useToast();
+  const { error, success } = useToast();
+  const { isAdmin } = usePermissions();
   
   // Filtros
   const [fechaDesde, setFechaDesde] = useState('');
@@ -125,6 +128,12 @@ export default function ConsultaPagosPage() {
   const [loading, setLoading] = useState(false);
   const [pagoSeleccionado, setPagoSeleccionado] = useState<Pago | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false,
+    title: '',
+    description: '',
+    onConfirm: () => {},
+  });
 
   // Limpiar resultados cuando se cambia el estado
   const handleEstadoChange = (nuevoEstado: string) => {
@@ -196,6 +205,37 @@ export default function ConsultaPagosPage() {
     } catch (err) {
       console.error('Error al descargar PDF:', err);
       error('Error al descargar el PDF');
+    }
+  };
+
+  const handleBorrarPago = (pago: Pago) => {
+    if (!pago.cdPago) return;
+    
+    setConfirmDialog({
+      open: true,
+      title: 'Borrar Pago',
+      description: `¿Estás seguro de que deseas borrar el pago #${pago.cdPago}? Esta acción no se puede deshacer. Se eliminarán todos los registros del pago de ${pago.alumno?.nombre} del período ${pago.periodo}.`,
+      onConfirm: () => borrarPagoConfirmado(pago.cdPago!),
+    });
+  };
+
+  const borrarPagoConfirmado = async (cdPago: number) => {
+    try {
+      const response = await fetch(`/api/pagos/${cdPago}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        success(data.message || 'Pago borrado exitosamente');
+        buscarPagos(); // Recargar la lista de pagos
+      } else {
+        error(data.error || 'Error al borrar el pago');
+      }
+    } catch (err) {
+      console.error('Error al borrar pago:', err);
+      error('Error al borrar el pago');
     }
   };
 
@@ -654,15 +694,28 @@ export default function ConsultaPagosPage() {
                               Ver
                             </Button>
                             {estadoPago === 'Pagado' && pago.cdPago && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => descargarPDF(pago.cdPago!)}
-                                title="Descargar comprobante PDF"
-                              >
-                                <FileText className="h-4 w-4 mr-1" />
-                                PDF
-                              </Button>
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => descargarPDF(pago.cdPago!)}
+                                  title="Descargar comprobante PDF"
+                                >
+                                  <FileText className="h-4 w-4 mr-1" />
+                                  PDF
+                                </Button>
+                                {isAdmin() && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleBorrarPago(pago)}
+                                    title="Borrar pago"
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </>
                             )}
                           </div>
                         </TableCell>
@@ -888,6 +941,16 @@ export default function ConsultaPagosPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* ConfirmDialog */}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onOpenChange={(open) => setConfirmDialog({ ...confirmDialog, open })}
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        onConfirm={confirmDialog.onConfirm}
+        variant="destructive"
+      />
     </div>
   );
 }

@@ -133,7 +133,7 @@ export default function PersonalPage() {
         dsDomicilio: pers.dsDomicilio || '',
         dsTelefono: pers.dsTelefono || '',
         dsMail: pers.dsMail || '',
-        feNacimiento: pers.feNacimiento ? new Date(pers.feNacimiento).toISOString().split('T')[0] : '',
+        feNacimiento: pers.feNacimiento ? pers.feNacimiento.split('T')[0] : '',
         dsDni: pers.dsDni || '',
         dsCuil: pers.dsCuil || '',
         dsEntidad: pers.dsEntidad || '',
@@ -352,7 +352,7 @@ export default function PersonalPage() {
                       : pers.dsDescripcionPuesto || '-'}
                   </TableCell>
                   <TableCell>
-                    {pers.feNacimiento ? new Date(pers.feNacimiento).toLocaleDateString('es-AR') : '-'}
+                    {pers.feNacimiento ? pers.feNacimiento.split('T')[0].split('-').reverse().join('/') : '-'}
                   </TableCell>
                   <TableCell>{pers.dsTelefono || '-'}</TableCell>
                   <TableCell>{pers.dsMail || '-'}</TableCell>
@@ -755,7 +755,7 @@ export default function PersonalPage() {
                     <Label className="text-gray-600 text-sm">Fecha de Nacimiento</Label>
                     <p className="font-medium text-gray-900 mt-1">
                       {viewingPersonal.feNacimiento 
-                        ? new Date(viewingPersonal.feNacimiento).toLocaleDateString('es-AR')
+                        ? viewingPersonal.feNacimiento.split('T')[0].split('-').reverse().join('/')
                         : '-'}
                     </p>
                   </div>
