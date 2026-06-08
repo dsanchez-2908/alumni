@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       SELECT 
         t.cdTaller,
         t.nuAnioTaller,
-        t.feInicioTaller,
+        DATE_FORMAT(t.feInicioTaller, '%Y-%m-%d') as feInicioTaller,
         t.cdPersonal,
         COALESCE(p.dsNombreCompleto, 'Sin asignar') as dsNombreCompleto,
         tt.dsNombreTaller,
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
     for (const taller of talleres) {
       // Obtener fechas ya registradas
       const [registradas] = await pool.execute<any[]>(
-        `SELECT DISTINCT DATE(feFalta) as fecha
+        `SELECT DISTINCT DATE_FORMAT(feFalta, '%Y-%m-%d') as fecha
          FROM TD_ASISTENCIAS
          WHERE cdTaller = ?`,
         [taller.cdTaller]

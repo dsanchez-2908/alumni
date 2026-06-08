@@ -166,7 +166,7 @@ export async function GET(request: NextRequest) {
         `SELECT 
           a.cdAlumno,
           t.cdTaller,
-          ast.feFalta
+          DATE_FORMAT(ast.feFalta, '%Y-%m-%d') as feFalta
         FROM TD_ALUMNOS a
         INNER JOIN TR_ALUMNO_TALLER at ON a.cdAlumno = at.cdAlumno
         INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
@@ -275,7 +275,7 @@ export async function GET(request: NextRequest) {
           SELECT 
             'Alumno' as tipo,
             CONCAT(a.dsNombre, ' ', a.dsApellido) as nombre,
-            a.feNacimiento,
+            DATE_FORMAT(a.feNacimiento, '%Y-%m-%d') as feNacimiento,
             DATE_FORMAT(a.feNacimiento, '%d/%m') as fechaCumple,
             CASE 
               WHEN DATE_FORMAT(CURDATE(), '%m-%d') = DATE_FORMAT(a.feNacimiento, '%m-%d') THEN 0
@@ -317,7 +317,7 @@ export async function GET(request: NextRequest) {
           SELECT 
             'Alumno' as tipo,
             CONCAT(a.dsNombre, ' ', a.dsApellido) as nombre,
-            a.feNacimiento,
+            DATE_FORMAT(a.feNacimiento, '%Y-%m-%d') as feNacimiento,
             DATE_FORMAT(a.feNacimiento, '%d/%m') as fechaCumple,
             CASE 
               WHEN DATE_FORMAT(CURDATE(), '%m-%d') = DATE_FORMAT(a.feNacimiento, '%m-%d') THEN 0
@@ -487,7 +487,7 @@ export async function GET(request: NextRequest) {
         p.dsNombreCompleto,
         tt.dsNombreTaller,
         t.nuAnioTaller,
-        t.feInicioTaller,
+        DATE_FORMAT(t.feInicioTaller, '%Y-%m-%d') as feInicioTaller,
         t.snDomingo, t.snLunes, t.snMartes, t.snMiercoles, 
         t.snJueves, t.snViernes, t.snSabado,
         t.dsDescripcionHorarios,
@@ -523,7 +523,7 @@ export async function GET(request: NextRequest) {
     for (const taller of talleres) {
       // Obtener fechas ya registradas
       const [registradas] = await pool.execute<any[]>(
-        `SELECT DISTINCT DATE(feFalta) as fecha
+        `SELECT DISTINCT DATE_FORMAT(feFalta, '%Y-%m-%d') as fecha
          FROM TD_ASISTENCIAS
          WHERE cdTaller = ?`,
         [taller.cdTaller]

@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
         a.dsApellido,
         a.dsDNI,
         a.dsSexo,
-        a.feNacimiento,
+        DATE_FORMAT(a.feNacimiento, '%Y-%m-%d') as feNacimiento,
         TIMESTAMPDIFF(YEAR, a.feNacimiento, CURDATE()) as edad,
         a.dsDomicilio,
         a.dsTelefonoCelular,
@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
           ORDER BY tt.dsNombreTaller
           SEPARATOR ', '
         ) as talleres,
-        a.feAlta
+        DATE_FORMAT(a.feAlta, '%Y-%m-%d %H:%i:%s') as feAlta
        FROM TD_ALUMNOS a
        LEFT JOIN TR_ALUMNO_GRUPO_FAMILIAR agf ON a.cdAlumno = agf.cdAlumno
        LEFT JOIN TD_GRUPOS_FAMILIARES gf ON agf.cdGrupoFamiliar = gf.cdGrupoFamiliar

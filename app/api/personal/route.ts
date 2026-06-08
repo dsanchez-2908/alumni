@@ -23,7 +23,7 @@ export async function GET() {
         p.dsDomicilio,
         p.dsTelefono,
         p.dsMail,
-        p.feNacimiento,
+        DATE_FORMAT(p.feNacimiento, '%Y-%m-%d') as feNacimiento,
         p.dsDni,
         p.dsCuil,
         p.dsEntidad,
@@ -31,7 +31,7 @@ export async function GET() {
         p.dsObservaciones,
         p.cdEstado,
         e.dsEstado,
-        p.feCreacion,
+        DATE_FORMAT(p.feCreacion, '%Y-%m-%d %H:%i:%s') as feCreacion,
         GROUP_CONCAT(tt.dsNombreTaller SEPARATOR ', ') as talleres,
         GROUP_CONCAT(tt.cdTipoTaller) as talleresIds
       FROM TD_PERSONAL p

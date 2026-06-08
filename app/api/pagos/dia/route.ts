@@ -29,14 +29,14 @@ export async function GET(request: NextRequest) {
           ELSE pd.dsTipoPago
         END as tipoPagoDisplay,
         pd.snEsExcepcion,
-        p.fePago,
+        DATE_FORMAT(p.fePago, '%Y-%m-%d') as fePago,
         p.nuMes,
         p.nuAnio,
         p.dsObservacion,
         p.cdGrupoFamiliar,
         gf.dsNombreGrupo,
         u.dsNombreCompleto as usuarioRegistro,
-        p.feRegistro,
+        DATE_FORMAT(p.feRegistro, '%Y-%m-%d %H:%i:%s') as feRegistro,
         -- Horarios del taller
         t.snLunes,
         t.dsLunesHoraDesde,

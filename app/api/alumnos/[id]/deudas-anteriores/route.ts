@@ -59,8 +59,8 @@ export async function GET(
         t.cdTaller,
         tt.dsNombreTaller,
         t.nuAnioTaller,
-        t.feInicioTaller,
-        at.feInscripcion,
+        DATE_FORMAT(t.feInicioTaller, '%Y-%m-%d') as feInicioTaller,
+        DATE_FORMAT(at.feInscripcion, '%Y-%m-%d') as feInscripcion,
         (
           SELECT tp.nuPrecioCompletoEfectivo 
           FROM TD_PRECIOS_TALLERES tp

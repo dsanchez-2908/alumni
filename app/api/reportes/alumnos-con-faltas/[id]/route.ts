@@ -27,7 +27,7 @@ export async function GET(
         a.dsDNI,
         a.dsSexo,
         a.dsNombreLlamar,
-        a.feNacimiento,
+        DATE_FORMAT(a.feNacimiento, '%Y-%m-%d') as feNacimiento,
         TIMESTAMPDIFF(YEAR, a.feNacimiento, CURDATE()) as edad,
         a.dsDomicilio,
         a.dsTelefonoCelular,

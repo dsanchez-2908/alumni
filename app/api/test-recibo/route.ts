@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
         pd.dsTipoPago,
         p.nuMes,
         p.nuAnio,
-        p.fePago,
+        DATE_FORMAT(p.fePago, '%Y-%m-%d') as fePago,
         p.dsObservacion,
         p.nuMontoTotal,
         CONCAT(a.dsNombre, ' ', a.dsApellido) as nombreAlumno,

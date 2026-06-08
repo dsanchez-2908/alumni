@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     let query = `
       SELECT 
         t.cdTrazaDetalle,
-        t.feHora,
+        DATE_FORMAT(t.feHora, '%Y-%m-%d %H:%i:%s') as feHora,
         t.dsProceso,
         t.dsAccion,
         t.cdElemento,

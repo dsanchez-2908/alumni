@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
         t.cdTaller,
         t.nuAnioTaller,
         tt.dsNombreTaller,
-        t.feInicioTaller,
+        DATE_FORMAT(t.feInicioTaller, '%Y-%m-%d') as feInicioTaller,
         t.snLunes, t.dsLunesHoraDesde, t.dsLunesHoraHasta,
         t.snMartes, t.dsMartesHoraDesde, t.dsMartesHoraHasta,
         t.snMiercoles, t.dsMiercolesHoraDesde, t.dsMiercolesHoraHasta,

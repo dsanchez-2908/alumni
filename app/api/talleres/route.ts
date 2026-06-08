@@ -53,7 +53,8 @@ export async function GET() {
         e.dsEstado,
         tt.dsNombreTaller,
         p.dsNombreCompleto as nombrePersonal,
-        COUNT(DISTINCT CASE WHEN at.feBaja IS NULL THEN at.cdAlumno END) as cantidadAlumnos
+        COUNT(DISTINCT CASE WHEN at.feBaja IS NULL THEN at.cdAlumno END) as cantidadAlumnos,
+        DATE_FORMAT(t.feInicioTaller, '%Y-%m-%d') as feInicioTaller
       FROM TD_TALLERES t
       INNER JOIN TD_ESTADOS e ON t.cdEstado = e.cdEstado
       INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller

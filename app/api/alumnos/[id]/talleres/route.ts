@@ -21,7 +21,7 @@ export async function GET(
         t.cdTaller,
         t.nuAnioTaller,
         tt.dsNombreTaller,
-        t.feInicioTaller,
+        DATE_FORMAT(t.feInicioTaller, '%Y-%m-%d') as feInicioTaller,
         t.snLunes,
         t.snMartes,
         t.snMiercoles,
@@ -29,8 +29,8 @@ export async function GET(
         t.snViernes,
         t.snSabado,
         t.snDomingo,
-        at.feInscripcion,
-        at.feBaja,
+        DATE_FORMAT(at.feInscripcion, '%Y-%m-%d') as feInscripcion,
+        DATE_FORMAT(at.feBaja, '%Y-%m-%d') as feBaja,
         at.cdEstado
       FROM TR_ALUMNO_TALLER at
       INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller

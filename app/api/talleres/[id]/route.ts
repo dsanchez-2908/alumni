@@ -19,7 +19,20 @@ export async function GET(
 
     const [talleres] = await pool.execute<any[]>(
       `SELECT 
-        t.*,
+        t.cdTaller,
+        t.nuAnioTaller,
+        t.cdTipoTaller,
+        t.cdPersonal,
+        DATE_FORMAT(t.feInicioTaller, '%Y-%m-%d') as feInicioTaller,
+        t.dsDescripcionHorarios,
+        t.snLunes, t.dsLunesHoraDesde, t.dsLunesHoraHasta,
+        t.snMartes, t.dsMartesHoraDesde, t.dsMartesHoraHasta,
+        t.snMiercoles, t.dsMiercolesHoraDesde, t.dsMiercolesHoraHasta,
+        t.snJueves, t.dsJuevesHoraDesde, t.dsJuevesHoraHasta,
+        t.snViernes, t.dsViernesHoraDesde, t.dsViernesHoraHasta,
+        t.snSabado, t.dsSabadoHoraDesde, t.dsSabadoHoraHasta,
+        t.snDomingo, t.dsDomingoHoraDesde, t.dsDomingoHoraHasta,
+        t.cdEstado,
         e.dsEstado,
         tt.dsNombreTaller,
         tt.dsDescripcionTaller,

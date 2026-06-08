@@ -21,7 +21,7 @@ export async function GET(
       `SELECT 
         n.cdNovedad,
         n.dsNovedad,
-        n.feAlta,
+        DATE_FORMAT(n.feAlta, '%Y-%m-%d %H:%i:%s') as feAlta,
         n.cdUsuario,
         u.dsUsuario as nombreUsuario,
         COALESCE(p.dsNombreCompleto, u.dsNombreCompleto) as nombreCompleto

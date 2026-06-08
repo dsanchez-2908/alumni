@@ -19,7 +19,7 @@ export async function GET(
     // Obtener información del taller
     const [tallerRows] = await pool.execute<any[]>(
       `SELECT 
-        t.feInicioTaller,
+        DATE_FORMAT(t.feInicioTaller, '%Y-%m-%d') as feInicioTaller,
         t.snLunes, t.snMartes, t.snMiercoles, t.snJueves, 
         t.snViernes, t.snSabado, t.snDomingo
       FROM TD_TALLERES t
@@ -48,7 +48,7 @@ export async function GET(
 
     // Obtener todas las fechas que ya tienen registro
     const [registradas] = await pool.execute<any[]>(
-      `SELECT DISTINCT DATE(feFalta) as fecha
+      `SELECT DISTINCT DATE_FORMAT(feFalta, '%Y-%m-%d') as fecha
        FROM TD_ASISTENCIAS
        WHERE cdTaller = ?`,
       [cdTaller]

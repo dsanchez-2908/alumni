@@ -40,10 +40,30 @@ interface Resultado {
   monto: number;
 }
 
+interface PagoAtrasado {
+  mes: number;
+  anio: number;
+  cdTaller: number;
+  tipoTaller: string;
+  horario: string;
+  profesor: string;
+  cdPersonal: number;
+  cdAlumno: number;
+  alumno: string;
+  fechaPago: string;
+  modoPago: string;
+  monto: number;
+}
+
 interface Totales {
   pagado: number;
   pendiente: number;
   total: number;
+}
+
+interface TotalesPagosAtrasados {
+  total: number;
+  cantidad: number;
 }
 
 interface Filtros {
@@ -55,6 +75,8 @@ interface Filtros {
 interface ReporteData {
   resultados: Resultado[];
   totales: Totales;
+  pagosAtrasados: PagoAtrasado[];
+  totalesPagosAtrasados: TotalesPagosAtrasados;
   filtros: Filtros;
 }
 
@@ -71,6 +93,8 @@ export default function PagosPorTalleresPage() {
   const [loading, setLoading] = useState(false);
   const [resultados, setResultados] = useState<Resultado[]>([]);
   const [totales, setTotales] = useState<Totales>({ pagado: 0, pendiente: 0, total: 0 });
+  const [pagosAtrasados, setPagosAtrasados] = useState<PagoAtrasado[]>([]);
+  const [totalesPagosAtrasados, setTotalesPagosAtrasados] = useState<TotalesPagosAtrasados>({ total: 0, cantidad: 0 });
   const [filtros, setFiltros] = useState<Filtros>({
     tiposTalleres: [],
     profesores: [],
@@ -230,6 +254,8 @@ export default function PagosPorTalleresPage() {
       const data: ReporteData = await response.json();
       setResultados(data.resultados);
       setTotales(data.totales);
+      setPagosAtrasados(data.pagosAtrasados || []);
+      setTotalesPagosAtrasados(data.totalesPagosAtrasados || { total: 0, cantidad: 0 });
       // No actualizar filtros aquí - se manejan con fetchFiltrosDinamicos
     } catch (error: any) {
       console.error('Error al cargar reporte:', error);
@@ -343,6 +369,37 @@ export default function PagosPorTalleresPage() {
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Pagos por Talleres');
+
+    // Agregar hoja de pagos atrasados si hay datos
+    if (pagosAtrasados.length > 0) {
+      const dataPagosAtrasados: any[] = pagosAtrasados.map((row) => ({
+        'Año': row.anio,
+        'Mes': mesesNombres[row.mes - 1],
+        'Tipo de Taller': row.tipoTaller,
+        'Horario': row.horario,
+        'Profesor': row.profesor,
+        'Alumno': row.alumno,
+        'Fecha de Pago': row.fechaPago,
+        'Modo de Pago': row.modoPago,
+        'Monto': row.monto.toFixed(2),
+      }));
+
+      // Agregar fila de totales
+      dataPagosAtrasados.push({
+        'Año': '',
+        'Mes': '',
+        'Tipo de Taller': '',
+        'Horario': '',
+        'Profesor': '',
+        'Alumno': '',
+        'Fecha de Pago': 'TOTAL',
+        'Modo de Pago': '',
+        'Monto': totalesPagosAtrasados.total.toFixed(2),
+      });
+
+      const wsPagosAtrasados = XLSX.utils.json_to_sheet(dataPagosAtrasados);
+      XLSX.utils.book_append_sheet(wb, wsPagosAtrasados, 'Pagos Atrasados');
+    }
 
     const mesNombre = mesesNombres[parseInt(mesSeleccionado) - 1];
     const fileName = `Pagos_Talleres_${mesNombre}_${anioSeleccionado}.xlsx`;
@@ -683,6 +740,90 @@ export default function PagosPorTalleresPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Sección de Pagos Atrasados */}
+      {pagosAtrasados.length > 0 && (
+        <>
+          {/* Totales de Pagos Atrasados */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card className="border-amber-200 bg-amber-50">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-amber-800">
+                  Total Pagos Atrasados (pagados en {mesesNombres[parseInt(mesSeleccionado) - 1]})
+                </CardTitle>
+                <DollarSign className="h-4 w-4 text-amber-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-amber-600">
+                  {formatCurrency(totalesPagosAtrasados.total)}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-amber-200 bg-amber-50">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-amber-800">
+                  Cantidad de Pagos Atrasados
+                </CardTitle>
+                <Users className="h-4 w-4 text-amber-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-amber-600">
+                  {totalesPagosAtrasados.cantidad}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Tabla de Pagos Atrasados */}
+          <Card className="border-amber-200">
+            <CardHeader className="bg-amber-50">
+              <CardTitle className="text-amber-800">
+                Pagos Atrasados (Pagados en {mesesNombres[parseInt(mesSeleccionado) - 1]} {anioSeleccionado})
+              </CardTitle>
+              <CardDescription className="text-amber-700">
+                Cuotas de meses anteriores que fueron pagadas durante el mes consultado
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Año</TableHead>
+                      <TableHead>Mes</TableHead>
+                      <TableHead>Tipo de Taller</TableHead>
+                      <TableHead className="min-w-[200px]">Horario</TableHead>
+                      <TableHead>Profesor</TableHead>
+                      <TableHead>Alumno</TableHead>
+                      <TableHead>Fecha de Pago</TableHead>
+                      <TableHead>Modo de Pago</TableHead>
+                      <TableHead className="text-right">Monto</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pagosAtrasados.map((row, index) => (
+                      <TableRow key={index} className="bg-amber-50/30">
+                        <TableCell>{row.anio}</TableCell>
+                        <TableCell>{mesesNombres[row.mes - 1]}</TableCell>
+                        <TableCell className="font-medium">{row.tipoTaller}</TableCell>
+                        <TableCell className="text-sm">{row.horario}</TableCell>
+                        <TableCell>{row.profesor}</TableCell>
+                        <TableCell>{row.alumno}</TableCell>
+                        <TableCell>{row.fechaPago}</TableCell>
+                        <TableCell>{row.modoPago}</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(row.monto)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   );
 }

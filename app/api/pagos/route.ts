@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     let query = `
       SELECT 
         p.cdPago,
-        p.fePago,
+        DATE_FORMAT(p.fePago, '%Y-%m-%d') as fePago,
         p.nuMes,
         p.nuAnio,
         p.dsTipoPago as tipoPagoGlobal,
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
         CONCAT(a.dsApellido, ', ', a.dsNombre) as alumnoNombre,
         a.dsDNI,
         u.dsNombreCompleto as usuarioRegistro,
-        p.feRegistro,
+        DATE_FORMAT(p.feRegistro, '%Y-%m-%d %H:%i:%s') as feRegistro,
         -- Detalle de pagos
         GROUP_CONCAT(
           DISTINCT CONCAT(
@@ -274,9 +274,9 @@ async function consultarPendientes(searchParams: URLSearchParams) {
         t.cdTipoTaller,
         tt.dsNombreTaller,
         t.nuAnioTaller,
-        t.feInicioTaller,
-        at.feInscripcion,
-        at.feBaja,
+        DATE_FORMAT(t.feInicioTaller, '%Y-%m-%d') as feInicioTaller,
+        DATE_FORMAT(at.feInscripcion, '%Y-%m-%d') as feInscripcion,
+        DATE_FORMAT(at.feBaja, '%Y-%m-%d') as feBaja,
         at.cdEstado as cdEstadoTaller
       FROM TD_ALUMNOS a
       INNER JOIN TR_ALUMNO_TALLER at ON a.cdAlumno = at.cdAlumno

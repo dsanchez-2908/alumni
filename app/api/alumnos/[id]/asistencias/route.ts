@@ -28,11 +28,11 @@ export async function GET(
     // Obtener información del taller
     const [tallerRows] = await pool.execute<any[]>(
       `SELECT 
-        t.feInicioTaller,
+        DATE_FORMAT(t.feInicioTaller, '%Y-%m-%d') as feInicioTaller,
         t.snLunes, t.snMartes, t.snMiercoles, t.snJueves, 
         t.snViernes, t.snSabado, t.snDomingo,
-        at.feInscripcion,
-        at.feBaja
+        DATE_FORMAT(at.feInscripcion, '%Y-%m-%d') as feInscripcion,
+        DATE_FORMAT(at.feBaja, '%Y-%m-%d') as feBaja
       FROM TD_TALLERES t
       INNER JOIN TR_ALUMNO_TALLER at ON t.cdTaller = at.cdTaller
       WHERE t.cdTaller = ? AND at.cdAlumno = ?`,

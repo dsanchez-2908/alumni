@@ -95,15 +95,11 @@ export async function GET(request: NextRequest) {
       -- Profesor
       INNER JOIN TD_PERSONAL p ON t.cdPersonal = p.cdPersonal
       
-      -- Alumnos inscritos activamente
+      -- Alumnos inscritos (incluye inactivos para mostrar pagos históricos)
       INNER JOIN TR_ALUMNO_TALLER at ON t.cdTaller = at.cdTaller
-        AND at.cdEstado = 1  -- Solo alumnos activos en el taller
-        AND at.feBaja IS NULL  -- Sin fecha de baja
       
-      -- Alumno
+      -- Alumno (sin restricción de estado para ver históricos)
       INNER JOIN TD_ALUMNOS a ON at.cdAlumno = a.cdAlumno
-        AND a.cdEstado = 1  -- Solo alumnos activos
-        AND at.feBaja IS NULL  -- Sin fecha de baja
       
       -- Precio del taller (último precio vigente)
       LEFT JOIN TD_PRECIOS_TALLERES prec ON tt.cdTipoTaller = prec.cdTipoTaller
@@ -243,6 +239,127 @@ export async function GET(request: NextRequest) {
        ORDER BY horario`
     );
 
+    // === NUEVA CONSULTA: PAGOS ATRASADOS PAGADOS EN EL MES CONSULTADO ===
+    // Esta consulta busca pagos que fueron realizados en el mes consultado
+    // pero que corresponden a periodos anteriores (cuotas atrasadas)
+    let queryPagosAtrasadosConditions = ['t.cdEstado = 1']; // Solo talleres activos
+    let queryPagosAtrasadosParams: any[] = [];
+
+    let queryPagosAtrasados = `
+      SELECT 
+        -- Periodo al que corresponde el pago (el periodo atrasado)
+        pag.nuMes as mes,
+        pag.nuAnio as anio,
+        
+        -- Datos del Taller
+        t.cdTaller,
+        tt.dsNombreTaller as tipoTaller,
+        
+        -- Horarios detallados
+        CONCAT_WS(' | ',
+          IF(t.snLunes = 1, CONCAT('Lun: ', t.dsLunesHoraDesde, '-', t.dsLunesHoraHasta), NULL),
+          IF(t.snMartes = 1, CONCAT('Mar: ', t.dsMartesHoraDesde, '-', t.dsMartesHoraHasta), NULL),
+          IF(t.snMiercoles = 1, CONCAT('Mié: ', t.dsMiercolesHoraDesde, '-', t.dsMiercolesHoraHasta), NULL),
+          IF(t.snJueves = 1, CONCAT('Jue: ', t.dsJuevesHoraDesde, '-', t.dsJuevesHoraHasta), NULL),
+          IF(t.snViernes = 1, CONCAT('Vie: ', t.dsViernesHoraDesde, '-', t.dsViernesHoraHasta), NULL),
+          IF(t.snSabado = 1, CONCAT('Sáb: ', t.dsSabadoHoraDesde, '-', t.dsSabadoHoraHasta), NULL),
+          IF(t.snDomingo = 1, CONCAT('Dom: ', t.dsDomingoHoraDesde, '-', t.dsDomingoHoraHasta), NULL)
+        ) as horario,
+        
+        -- Profesor
+        p.dsNombreCompleto as profesor,
+        p.cdPersonal,
+        
+        -- Datos del Alumno
+        a.cdAlumno,
+        CONCAT(a.dsApellido, ', ', a.dsNombre) as alumno,
+        
+        -- Fecha de pago (fecha real en que pagó)
+        DATE_FORMAT(pag.fePago, '%d/%m/%Y') as fechaPago,
+        
+        -- Modo de pago
+        pd.dsTipoPago as modoPago,
+        
+        -- Monto pagado
+        pd.nuMonto as monto,
+        
+        -- Campos adicionales para filtros
+        tt.cdTipoTaller
+        
+      FROM TD_PAGOS pag
+      
+      -- Detalle del pago
+      INNER JOIN TD_PAGOS_DETALLE pd ON pag.cdPago = pd.cdPago
+      
+      -- Taller
+      INNER JOIN TD_TALLERES t ON pd.cdTaller = t.cdTaller
+      
+      -- Tipo de Taller
+      INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
+      
+      -- Profesor
+      INNER JOIN TD_PERSONAL p ON t.cdPersonal = p.cdPersonal
+      
+      -- Alumno
+      INNER JOIN TD_ALUMNOS a ON pag.cdAlumno = a.cdAlumno
+      
+      WHERE 1=1
+        -- El pago fue realizado en el mes/año consultado
+        AND YEAR(pag.fePago) = ?
+        AND MONTH(pag.fePago) = ?
+        -- Pero corresponde a un periodo anterior (pago atrasado)
+        AND (pag.nuAnio < ? OR (pag.nuAnio = ? AND pag.nuMes < ?))
+    `;
+
+    // Agregar parámetros: año y mes de fePago, y validación de periodo atrasado
+    queryPagosAtrasadosParams.push(anio, mes, anio, anio, mes);
+
+    // Aplicar los mismos filtros opcionales
+    if (cdTipoTaller) {
+      queryPagosAtrasadosConditions.push('tt.cdTipoTaller = ?');
+      queryPagosAtrasadosParams.push(parseInt(cdTipoTaller));
+    }
+
+    if (cdPersonal) {
+      queryPagosAtrasadosConditions.push('p.cdPersonal = ?');
+      queryPagosAtrasadosParams.push(parseInt(cdPersonal));
+    }
+
+    if (horario) {
+      queryPagosAtrasadosConditions.push(`CONCAT_WS(' | ',
+        IF(t.snLunes = 1, CONCAT('Lun: ', t.dsLunesHoraDesde, '-', t.dsLunesHoraHasta), NULL),
+        IF(t.snMartes = 1, CONCAT('Mar: ', t.dsMartesHoraDesde, '-', t.dsMartesHoraHasta), NULL),
+        IF(t.snMiercoles = 1, CONCAT('Mié: ', t.dsMiercolesHoraDesde, '-', t.dsMiercolesHoraHasta), NULL),
+        IF(t.snJueves = 1, CONCAT('Jue: ', t.dsJuevesHoraDesde, '-', t.dsJuevesHoraHasta), NULL),
+        IF(t.snViernes = 1, CONCAT('Vie: ', t.dsViernesHoraDesde, '-', t.dsViernesHoraHasta), NULL),
+        IF(t.snSabado = 1, CONCAT('Sáb: ', t.dsSabadoHoraDesde, '-', t.dsSabadoHoraHasta), NULL),
+        IF(t.snDomingo = 1, CONCAT('Dom: ', t.dsDomingoHoraDesde, '-', t.dsDomingoHoraHasta), NULL)
+      ) LIKE ?`);
+      queryPagosAtrasadosParams.push(`%${horario}%`);
+    }
+
+    // Agregar condiciones al query
+    if (queryPagosAtrasadosConditions.length > 0) {
+      queryPagosAtrasados += ' AND ' + queryPagosAtrasadosConditions.join(' AND ');
+    }
+
+    queryPagosAtrasados += `
+      ORDER BY 
+        pag.nuAnio DESC,
+        pag.nuMes DESC,
+        tt.dsNombreTaller,
+        a.dsApellido,
+        a.dsNombre
+    `;
+
+    const [pagosAtrasados] = await pool.execute<any[]>(queryPagosAtrasados, queryPagosAtrasadosParams);
+
+    // Calcular totales de pagos atrasados
+    let totalPagosAtrasados = 0;
+    pagosAtrasados.forEach((row: any) => {
+      totalPagosAtrasados += parseFloat(row.monto || 0);
+    });
+
     return NextResponse.json({
       resultados: resultados.map((row: any) => ({
         ...row,
@@ -252,6 +369,14 @@ export async function GET(request: NextRequest) {
         pagado: totalPagado,
         pendiente: totalPendiente,
         total: totalPagado + totalPendiente,
+      },
+      pagosAtrasados: pagosAtrasados.map((row: any) => ({
+        ...row,
+        monto: parseFloat(row.monto || 0),
+      })),
+      totalesPagosAtrasados: {
+        total: totalPagosAtrasados,
+        cantidad: pagosAtrasados.length,
       },
       filtros: {
         tiposTalleres,

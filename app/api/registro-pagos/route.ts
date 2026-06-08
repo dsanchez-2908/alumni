@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
           pd.dsTipoPago,
           p.nuMes,
           p.nuAnio,
-          p.fePago,
+          DATE_FORMAT(p.fePago, '%Y-%m-%d') as fePago,
           p.dsObservacion,
           CONCAT(a.dsNombre, ' ', a.dsApellido) as nombreAlumno,
           a.dsDNI,

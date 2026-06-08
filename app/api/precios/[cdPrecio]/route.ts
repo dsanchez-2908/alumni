@@ -46,7 +46,18 @@ export async function PUT(
 
     // Verificar que el precio existe
     const [precioExistente] = await pool.execute<any[]>(
-      `SELECT p.*, tt.dsNombreTaller 
+      `SELECT 
+        p.cdPrecio,
+        p.cdTipoTaller,
+        DATE_FORMAT(p.feInicioVigencia, '%Y-%m-%d') as feInicioVigencia,
+        p.nuPrecioCompletoEfectivo,
+        p.nuPrecioCompletoTransferencia,
+        p.nuPrecioDescuentoEfectivo,
+        p.nuPrecioDescuentoTransferencia,
+        p.cdEstado,
+        p.cdUsuarioAlta,
+        DATE_FORMAT(p.feAlta, '%Y-%m-%d %H:%i:%s') as feAlta,
+        tt.dsNombreTaller 
        FROM TD_PRECIOS_TALLERES p
        INNER JOIN TD_TIPO_TALLERES tt ON p.cdTipoTaller = tt.cdTipoTaller
        WHERE p.cdPrecio = ? AND p.cdEstado = 1`,

@@ -39,7 +39,16 @@ export async function GET(request: NextRequest) {
     // Consulta normal de precios individuales
     let query = `
       SELECT 
-        p.*,
+        p.cdPrecio,
+        p.cdTipoTaller,
+        DATE_FORMAT(p.feInicioVigencia, '%Y-%m-%d') as feInicioVigencia,
+        p.nuPrecioCompletoEfectivo,
+        p.nuPrecioCompletoTransferencia,
+        p.nuPrecioDescuentoEfectivo,
+        p.nuPrecioDescuentoTransferencia,
+        p.cdEstado,
+        p.cdUsuarioAlta,
+        DATE_FORMAT(p.feAlta, '%Y-%m-%d %H:%i:%s') as feAlta,
         tt.dsNombreTaller,
         u.dsNombreCompleto as nombreUsuarioAlta
       FROM TD_PRECIOS_TALLERES p
