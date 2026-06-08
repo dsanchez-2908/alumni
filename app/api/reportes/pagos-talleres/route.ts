@@ -128,18 +128,25 @@ export async function GET(request: NextRequest) {
         AND pag.cdAlumno = a.cdAlumno
       
       WHERE 1=1
-        -- Solo mostrar alumnos que estaban inscritos antes o durante el mes consultado
+        -- Solo mostrar alumnos que estaban activos durante el mes consultado
+        -- Inscrito antes o durante el mes consultado
         AND (
           YEAR(at.feInscripcion) < ? 
           OR (YEAR(at.feInscripcion) = ? AND MONTH(at.feInscripcion) <= ?)
+        )
+        -- Y no se dio de baja antes del mes consultado (o nunca se dio de baja)
+        AND (
+          at.feBaja IS NULL 
+          OR YEAR(at.feBaja) > ? 
+          OR (YEAR(at.feBaja) = ? AND MONTH(at.feBaja) >= ?)
         )
     `;
 
     // Agregar parámetros para mes y año en el SELECT, y para los subconsultas de precio y detalle
     queryParams.push(mes, anio, anio, mes, mes, anio);
     
-    // Agregar parámetros para la validación de fecha de inicio del taller
-    queryParams.push(anio, anio, mes);
+    // Agregar parámetros para la validación de fecha de inscripción y baja
+    queryParams.push(anio, anio, mes, anio, anio, mes);
 
     // Aplicar filtros opcionales
     if (cdTipoTaller) {
