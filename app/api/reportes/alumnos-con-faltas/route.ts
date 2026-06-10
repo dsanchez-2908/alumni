@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
         a.dsMail,
         t.cdTaller,
         tt.dsNombreTaller,
-        ast.feFalta,
+        DATE_FORMAT(ast.feFalta, '%Y-%m-%d') as feFalta,
         ast.dsObservacion,
         ast.snContactado
       FROM TD_ALUMNOS a
@@ -123,11 +123,7 @@ export async function GET(request: NextRequest) {
           cdTaller: cdTaller,
           dsNombreTaller: alumno.dsNombreTaller,
           faltasConsecutivas: maxConsecutivas,
-          ultimaFalta: ultimaFecha instanceof Date 
-            ? ultimaFecha.toISOString().split('T')[0] 
-            : typeof ultimaFecha === 'string' 
-            ? ultimaFecha.split('T')[0] 
-            : ultimaFecha
+          ultimaFalta: ultimaFecha.split('T')[0]
         });
         alumnoData.totalFaltasConsecutivas += maxConsecutivas;
       }

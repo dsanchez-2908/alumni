@@ -530,10 +530,7 @@ export async function GET(request: NextRequest) {
       );
 
       const fechasRegistradas = new Set(
-        registradas.map((r: any) => {
-          const fecha = r.fecha instanceof Date ? r.fecha : new Date(r.fecha);
-          return fecha.toISOString().split('T')[0];
-        })
+        registradas.map((r: any) => r.fecha)
       );
 
       // Calcular fechas pendientes

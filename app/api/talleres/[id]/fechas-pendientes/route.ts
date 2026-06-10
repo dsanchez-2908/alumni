@@ -55,7 +55,7 @@ export async function GET(
     );
 
     const fechasRegistradas = new Set(
-      registradas.map((r: any) => r.fecha.toISOString().split('T')[0])
+      registradas.map((r: any) => r.fecha)
     );
 
     // Generar fechas de clase pendientes
