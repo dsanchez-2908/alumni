@@ -22,7 +22,7 @@ export async function GET() {
         tt.nuEdadHasta,
         tt.cdEstado,
         e.dsEstado,
-        tt.feCreacion
+        DATE_FORMAT(tt.feCreacion, '%Y-%m-%d %H:%i:%s') as feCreacion
       FROM TD_TIPO_TALLERES tt
       INNER JOIN TD_ESTADOS e ON tt.cdEstado = e.cdEstado
       ORDER BY tt.dsNombreTaller`

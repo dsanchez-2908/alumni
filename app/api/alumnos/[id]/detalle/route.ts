@@ -436,7 +436,7 @@ export async function GET(
     const [faltas] = await pool.execute<any[]>(
       `SELECT 
         f.cdFalta,
-        f.feFalta,
+        DATE_FORMAT(f.feFalta, '%Y-%m-%d') as feFalta,
         f.snPresente,
         f.dsObservacion,
         t.cdTaller,

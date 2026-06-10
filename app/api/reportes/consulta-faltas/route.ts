@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     let query = `
       SELECT 
         ast.cdFalta,
-        ast.feFalta,
+        DATE_FORMAT(ast.feFalta, '%Y-%m-%d') as feFalta,
         ast.snAviso,
         ast.dsObservacion,
         ast.snContactado,

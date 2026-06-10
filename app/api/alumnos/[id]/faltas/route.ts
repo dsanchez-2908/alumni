@@ -21,10 +21,10 @@ export async function GET(
     let query = `
       SELECT 
         f.cdFalta,
-        f.feFalta,
+        DATE_FORMAT(f.feFalta, '%Y-%m-%d') as feFalta,
         f.snPresente,
         f.dsObservacion,
-        f.feRegistro,
+        DATE_FORMAT(f.feRegistro, '%Y-%m-%d %H:%i:%s') as feRegistro,
         t.nuAnioTaller,
         tt.dsNombreTaller,
         p.dsNombreCompleto as nombreProfesor,

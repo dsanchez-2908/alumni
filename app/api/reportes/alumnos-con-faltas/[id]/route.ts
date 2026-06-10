@@ -63,7 +63,7 @@ export async function GET(
         ast.cdFalta,
         t.cdTaller,
         tt.dsNombreTaller,
-        ast.feFalta,
+        DATE_FORMAT(ast.feFalta, '%Y-%m-%d') as feFalta,
         ast.dsObservacion,
         ast.snContactado,
         p.dsNombreCompleto as nombreProfesor,
