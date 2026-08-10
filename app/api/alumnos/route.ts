@@ -168,34 +168,34 @@ export async function GET(request: NextRequest) {
 
     // Filtro de fecha de inscripción
     if (feInscripcionDesde) {
-      query += ` AND at.feInscripcion >= ?`;
+      query += ` AND DATE(at.feInscripcion) >= ?`;
       params.push(feInscripcionDesde);
     }
 
     if (feInscripcionHasta) {
-      query += ` AND at.feInscripcion <= ?`;
+      query += ` AND DATE(at.feInscripcion) <= ?`;
       params.push(feInscripcionHasta);
     }
 
     // Filtro de fecha de alta del alumno
     if (feAltaDesde) {
-      query += ` AND a.feAlta >= ?`;
+      query += ` AND DATE(a.feAlta) >= ?`;
       params.push(feAltaDesde);
     }
 
     if (feAltaHasta) {
-      query += ` AND a.feAlta <= ?`;
+      query += ` AND DATE(a.feAlta) <= ?`;
       params.push(feAltaHasta);
     }
 
     // Filtro de fecha de baja
     if (feBajaDesde) {
-      query += ` AND at.feBaja >= ?`;
+      query += ` AND DATE(at.feBaja) >= ?`;
       params.push(feBajaDesde);
     }
 
     if (feBajaHasta) {
-      query += ` AND at.feBaja <= ?`;
+      query += ` AND DATE(at.feBaja) <= ?`;
       params.push(feBajaHasta);
     }
 

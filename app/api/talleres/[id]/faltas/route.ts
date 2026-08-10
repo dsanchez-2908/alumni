@@ -45,7 +45,7 @@ export async function GET(
         AND f.feFalta = ?
       WHERE at.cdTaller = ? 
         AND at.feBaja IS NULL
-        AND at.feInscripcion <= ?
+        AND DATE(at.feInscripcion) <= ?
       ORDER BY a.dsApellido, a.dsNombre`,
       [fecha, cdTaller, fecha]
     );
@@ -90,7 +90,7 @@ export async function POST(
        INNER JOIN TD_ALUMNOS a ON at.cdAlumno = a.cdAlumno
        WHERE at.cdTaller = ? 
          AND at.feBaja IS NULL
-         AND at.feInscripcion <= ?`,
+         AND DATE(at.feInscripcion) <= ?`,
       [cdTaller, fecha]
     );
 
