@@ -20,6 +20,7 @@ import { useRouter } from 'next/navigation';
 interface Taller {
   cdTaller: number;
   dsNombreTaller: string;
+  horario: string;
   faltasConsecutivas: number;
   ultimaFalta: string;
 }
@@ -162,6 +163,9 @@ export default function AlumnosConFaltasPage() {
                               <span className="text-gray-600 ml-2">
                                 ({taller.faltasConsecutivas} faltas)
                               </span>
+                              {taller.horario && (
+                                <div className="text-xs text-gray-500">{taller.horario}</div>
+                              )}
                               <div className="text-xs text-gray-500">
                                 Última: {formatFecha(taller.ultimaFalta)}
                               </div>

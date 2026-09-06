@@ -53,6 +53,7 @@ interface Taller {
   snDomingo: boolean;
   dsDomingoHoraDesde: string | null;
   dsDomingoHoraHasta: string | null;
+  cdEstado: number;
 }
 
 interface FechasPendientes {
@@ -127,7 +128,8 @@ export default function RegistroAsistenciaProfesorPage() {
 
   useEffect(() => {
     if (profesorSeleccionado) {
-      const filtrados = talleres.filter((t) => t.cdPersonal === profesorSeleccionado);
+      // Solo se pueden registrar asistencias de talleres Activos
+      const filtrados = talleres.filter((t) => t.cdPersonal === profesorSeleccionado && t.cdEstado === 1);
       setTalleresFiltrados(filtrados);
       setTallerSeleccionado(null);
       setFechasPendientes(null);

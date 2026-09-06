@@ -27,6 +27,13 @@ export async function GET(request: NextRequest) {
         a.dsMail,
         t.cdTaller,
         tt.dsNombreTaller,
+        t.snDomingo, t.dsDomingoHoraDesde, t.dsDomingoHoraHasta,
+        t.snLunes, t.dsLunesHoraDesde, t.dsLunesHoraHasta,
+        t.snMartes, t.dsMartesHoraDesde, t.dsMartesHoraHasta,
+        t.snMiercoles, t.dsMiercolesHoraDesde, t.dsMiercolesHoraHasta,
+        t.snJueves, t.dsJuevesHoraDesde, t.dsJuevesHoraHasta,
+        t.snViernes, t.dsViernesHoraDesde, t.dsViernesHoraHasta,
+        t.snSabado, t.dsSabadoHoraDesde, t.dsSabadoHoraHasta,
         DATE_FORMAT(ast.feFalta, '%Y-%m-%d') as feFalta,
         ast.dsObservacion,
         ast.snContactado
@@ -54,6 +61,31 @@ export async function GET(request: NextRequest) {
 
     // Obtener todas las ausencias del año actual para alumnos activos en talleres activos
     const [ausencias] = await pool.execute<any[]>(query, [currentYear, currentYear]);
+
+    // Función helper para formatear hora TIME a HH:MM
+    const formatTime = (time: string | null) => (time ? time.substring(0, 5) : null);
+
+    // Arma el texto de días y horario del taller, ej: "Mar 18:45-19:45"
+    const formatearHorarioTaller = (taller: any): string => {
+      const dias = [
+        { sn: taller.snDomingo, label: 'Dom', desde: taller.dsDomingoHoraDesde, hasta: taller.dsDomingoHoraHasta },
+        { sn: taller.snLunes, label: 'Lun', desde: taller.dsLunesHoraDesde, hasta: taller.dsLunesHoraHasta },
+        { sn: taller.snMartes, label: 'Mar', desde: taller.dsMartesHoraDesde, hasta: taller.dsMartesHoraHasta },
+        { sn: taller.snMiercoles, label: 'Mié', desde: taller.dsMiercolesHoraDesde, hasta: taller.dsMiercolesHoraHasta },
+        { sn: taller.snJueves, label: 'Jue', desde: taller.dsJuevesHoraDesde, hasta: taller.dsJuevesHoraHasta },
+        { sn: taller.snViernes, label: 'Vie', desde: taller.dsViernesHoraDesde, hasta: taller.dsViernesHoraHasta },
+        { sn: taller.snSabado, label: 'Sáb', desde: taller.dsSabadoHoraDesde, hasta: taller.dsSabadoHoraHasta },
+      ];
+
+      return dias
+        .filter((d) => d.sn)
+        .map((d) => {
+          const desde = formatTime(d.desde);
+          const hasta = formatTime(d.hasta);
+          return desde && hasta ? `${d.label} ${desde}-${hasta}` : d.label;
+        })
+        .join(', ');
+    };
 
     // Agrupar por alumno y taller, y buscar faltas consecutivas
     const alumnosConFaltas: any[] = [];
@@ -122,6 +154,7 @@ export async function GET(request: NextRequest) {
         alumnoData.talleres.push({
           cdTaller: cdTaller,
           dsNombreTaller: alumno.dsNombreTaller,
+          horario: formatearHorarioTaller(alumno),
           faltasConsecutivas: maxConsecutivas,
           ultimaFalta: ultimaFecha.split('T')[0]
         });

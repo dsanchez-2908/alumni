@@ -71,9 +71,9 @@ export function usePermissions() {
     if (!session) return false;
     if (isAdmin()) return true;
 
-    // Operador no puede editar talleres ni alumnos
+    // Operador puede editar alumnos, pero no talleres
     if (hasRole('Operador')) {
-      if (resource === 'talleres' || resource === 'alumnos') {
+      if (resource === 'talleres') {
         return false;
       }
       return true; // Puede editar en pagos y asistencias
@@ -126,6 +126,12 @@ export function usePermissions() {
    */
   const canDoTallerAction = (action: 'inscribir' | 'registrar-asistencia' | 'finalizar' | 'quitar-alumno' | 'dar-baja' | 'reactivar' | 'exportar-excel'): boolean => {
     if (!session) return false;
+
+    // Quitar (elimina la inscripción por completo) es exclusivo de Administrador
+    if (action === 'quitar-alumno') {
+      return isAdmin();
+    }
+
     if (isAdmin()) return true;
 
     // Profesor NO puede hacer ninguna acción de estas
@@ -138,7 +144,7 @@ export function usePermissions() {
       return action === 'inscribir' || action === 'dar-baja' || action === 'reactivar';
     }
 
-    // Supervisor puede hacer todo
+    // Supervisor puede hacer todo (excepto quitar-alumno, resuelto arriba)
     if (hasRole('Supervisor')) {
       return true;
     }

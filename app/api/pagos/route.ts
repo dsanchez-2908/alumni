@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import pool from '@/lib/db';
+import { parseFechaLocal } from '@/lib/date-utils';
 
 // GET - Consultar pagos con filtros
 export async function GET(request: NextRequest) {
@@ -365,8 +366,8 @@ async function consultarPendientes(searchParams: URLSearchParams) {
     
     alumnosTalleres.forEach((at: any) => {
       // Usar la fecha más tardía entre el inicio del taller y la inscripción del alumno
-      const fechaInicioTaller = new Date(at.feInicioTaller);
-      const fechaInscripcion = new Date(at.feInscripcion);
+      const fechaInicioTaller = parseFechaLocal(at.feInicioTaller);
+      const fechaInscripcion = parseFechaLocal(at.feInscripcion);
       const fechaInicio = fechaInscripcion > fechaInicioTaller ? fechaInscripcion : fechaInicioTaller;
       
       const mesInicio = fechaInicio.getMonth() + 1;
@@ -377,7 +378,7 @@ async function consultarPendientes(searchParams: URLSearchParams) {
       let anioFin = anioActual;
       
       if (at.feBaja) {
-        const fechaBaja = new Date(at.feBaja);
+        const fechaBaja = parseFechaLocal(at.feBaja);
         mesFin = fechaBaja.getMonth() + 1;
         anioFin = fechaBaja.getFullYear();
       }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import pool from '@/lib/db';
+import { parseFechaLocal } from '@/lib/date-utils';
 
 // GET - Obtener pagos pendientes de meses anteriores para un alumno
 export async function GET(
@@ -61,6 +62,7 @@ export async function GET(
         t.nuAnioTaller,
         DATE_FORMAT(t.feInicioTaller, '%Y-%m-%d') as feInicioTaller,
         DATE_FORMAT(at.feInscripcion, '%Y-%m-%d') as feInscripcion,
+        DATE_FORMAT(at.feBaja, '%Y-%m-%d') as feBaja,
         (
           SELECT tp.nuPrecioCompletoEfectivo 
           FROM TD_PRECIOS_TALLERES tp
@@ -85,8 +87,7 @@ export async function GET(
       INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
       INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
       WHERE a.cdAlumno IN (${placeholders})
-        AND at.cdEstado = 1
-        AND at.feBaja IS NULL
+        AND at.cdEstado IN (1, 5)
         AND t.cdEstado = 1
         AND a.cdEstado != 3`,
       alumnosDelGrupo
@@ -126,15 +127,28 @@ export async function GET(
 
     // Buscar pagos pendientes de meses anteriores al seleccionado
     for (const inscripcion of inscripciones) {
-      const fechaInscripcion = new Date(inscripcion.feInscripcion);
+      const fechaInscripcion = parseFechaLocal(inscripcion.feInscripcion);
       const mesInscripcion = fechaInscripcion.getMonth() + 1;
       const anioInscripcion = fechaInscripcion.getFullYear();
 
       // Determinar desde qué mes buscar deudas
       const mesDesde = (anioInscripcion === anioActual) ? mesInscripcion : 1;
 
-      // Buscar todos los meses desde la inscripción hasta el mes anterior al actual
-      for (let mes = mesDesde; mes < mesActual; mes++) {
+      // Si el alumno fue dado de baja, no buscar deudas más allá del mes de baja
+      let mesLimite = mesActual - 1;
+      if (inscripcion.feBaja) {
+        const fechaBaja = parseFechaLocal(inscripcion.feBaja);
+        const anioBaja = fechaBaja.getFullYear();
+        const mesBaja = fechaBaja.getMonth() + 1;
+        if (anioBaja < anioActual) {
+          mesLimite = 0;
+        } else if (anioBaja === anioActual) {
+          mesLimite = Math.min(mesLimite, mesBaja);
+        }
+      }
+
+      // Buscar todos los meses desde la inscripción hasta el mes de baja (o el anterior al seleccionado)
+      for (let mes = mesDesde; mes <= mesLimite; mes++) {
         const key = `${inscripcion.cdAlumno}-${inscripcion.cdTaller}-${mes}-${anioActual}`;
         
         if (!pagosSet.has(key)) {

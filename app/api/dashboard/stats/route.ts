@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import { executeQuery } from '@/lib/db-utils';
 import pool from '@/lib/db';
+import { parseFechaLocal } from '@/lib/date-utils';
 
 export async function GET(request: NextRequest) {
   try {
@@ -501,7 +502,7 @@ export async function GET(request: NextRequest) {
       FROM TD_TALLERES t
       INNER JOIN TD_PERSONAL p ON t.cdPersonal = p.cdPersonal
       INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
-      WHERE t.cdEstado IN (1, 2)
+      WHERE t.cdEstado = 1
         AND p.cdEstado = 1
         AND p.dsTipoPersonal = 'Profesor'
         AND t.nuAnioTaller = ?`;
@@ -544,7 +545,7 @@ export async function GET(request: NextRequest) {
       if (taller.snSabado) diasClase.push(6);
 
       let fechasPendientes = 0;
-      const fechaInicio = new Date(taller.feInicioTaller);
+      const fechaInicio = parseFechaLocal(taller.feInicioTaller);
       let fechaActual = new Date(fechaInicio);
 
       while (fechaActual < fechaHoy) {

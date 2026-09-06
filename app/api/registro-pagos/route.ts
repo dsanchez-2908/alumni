@@ -40,60 +40,77 @@ export async function POST(request: NextRequest) {
     // Calcular monto total
     const montoTotal = items.reduce((sum: number, item: any) => sum + parseFloat(item.monto), 0);
 
-    // Determinar tipo de pago general (si todos son del mismo tipo)
-    const tiposPago = [...new Set(items.map((i: any) => i.tipoPago))];
-    const tipoPagoGeneral = tiposPago.length === 1 ? tiposPago[0] : 'Efectivo';
-
     // Tomar el primer alumno como referencia (normalmente todos son del mismo grupo)
     const cdAlumnoPrincipal = items[0].cdAlumno;
 
-    // Insertar el pago principal
-    const [resultPago] = await connection.execute<any>(
-      `INSERT INTO TD_PAGOS (
-        cdAlumno,
-        cdGrupoFamiliar,
-        nuMes,
-        nuAnio,
-        dsTipoPago,
-        nuMontoTotal,
-        dsObservacion,
-        cdUsuarioRegistro
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        cdAlumnoPrincipal,
-        cdGrupoFamiliar || null, // Permitir null para alumnos sin grupo familiar
-        items[0].mes,
-        items[0].anio,
-        tipoPagoGeneral,
-        montoTotal,
-        observacion || null,
-        cdUsuario,
-      ]
-    );
-
-    const cdPago = resultPago.insertId;
-
-    // Insertar el detalle de cada item
+    // Los items pueden abarcar distintos meses/años (ej: pagar un mes atrasado y el actual juntos).
+    // TD_PAGOS solo admite un mes/año por registro, así que se agrupan los items por período
+    // y se crea un TD_PAGOS independiente por cada uno, todos con el mismo cdPagoLote para
+    // poder identificarlos como parte de la misma operación en el recibo.
+    const gruposPorPeriodo = new Map<string, any[]>();
     for (const item of items) {
-      await connection.execute(
-        `INSERT INTO TD_PAGOS_DETALLE (
-          cdPago,
-          cdTaller,
+      const key = `${item.anio}-${item.mes}`;
+      if (!gruposPorPeriodo.has(key)) gruposPorPeriodo.set(key, []);
+      gruposPorPeriodo.get(key)!.push(item);
+    }
+
+    const cdPagosCreados: number[] = [];
+
+    for (const [, itemsDelPeriodo] of gruposPorPeriodo) {
+      const montoPeriodo = itemsDelPeriodo.reduce((sum, item) => sum + parseFloat(item.monto), 0);
+      const tiposPagoPeriodo = [...new Set(itemsDelPeriodo.map((i) => i.tipoPago))];
+      const tipoPagoGeneral = tiposPagoPeriodo.length === 1 ? tiposPagoPeriodo[0] : 'Efectivo';
+
+      const [resultPago] = await connection.execute<any>(
+        `INSERT INTO TD_PAGOS (
           cdAlumno,
-          nuMonto,
+          cdGrupoFamiliar,
+          nuMes,
+          nuAnio,
           dsTipoPago,
-          snEsExcepcion
-        ) VALUES (?, ?, ?, ?, ?, ?)`,
+          nuMontoTotal,
+          dsObservacion,
+          cdUsuarioRegistro
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          cdPago,
-          item.cdTaller,
-          item.cdAlumno,
-          item.monto,
-          item.tipoPago,
-          item.esExcepcion ? 1 : 0,
+          cdAlumnoPrincipal,
+          cdGrupoFamiliar || null, // Permitir null para alumnos sin grupo familiar
+          itemsDelPeriodo[0].mes,
+          itemsDelPeriodo[0].anio,
+          tipoPagoGeneral,
+          montoPeriodo,
+          observacion || null,
+          cdUsuario,
         ]
       );
+
+      const cdPago = resultPago.insertId;
+      cdPagosCreados.push(cdPago);
+
+      for (const item of itemsDelPeriodo) {
+        await connection.execute(
+          `INSERT INTO TD_PAGOS_DETALLE (
+            cdPago,
+            cdTaller,
+            cdAlumno,
+            nuMonto,
+            dsTipoPago,
+            snEsExcepcion
+          ) VALUES (?, ?, ?, ?, ?, ?)`,
+          [
+            cdPago,
+            item.cdTaller,
+            item.cdAlumno,
+            item.monto,
+            item.tipoPago,
+            item.esExcepcion ? 1 : 0,
+          ]
+        );
+      }
     }
+
+    // cdPago "representativo" para mostrar en el recibo/notificación (el primero del lote)
+    const cdPago = cdPagosCreados[0];
 
     await connection.commit();
 
@@ -104,13 +121,15 @@ export async function POST(request: NextRequest) {
     );
     const nombreAlumno = alumnoData[0]?.nombreCompleto || 'Desconocido';
 
-    await registrarTraza({
-      dsProceso: 'Pagos',
-      dsAccion: 'Agregar',
-      cdUsuario,
-      cdElemento: cdPago,
-      dsDetalle: `${nombreAlumno} | $${montoTotal} | ${items.length} items`,
-    });
+    for (const cdPagoCreado of cdPagosCreados) {
+      await registrarTraza({
+        dsProceso: 'Pagos',
+        dsAccion: 'Agregar',
+        cdUsuario,
+        cdElemento: cdPagoCreado,
+        dsDetalle: `${nombreAlumno} | $${montoTotal} | ${items.length} items`,
+      });
+    }
 
     // Preparar variables para respuesta
     let whatsappLink: string | null = null;
@@ -159,8 +178,8 @@ export async function POST(request: NextRequest) {
         INNER JOIN TD_ALUMNOS a ON pd.cdAlumno = a.cdAlumno
         INNER JOIN TD_TALLERES t ON pd.cdTaller = t.cdTaller
         INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
-        WHERE pd.cdPago = ?`,
-        [cdPago]
+        WHERE pd.cdPago IN (${cdPagosCreados.map(() => '?').join(',')})`,
+        cdPagosCreados
       );
 
       if (pagoDetalles.length > 0) {

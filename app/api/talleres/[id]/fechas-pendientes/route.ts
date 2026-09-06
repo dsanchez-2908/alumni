@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import pool from '@/lib/db';
+import { parseFechaLocal } from '@/lib/date-utils';
 
 // GET - Obtener fechas de clase pendientes de registro
 export async function GET(
@@ -20,6 +21,7 @@ export async function GET(
     const [tallerRows] = await pool.execute<any[]>(
       `SELECT 
         DATE_FORMAT(t.feInicioTaller, '%Y-%m-%d') as feInicioTaller,
+        t.cdEstado,
         t.snLunes, t.snMartes, t.snMiercoles, t.snJueves, 
         t.snViernes, t.snSabado, t.snDomingo
       FROM TD_TALLERES t
@@ -32,7 +34,19 @@ export async function GET(
     }
 
     const taller = tallerRows[0];
-    const fechaInicio = new Date(taller.feInicioTaller);
+
+    // Un taller que no está Activo no debe pedir registrar asistencias
+    if (taller.cdEstado !== 1) {
+      return NextResponse.json({
+        fechasPendientes: [],
+        diasClase: [],
+        fechaInicio: taller.feInicioTaller,
+        tallerInactivo: true,
+        mensaje: 'Este taller no está activo, no se pueden registrar asistencias.',
+      });
+    }
+
+    const fechaInicio = parseFechaLocal(taller.feInicioTaller);
     const fechaHoy = new Date();
     fechaHoy.setHours(0, 0, 0, 0);
 

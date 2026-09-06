@@ -1,5 +1,6 @@
 import pool from './db';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
+import { parseFechaLocal } from './date-utils';
 
 // =============================================
 // FUNCIONES GENÉRICAS DE BASE DE DATOS
@@ -256,7 +257,8 @@ export async function actualizarEstadoAlumno(cdAlumno: number): Promise<void> {
  */
 export async function verificarDeudasPendientes(
   cdAlumno: number,
-  cdTaller: number
+  cdTaller: number,
+  feBajaOverride?: string | Date
 ): Promise<{
   tieneDeudas: boolean;
   cantidadMeses: number;
@@ -278,7 +280,14 @@ export async function verificarDeudasPendientes(
     }
     
     const feInscripcion = new Date(inscripciones[0].feInscripcion);
-    const feBaja = inscripciones[0].feBaja ? new Date(inscripciones[0].feBaja) : new Date();
+    // Prioridad: fecha indicada manualmente por el usuario > feBaja ya registrada > hoy
+    // feBajaOverride llega como string 'YYYY-MM-DD' desde el selector de fecha del frontend;
+    // se parsea con parseFechaLocal para no correrse de mes en zonas horarias como Argentina.
+    const feBaja = feBajaOverride
+      ? (typeof feBajaOverride === 'string' ? parseFechaLocal(feBajaOverride) : feBajaOverride)
+      : inscripciones[0].feBaja
+        ? new Date(inscripciones[0].feBaja)
+        : new Date();
     
     // Obtener precio del taller
     const precioQuery = `

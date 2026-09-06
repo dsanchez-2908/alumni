@@ -113,19 +113,20 @@ export async function GET(request: NextRequest) {
         )
       
       -- Detalle de pago por taller (PRIMERO buscamos el detalle específico del taller)
+      -- Nota: no se filtra por TD_PAGOS.cdAlumno, porque ese campo es solo el alumno
+      -- "responsable" del pago (puede ser otro integrante del grupo familiar); el
+      -- alumno real de cada ítem está en TD_PAGOS_DETALLE.cdAlumno.
       LEFT JOIN TD_PAGOS_DETALLE pd ON pd.cdTaller = t.cdTaller
         AND pd.cdAlumno = a.cdAlumno
         AND EXISTS (
           SELECT 1 FROM TD_PAGOS p 
           WHERE p.cdPago = pd.cdPago 
-          AND p.cdAlumno = a.cdAlumno
           AND p.nuMes = ?
           AND p.nuAnio = ?
         )
       
       -- Pagos del periodo (solo vinculado al detalle encontrado)
       LEFT JOIN TD_PAGOS pag ON pag.cdPago = pd.cdPago
-        AND pag.cdAlumno = a.cdAlumno
       
       WHERE 1=1
         -- Solo mostrar alumnos que estaban activos durante el mes consultado

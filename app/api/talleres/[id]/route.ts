@@ -33,6 +33,7 @@ export async function GET(
         t.snSabado, t.dsSabadoHoraDesde, t.dsSabadoHoraHasta,
         t.snDomingo, t.dsDomingoHoraDesde, t.dsDomingoHoraHasta,
         t.cdEstado,
+        DATE_FORMAT(t.feInactivacion, '%Y-%m-%d %H:%i:%s') as feInactivacion,
         e.dsEstado,
         tt.dsNombreTaller,
         tt.dsDescripcionTaller,
@@ -113,6 +114,22 @@ export async function PUT(
       );
     }
 
+    // Obtener el estado actual para saber si el taller está pasando a Inactivo (o reactivándose)
+    const [tallerActual] = await pool.execute<any[]>(
+      'SELECT cdEstado FROM TD_TALLERES WHERE cdTaller = ?',
+      [cdTaller]
+    );
+    const cdEstadoAnterior = tallerActual[0]?.cdEstado;
+
+    let feInactivacionValor: 'NOW()' | 'NULL' | 'SIN_CAMBIOS';
+    if (cdEstado === 2 && cdEstadoAnterior !== 2) {
+      feInactivacionValor = 'NOW()'; // Recién pasa a Inactivo
+    } else if (cdEstado === 1) {
+      feInactivacionValor = 'NULL'; // Se reactiva
+    } else {
+      feInactivacionValor = 'SIN_CAMBIOS';
+    }
+
     await pool.execute(
       `UPDATE TD_TALLERES SET
         nuAnioTaller = ?,
@@ -128,6 +145,8 @@ export async function PUT(
         snSabado = ?, dsSabadoHoraDesde = ?, dsSabadoHoraHasta = ?,
         snDomingo = ?, dsDomingoHoraDesde = ?, dsDomingoHoraHasta = ?,
         cdEstado = ?
+        ${feInactivacionValor === 'NOW()' ? ', feInactivacion = NOW()' : ''}
+        ${feInactivacionValor === 'NULL' ? ', feInactivacion = NULL' : ''}
       WHERE cdTaller = ?`,
       [
         nuAnioTaller, cdTipoTaller, cdPersonal, feInicioTaller, dsDescripcionHorarios || null,

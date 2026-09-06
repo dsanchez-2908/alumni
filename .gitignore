@@ -32,3 +32,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# dumps y backups de datos reales (contienen PII de producción, nunca subir)
+scripts/*Datos*.sql
+scripts/backup-dev-*/
+scripts/reporte-casos-quitar-sin-baja.js
+audit-report.json
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts

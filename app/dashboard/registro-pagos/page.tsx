@@ -29,7 +29,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Search, DollarSign, Save, Download, MessageCircle, AlertTriangle, X } from 'lucide-react';
+import { Search, DollarSign, Save, Download, MessageCircle } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -66,29 +66,17 @@ interface ItemPago {
   seleccionado: boolean;
   esExcepcion: boolean;
   montoExcepcion?: number;
+  atrasado: boolean;
 }
 
-interface DeudaAnterior {
-  cdAlumno: number;
-  nombreAlumno: string;
-  cdTaller: number;
-  nombreTaller: string;
-  horario: string;
-  mes: number;
-  mesNombre: string;
-  anio: number;
-  periodo: string;
-  importe: number;
+interface ResumenPeriodo {
+  cantidadPagosCompletos: number;
+  cantidadPagosDescuento: number;
 }
 
 export default function RegistroPagosPage() {
   const { success, error, warning } = useToast();
-  
-  // Inicializar con el mes y año actual
-  const fechaActual = new Date();
-  const [mesSeleccionado, setMesSeleccionado] = useState(fechaActual.getMonth() + 1);
-  const [anioSeleccionado, setAnioSeleccionado] = useState(fechaActual.getFullYear());
-  
+
   const [searchTerm, setSearchTerm] = useState('');
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
   const [alumnoSeleccionado, setAlumnoSeleccionado] = useState<Alumno | null>(null);
@@ -103,22 +91,18 @@ export default function RegistroPagosPage() {
   const [saving, setSaving] = useState(false);
   const [dialogAbierto, setDialogAbierto] = useState(false);
   const [datosNotificacion, setDatosNotificacion] = useState<{whatsappLink?: string, pdfUrl?: string, pdfFilename?: string}>({});
-  
-  // Nuevos estados para manejar pagos previos del grupo familiar
-  const [cantidadTalleresTotal, setCantidadTalleresTotal] = useState(0);
-  const [pagosPrevios, setPagosPrevios] = useState<any[]>([]);
-  const [cantidadPagosCompletos, setCantidadPagosCompletos] = useState(0);
-  
-  // Estado para deudas anteriores
-  const [deudasAnteriores, setDeudasAnteriores] = useState<DeudaAnterior[]>([]);
-  const [mostrarAdvertencia, setMostrarAdvertencia] = useState(false);
 
-  // Recalcular montos cuando cambian los items o los datos de pagos previos
+  // Cantidad total de talleres del alumno/grupo (para la regla de "único taller = precio completo")
+  const [cantidadTalleresTotal, setCantidadTalleresTotal] = useState(0);
+  // Conteo de pagos completos/descuento ya registrados, por período ("anio-mes"), para el descuento familiar
+  const [resumenPorPeriodo, setResumenPorPeriodo] = useState<Record<string, ResumenPeriodo>>({});
+
+  // Recalcular montos cuando cambian los items o el resumen de pagos previos
   useEffect(() => {
     if (items.length > 0 && items.every(item => item.precio)) {
       calcularMontos();
     }
-  }, [items.length, cantidadPagosCompletos, cantidadTalleresTotal]);
+  }, [items.length, cantidadTalleresTotal, resumenPorPeriodo]);
 
   const searchAlumnos = async () => {
     if (!searchTerm) {
@@ -143,34 +127,14 @@ export default function RegistroPagosPage() {
   const seleccionarAlumno = async (alumno: Alumno) => {
     setAlumnoSeleccionado(alumno);
     setLoading(true);
-    setDeudasAnteriores([]);
-    setMostrarAdvertencia(false);
-    
+
     try {
-      // Primero verificar si hay deudas de meses anteriores
-      const deudasResponse = await fetch(
-        `/api/alumnos/${alumno.cdAlumno}/deudas-anteriores?mes=${mesSeleccionado}&anio=${anioSeleccionado}`
-      );
-      
-      if (deudasResponse.ok) {
-        const deudasData = await deudasResponse.json();
-        if (deudasData.deudas && deudasData.deudas.length > 0) {
-          setDeudasAnteriores(deudasData.deudas);
-          setMostrarAdvertencia(true);
-        }
-      }
-      
-      // Luego cargar las cuotas del período seleccionado
-      // Si tiene grupo familiar, buscar cuotas del grupo completo
-      // Si no tiene, buscar solo las cuotas del alumno individual
+      // Buscar TODAS las cuotas pendientes (pasadas y del mes actual) del alumno o su grupo familiar
       const baseEndpoint = alumno.cdGrupoFamiliar
         ? `/api/grupos-familiares/${alumno.cdGrupoFamiliar}/cuotas-pendientes`
         : `/api/alumnos/${alumno.cdAlumno}/cuotas-pendientes`;
-      
-      // Agregar parámetros de mes y año
-      const endpoint = `${baseEndpoint}?mes=${mesSeleccionado}&anio=${anioSeleccionado}`;
-      
-      const response = await fetch(endpoint);
+
+      const response = await fetch(baseEndpoint);
       
       if (response.ok) {
         const data = await response.json();
@@ -180,27 +144,17 @@ export default function RegistroPagosPage() {
                           (data.items && data.items.length === 0) ||
                           (!data.items && !data.talleres);
         
-        if (sinCuotas && data.mensaje) {
-          error(`${alumno.dsApellido}, ${alumno.dsNombre} no tiene talleres asociados o no tiene cuotas pendientes`);
+        if (sinCuotas) {
+          error(data.mensaje || `${alumno.dsApellido}, ${alumno.dsNombre} no tiene cuotas pendientes`);
           setItems([]);
           setCantidadTalleresTotal(0);
-          setPagosPrevios([]);
-          setCantidadPagosCompletos(0);
+          setResumenPorPeriodo({});
           setAlumnoSeleccionado(null);
           setAlumnos([]);
         } else {
           setItems(data.items || []);
-          // Guardar información adicional sobre pagos previos del grupo familiar
           setCantidadTalleresTotal(data.cantidadTalleres || 0);
-          setPagosPrevios(data.pagosPrevios || []);
-          setCantidadPagosCompletos(data.cantidadPagosCompletos || 0);
-          console.log('Datos de pagos recibidos:', {
-            cantidadTalleres: data.cantidadTalleres,
-            itemsPendientes: data.items?.length || 0,
-            pagosPrevios: data.pagosPrevios?.length || 0,
-            pagosCompletos: data.cantidadPagosCompletos,
-            pagosDescuento: data.cantidadPagosDescuento
-          });
+          setResumenPorPeriodo(data.resumenPorPeriodo || {});
         }
       } else {
         const errorData = await response.json();
@@ -229,11 +183,9 @@ export default function RegistroPagosPage() {
     setTipoPagoGlobal('');
     setAlumnos([]);
     setCantidadTalleresTotal(0);
-    setPagosPrevios([]);
-    setCantidadPagosCompletos(0);
-    setDeudasAnteriores([]);
-    setMostrarAdvertencia(false);
+    setResumenPorPeriodo({});
   };
+
 
   // Cargar contactos de notificación cuando cambian los items
   const cargarContactosNotificacion = async () => {
@@ -299,81 +251,75 @@ export default function RegistroPagosPage() {
 
   const calcularMontos = () => {
     // Lógica de cálculo según reglas:
-    // 1. Si solo 1 taller EN TOTAL (incluyendo pagados): precio completo
-    // 2. Si +1 taller EN TOTAL: considerar pagos previos para determinar precios
-    //    - Si ya hay un pago completo previo, los siguientes con descuento
-    //    - Si solo hay pagos con descuento, el siguiente debe ser completo
-    
+    // 1. Si solo 1 taller EN TOTAL (incluyendo pagados): precio completo siempre
+    // 2. Si +1 taller EN TOTAL: los ítems se agrupan por período (mes-año) y el
+    //    descuento familiar se calcula de forma INDEPENDIENTE dentro de cada período,
+    //    porque el beneficio de "grupo familiar" aplica mes a mes, no en conjunto.
+    //    - Si ya hay un pago completo previo ese mes, los pendientes de ese mes van con descuento
+    //    - Si no hay pago completo ese mes, el más caro pendiente de ese mes va completo, el resto descuento
+
     setItems((currentItems) => {
       if (currentItems.length === 0) return currentItems;
 
-      const itemsActualizados = [...currentItems];
-      
-      // Calcular total de talleres considerando los pendientes + los ya pagados
       const totalTalleres = cantidadTalleresTotal || currentItems.length;
-      const yaHayPagoCompleto = cantidadPagosCompletos > 0;
-      
-      console.log('Calculando montos:', {
-        totalTalleres,
-        itemsPendientes: currentItems.length,
-        yaHayPagoCompleto,
-        cantidadPagosCompletos
-      });
 
       if (totalTalleres === 1) {
-        // Un solo taller en total: siempre precio completo
-        const item = itemsActualizados[0];
-        if (!item.esExcepcion && item.precio) {
-          item.montoCalculado =
-            item.tipoPago === 'Transferencia'
-              ? parseFloat(item.precio.nuPrecioCompletoTransferencia)
-              : parseFloat(item.precio.nuPrecioCompletoEfectivo);
-        }
-      } else {
-        // Múltiples talleres: ordenar por precio completo descendente
-        const itemsConPrecio = itemsActualizados.map((item) => ({
+        return currentItems.map((item) => {
+          if (!item.esExcepcion && item.precio) {
+            item.montoCalculado =
+              item.tipoPago === 'Transferencia'
+                ? parseFloat(item.precio.nuPrecioCompletoTransferencia)
+                : parseFloat(item.precio.nuPrecioCompletoEfectivo);
+          }
+          return item;
+        });
+      }
+
+      // Agrupar los ítems pendientes por período (mismo mes y año)
+      const grupos = new Map<string, ItemPago[]>();
+      currentItems.forEach((item) => {
+        const key = `${item.anio}-${item.mes}`;
+        if (!grupos.has(key)) grupos.set(key, []);
+        grupos.get(key)!.push(item);
+      });
+
+      const itemsActualizados: ItemPago[] = [];
+
+      grupos.forEach((itemsDelPeriodo, key) => {
+        const resumen = resumenPorPeriodo[key];
+        const yaHayPagoCompleto = (resumen?.cantidadPagosCompletos || 0) > 0;
+
+        // Dentro del período: el más caro (precio completo de referencia) paga completo,
+        // el resto paga con descuento; si ya hay un pago completo ese mes, todos con descuento.
+        const itemsConPrecio = itemsDelPeriodo.map((item) => ({
           ...item,
           precioCompletoRef: item.precio ? parseFloat(item.precio.nuPrecioCompletoEfectivo) : 0,
         }));
 
         itemsConPrecio.sort((a, b) => b.precioCompletoRef - a.precioCompletoRef);
 
-        // Si ya hay un pago completo previo, todos los pendientes van con descuento
-        // Si NO hay pago completo previo, el más caro va completo y el resto con descuento
         itemsConPrecio.forEach((item, index) => {
           if (!item.esExcepcion && item.precio) {
-            if (yaHayPagoCompleto) {
-              // Ya se pagó uno completo, todos los pendientes con descuento
+            if (yaHayPagoCompleto || index !== 0) {
               item.montoCalculado =
                 item.tipoPago === 'Transferencia'
                   ? parseFloat(item.precio.nuPrecioDescuentoTransferencia)
                   : parseFloat(item.precio.nuPrecioDescuentoEfectivo);
             } else {
-              // No hay pago completo aún: el más caro completo, resto descuento
-              if (index === 0) {
-                // Más caro: precio completo
-                item.montoCalculado =
-                  item.tipoPago === 'Transferencia'
-                    ? parseFloat(item.precio.nuPrecioCompletoTransferencia)
-                    : parseFloat(item.precio.nuPrecioCompletoEfectivo);
-              } else {
-                // Resto: precio con descuento
-                item.montoCalculado =
-                  item.tipoPago === 'Transferencia'
-                    ? parseFloat(item.precio.nuPrecioDescuentoTransferencia)
-                    : parseFloat(item.precio.nuPrecioDescuentoEfectivo);
-              }
+              item.montoCalculado =
+                item.tipoPago === 'Transferencia'
+                  ? parseFloat(item.precio.nuPrecioCompletoTransferencia)
+                  : parseFloat(item.precio.nuPrecioCompletoEfectivo);
             }
           }
+          itemsActualizados.push(item);
         });
-
-        // Actualizar el orden original con los montos calculados
-        return itemsConPrecio;
-      }
+      });
 
       return itemsActualizados;
     });
   };
+
 
   const cambiarTipoPago = (index: number, tipo: string) => {
     const nuevosItems = [...items];
@@ -585,55 +531,10 @@ export default function RegistroPagosPage() {
             Buscar Alumno
           </CardTitle>
           <CardDescription>
-            Seleccione el mes a pagar y busque el alumno
+            Busque al alumno (o su grupo familiar) para ver todas las cuotas pendientes
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {/* Selector de Mes/Año */}
-          <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <Label className="text-sm font-medium text-blue-900 mb-2 block">
-              Mes y Año del Pago
-            </Label>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="text-xs text-gray-600">Mes</Label>
-                <Select 
-                  value={mesSeleccionado.toString()} 
-                  onValueChange={(value) => setMesSeleccionado(parseInt(value))}
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {meses.map((mes, index) => (
-                      <SelectItem key={index + 1} value={(index + 1).toString()}>
-                        {mes}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-xs text-gray-600">Año</Label>
-                <Select 
-                  value={anioSeleccionado.toString()} 
-                  onValueChange={(value) => setAnioSeleccionado(parseInt(value))}
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[anioSeleccionado - 1, anioSeleccionado, anioSeleccionado + 1].map((anio) => (
-                      <SelectItem key={anio} value={anio.toString()}>
-                        {anio}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-          
           <div className="flex gap-4">
             <div className="flex-1">
               <Input
@@ -669,73 +570,6 @@ export default function RegistroPagosPage() {
           )}
         </CardContent>
       </Card>
-
-      {/* Advertencia de deudas anteriores */}
-      {mostrarAdvertencia && deudasAnteriores.length > 0 && alumnoSeleccionado && (
-        <Card className="mb-6 border-orange-300 bg-orange-50">
-          <CardHeader className="pb-3">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-orange-600" />
-                <div>
-                  <CardTitle className="text-orange-900">
-                    ⚠️ Deudas de Meses Anteriores
-                  </CardTitle>
-                  <CardDescription className="text-orange-700">
-                    El alumno {alumnoSeleccionado.dsApellido}, {alumnoSeleccionado.dsNombre} tiene {deudasAnteriores.length} cuota{deudasAnteriores.length > 1 ? 's' : ''} pendiente{deudasAnteriores.length > 1 ? 's' : ''} de mes{deudasAnteriores.length > 1 ? 'es' : ''} anterior{deudasAnteriores.length > 1 ? 'es' : ''}
-                  </CardDescription>
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setMostrarAdvertencia(false)}
-                className="text-orange-600 hover:text-orange-800 hover:bg-orange-100"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="border rounded-lg overflow-hidden bg-white">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-orange-100">
-                    <TableHead className="font-semibold text-orange-900">Alumno</TableHead>
-                    <TableHead className="font-semibold text-orange-900">Taller</TableHead>
-                    <TableHead className="font-semibold text-orange-900">Horario</TableHead>
-                    <TableHead className="font-semibold text-orange-900">Período</TableHead>
-                    <TableHead className="font-semibold text-orange-900 text-right">Importe</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {deudasAnteriores.map((deuda, index) => (
-                    <TableRow key={index} className="hover:bg-orange-50">
-                      <TableCell className="font-medium">{deuda.nombreAlumno}</TableCell>
-                      <TableCell className="font-medium">{deuda.nombreTaller}</TableCell>
-                      <TableCell className="text-sm text-gray-600">{deuda.horario}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-300">
-                          {deuda.periodo}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        ${deuda.importe.toFixed(2)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-            <div className="mt-3 p-3 bg-orange-100 rounded-md border border-orange-200">
-              <p className="text-sm text-orange-900">
-                <span className="font-semibold">Nota:</span> Esta es solo una advertencia informativa. 
-                Puede continuar registrando el pago del período seleccionado si lo desea.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Cuotas a pagar */}
       {alumnoSeleccionado && items.length > 0 && (
@@ -781,7 +615,7 @@ export default function RegistroPagosPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[50px]">Sel.</TableHead>
-                  <TableHead>Mes</TableHead>
+                  <TableHead>Período</TableHead>
                   <TableHead>Alumno</TableHead>
                   <TableHead>Taller</TableHead>
                   <TableHead>Profesor</TableHead>
@@ -792,7 +626,10 @@ export default function RegistroPagosPage() {
               </TableHeader>
               <TableBody>
                 {items.map((item, index) => (
-                  <TableRow key={`${item.cdAlumno}-${item.cdTaller}`}>
+                  <TableRow
+                    key={`${item.cdAlumno}-${item.cdTaller}-${item.anio}-${item.mes}`}
+                    className={item.atrasado ? 'bg-orange-50 hover:bg-orange-100' : undefined}
+                  >
                     <TableCell>
                       <Checkbox
                         checked={item.seleccionado}
@@ -800,7 +637,13 @@ export default function RegistroPagosPage() {
                       />
                     </TableCell>
                     <TableCell>
-                      {meses[item.mes - 1]} {item.anio}
+                      {item.atrasado ? (
+                        <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-300">
+                          {meses[item.mes - 1]} {item.anio}
+                        </Badge>
+                      ) : (
+                        <span>{meses[item.mes - 1]} {item.anio}</span>
+                      )}
                     </TableCell>
                     <TableCell>{item.nombreAlumno}</TableCell>
                     <TableCell>{item.nombreTaller}</TableCell>

@@ -16,7 +16,7 @@ export async function PUT(
     }
 
     const id = parseInt(params.alumnoId);
-    const { activo, forzarBaja } = await request.json();
+    const { activo, forzarBaja, feBaja } = await request.json();
 
     // Obtener información del alumno y taller antes de actualizar
     const [infoPrevia] = await pool.execute<any[]>(
@@ -45,8 +45,8 @@ export async function PUT(
       await actualizarEstadoAlumno(info.cdAlumno);
     } else {
       // Dar de baja alumno
-      // Primero verificar si tiene deudas pendientes
-      const deudas = await verificarDeudasPendientes(info.cdAlumno, info.cdTaller);
+      // Primero verificar si tiene deudas pendientes, usando la fecha de baja indicada por el usuario
+      const deudas = await verificarDeudasPendientes(info.cdAlumno, info.cdTaller, feBaja);
       
       // Si tiene deudas y no se forzó la baja, devolver advertencia
       if (deudas.tieneDeudas && !forzarBaja) {
@@ -58,10 +58,10 @@ export async function PUT(
         }, { status: 200 });
       }
       
-      // Dar de baja con estado "Incompleto" (cdEstado = 5)
+      // Dar de baja con estado "Incompleto" (cdEstado = 5), usando la fecha indicada por el usuario
       await pool.execute(
-        'UPDATE TR_ALUMNO_TALLER SET cdEstado = 5, feBaja = NOW() WHERE id = ?',
-        [id]
+        'UPDATE TR_ALUMNO_TALLER SET cdEstado = 5, feBaja = ? WHERE id = ?',
+        [feBaja || new Date(), id]
       );
       
       // Verificar si el alumno tiene otros talleres activos y actualizar su estado
@@ -97,12 +97,23 @@ export async function DELETE(
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
+    // Quitar elimina la inscripción por completo (incluida la deuda): solo Administrador
+    const userRoles = (session.user as any).roles as string[] || [];
+    if (!userRoles.includes('Administrador')) {
+      return NextResponse.json(
+        { error: 'Solo los administradores pueden quitar alumnos del taller' },
+        { status: 403 }
+      );
+    }
+
     const id = parseInt(params.alumnoId);
     
     let forzarEliminacion = false;
+    let feBaja: string | undefined;
     try {
       const body = await request.json();
       forzarEliminacion = body.forzarEliminacion || false;
+      feBaja = body.feBaja;
     } catch (e) {
       // Si no hay body, forzarEliminacion es false por defecto
     }
@@ -123,8 +134,8 @@ export async function DELETE(
     const nombreAlumno = info?.nombreAlumno || 'Desconocido';
     const nombreTaller = info ? `${info.dsNombreTaller} ${info.nuAnioTaller}` : 'Desconocido';
 
-    // Verificar si tiene deudas pendientes
-    const deudas = await verificarDeudasPendientes(info.cdAlumno, info.cdTaller);
+    // Verificar si tiene deudas pendientes, usando la fecha de baja indicada por el usuario
+    const deudas = await verificarDeudasPendientes(info.cdAlumno, info.cdTaller, feBaja);
     
     // Si tiene deudas y no se forzó la eliminación, devolver advertencia
     if (deudas.tieneDeudas && !forzarEliminacion) {

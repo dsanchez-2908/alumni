@@ -28,7 +28,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, UserPlus, Search, UserCheck, UserX, Calendar, Users, ClipboardCheck, FileSpreadsheet, FileText, CheckCircle2, Eye } from 'lucide-react';
+import { ArrowLeft, UserPlus, Search, UserCheck, UserX, Calendar, Users, ClipboardCheck, FileSpreadsheet, FileText, CheckCircle2, Eye, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { usePermissions } from '@/hooks/use-permissions';
@@ -65,6 +65,7 @@ interface Taller {
   snDomingo: boolean;
   dsDomingoHoraDesde: string;
   dsDomingoHoraHasta: string;
+  feInactivacion: string | null;
 }
 
 interface AlumnoInscrito {
@@ -120,6 +121,24 @@ export default function TallerDetallePage() {
     onConfirm: () => {},
     variant: 'default' as 'default' | 'destructive',
   });
+
+  // Diálogo para indicar la fecha de baja al dar de baja o quitar un alumno
+  const [bajaDialog, setBajaDialog] = useState<{
+    open: boolean;
+    tipo: 'baja' | 'quitar' | null;
+    id: number;
+    nombre: string;
+    apellido: string;
+    fecha: string;
+  }>({ open: false, tipo: null, id: 0, nombre: '', apellido: '', fecha: '' });
+
+  const getFechaHoy = () => {
+    const hoy = new Date();
+    const anio = hoy.getFullYear();
+    const mes = String(hoy.getMonth() + 1).padStart(2, '0');
+    const dia = String(hoy.getDate()).padStart(2, '0');
+    return `${anio}-${mes}-${dia}`;
+  };
 
   useEffect(() => {
     fetchTaller();
@@ -241,23 +260,35 @@ export default function TallerDetallePage() {
   };
 
   const handleCambiarEstado = async (id: number, activo: boolean) => {
-    const accion = activo ? 'reactivar' : 'dar de baja';
+    if (!activo) {
+      // Dar de baja: pedir primero la fecha real en la que dejó de asistir
+      const alumno = alumnosInscritos.find((a) => a.id === id);
+      setBajaDialog({
+        open: true,
+        tipo: 'baja',
+        id,
+        nombre: alumno?.dsNombre || '',
+        apellido: alumno?.dsApellido || '',
+        fecha: getFechaHoy(),
+      });
+      return;
+    }
+
     setConfirmDialog({
       open: true,
-      title: `${activo ? 'Reactivar' : 'Dar de baja'} alumno`,
-      description: `¿Estás seguro de ${accion} este alumno?`,
-      variant: activo ? 'default' : 'destructive',
+      title: 'Reactivar alumno',
+      description: '¿Estás seguro de reactivar este alumno?',
+      variant: 'default',
       onConfirm: () => cambiarEstadoConfirmado(id, activo),
     });
   };
 
-  const cambiarEstadoConfirmado = async (id: number, activo: boolean, forzarBaja = false) => {
-    const accion = activo ? 'reactivar' : 'dar de baja';
+  const cambiarEstadoConfirmado = async (id: number, activo: boolean, forzarBaja = false, feBaja?: string) => {
     try {
       const response = await fetch(`/api/talleres/${cdTaller}/alumnos/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ activo, forzarBaja }),
+        body: JSON.stringify({ activo, forzarBaja, feBaja }),
       });
 
       if (response.ok) {
@@ -274,13 +305,14 @@ export default function TallerDetallePage() {
             title: '⚠️ Alumno con deudas pendientes',
             description: `${data.mensaje}\n\nDetalle de deudas:\n${detalleDeudas}\n\n¿Desea dar de baja igualmente?`,
             variant: 'destructive',
-            onConfirm: () => cambiarEstadoConfirmado(id, activo, true),
+            onConfirm: () => cambiarEstadoConfirmado(id, activo, true, feBaja),
           });
           return;
         }
         
-        // Cerrar el diálogo de confirmación
+        // Cerrar los diálogos
         setConfirmDialog({ ...confirmDialog, open: false });
+        setBajaDialog({ ...bajaDialog, open: false });
         success(`Alumno ${activo ? 'reactivado' : 'dado de baja'} exitosamente`);
         fetchAlumnosInscritos();
       } else {
@@ -293,21 +325,22 @@ export default function TallerDetallePage() {
   };
 
   const handleQuitarAlumno = (id: number, nombre: string, apellido: string) => {
-    setConfirmDialog({
+    setBajaDialog({
       open: true,
-      title: 'Quitar alumno del taller',
-      description: `¿Estás seguro de quitar a ${apellido}, ${nombre} del taller? Esta acción eliminará la relación completamente y no se podrá deshacer.`,
-      variant: 'destructive',
-      onConfirm: () => quitarAlumnoConfirmado(id),
+      tipo: 'quitar',
+      id,
+      nombre,
+      apellido,
+      fecha: getFechaHoy(),
     });
   };
 
-  const quitarAlumnoConfirmado = async (id: number, forzarEliminacion = false) => {
+  const quitarAlumnoConfirmado = async (id: number, forzarEliminacion = false, feBaja?: string) => {
     try {
       const response = await fetch(`/api/talleres/${cdTaller}/alumnos/${id}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ forzarEliminacion }),
+        body: JSON.stringify({ forzarEliminacion, feBaja }),
       });
 
       if (response.ok) {
@@ -324,13 +357,14 @@ export default function TallerDetallePage() {
             title: '⚠️ Alumno con deudas pendientes',
             description: `${data.mensaje}\n\nDetalle de deudas:\n${detalleDeudas}\n\nADVERTENCIA: Si quita al alumno, se perderá el registro de la deuda y el taller incompleto. ¿Desea quitar igualmente?`,
             variant: 'destructive',
-            onConfirm: () => quitarAlumnoConfirmado(id, true),
+            onConfirm: () => quitarAlumnoConfirmado(id, true, feBaja),
           });
           return;
         }
         
-        // Cerrar el diálogo de confirmación
+        // Cerrar los diálogos
         setConfirmDialog({ ...confirmDialog, open: false });
+        setBajaDialog({ ...bajaDialog, open: false });
         success('Alumno quitado del taller exitosamente');
         fetchAlumnosInscritos();
       } else {
@@ -339,6 +373,18 @@ export default function TallerDetallePage() {
       }
     } catch (err) {
       error('Error de conexión');
+    }
+  };
+
+  const confirmarBajaConFecha = () => {
+    if (!bajaDialog.fecha) {
+      warning('Debe indicar la fecha de baja');
+      return;
+    }
+    if (bajaDialog.tipo === 'baja') {
+      cambiarEstadoConfirmado(bajaDialog.id, false, false, bajaDialog.fecha);
+    } else if (bajaDialog.tipo === 'quitar') {
+      quitarAlumnoConfirmado(bajaDialog.id, false, bajaDialog.fecha);
     }
   };
 
@@ -535,6 +581,17 @@ export default function TallerDetallePage() {
                   {alumnosInscritos.filter(a => !a.feBaja).length} activos
                 </p>
               </div>
+              {taller.dsEstado === 'Inactivo' && (
+                <div>
+                  <Label className="text-sm font-semibold text-gray-700">Fecha de Inactivación</Label>
+                  <p className="flex items-center gap-2 mt-1">
+                    <Calendar className="h-4 w-4 text-gray-500" />
+                    {taller.feInactivacion
+                      ? new Date(taller.feInactivacion).toLocaleDateString('es-AR')
+                      : 'No registrada (anterior a este cambio)'}
+                  </p>
+                </div>
+              )}
             </div>
             
             <div>
@@ -605,6 +662,25 @@ export default function TallerDetallePage() {
           </div>
         </CardHeader>
         <CardContent>
+          {/* Ayuda: diferencia entre Dar de Baja y Quitar (solo tiene sentido si el rol ve ambos botones) */}
+          {canDoTallerAction('quitar-alumno') && (
+            <div className="flex gap-3 mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+              <Info className="h-5 w-5 flex-shrink-0 text-blue-600" />
+              <div className="space-y-1">
+                <p>
+                  <strong>Dar de Baja:</strong> marca al alumno como "Incompleto" en este taller. Se mantiene el
+                  historial, la deuda pendiente hasta la fecha de baja queda registrada, y aparece en la solapa
+                  "Talleres" del alumno como incompleto. Es la opción recomendada para un alumno que deja de venir.
+                </p>
+                <p>
+                  <strong>Quitar:</strong> elimina por completo la inscripción del taller, incluyendo cualquier
+                  deuda o historial de "incompleto". No se puede deshacer. Usar solo para corregir una inscripción
+                  cargada por error, <u>nunca</u> después de haber usado "Dar de Baja" para el mismo alumno.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Filtros */}
           <div className="flex gap-4 mb-6">
             <div className="flex-1">
@@ -819,6 +895,40 @@ export default function TallerDetallePage() {
         onConfirm={confirmDialog.onConfirm}
         variant={confirmDialog.variant}
       />
+
+      {/* Diálogo para indicar la fecha de baja (Dar de Baja / Quitar) */}
+      <Dialog open={bajaDialog.open} onOpenChange={(open) => setBajaDialog({ ...bajaDialog, open })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {bajaDialog.tipo === 'quitar' ? 'Quitar alumno del taller' : 'Dar de baja alumno'}
+            </DialogTitle>
+            <DialogDescription>
+              {bajaDialog.tipo === 'quitar'
+                ? `⚠️ Esto borra COMPLETAMENTE la inscripción de ${bajaDialog.apellido}, ${bajaDialog.nombre} y cualquier deuda pendiente asociada. No se puede deshacer y no queda registro de "incompleto". Si ya le diste de baja antes, esta acción es innecesaria: no la uses salvo que quieras corregir una inscripción cargada por error.`
+                : `Indicá la fecha real en la que ${bajaDialog.apellido}, ${bajaDialog.nombre} dejó de asistir. Esta fecha se usa para calcular las cuotas adeudadas. El alumno quedará como "Incompleto" en este taller, conservando su historial y deuda.`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="fechaBaja">Fecha de baja</Label>
+            <Input
+              id="fechaBaja"
+              type="date"
+              value={bajaDialog.fecha}
+              max={getFechaHoy()}
+              onChange={(e) => setBajaDialog({ ...bajaDialog, fecha: e.target.value })}
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setBajaDialog({ ...bajaDialog, open: false })}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={confirmarBajaConFecha}>
+              Confirmar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal de Discapacidad */}
       <Dialog open={discapacidadDialog.open} onOpenChange={(open) => setDiscapacidadDialog({ open, alumno: null })}>

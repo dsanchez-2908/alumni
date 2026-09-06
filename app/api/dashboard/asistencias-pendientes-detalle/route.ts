@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import pool from '@/lib/db';
+import { parseFechaLocal } from '@/lib/date-utils';
 
 // GET - Obtener detalle de asistencias pendientes con fechas específicas
 export async function GET(request: NextRequest) {
@@ -137,7 +138,7 @@ export async function GET(request: NextRequest) {
       }).join(' | ');
 
       // Recorrer todas las fechas desde el inicio del taller hasta hoy
-      const fechaInicio = new Date(taller.feInicioTaller);
+      const fechaInicio = parseFechaLocal(taller.feInicioTaller);
       let fechaActual = new Date(fechaInicio);
 
       while (fechaActual < fechaHoy) {

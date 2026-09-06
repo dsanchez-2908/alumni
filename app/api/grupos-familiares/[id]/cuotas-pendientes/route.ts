@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import pool from '@/lib/db';
+import { calcularCuotasPendientes } from '@/lib/cuotas-pendientes';
 
-// GET - Calcular cuotas pendientes para un grupo familiar
+// GET - Calcular TODAS las cuotas pendientes (pasadas y del mes actual) de un grupo familiar
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -16,16 +17,7 @@ export async function GET(
 
     const cdGrupoFamiliar = parseInt(params.id);
 
-    // Obtener mes y a\u00f1o de los query params, o usar el mes actual por defecto
-    const { searchParams } = new URL(request.url);
-    const mesParam = searchParams.get('mes');
-    const anioParam = searchParams.get('anio');
-    
-    const fechaActual = new Date();
-    const mesSeleccionado = mesParam ? parseInt(mesParam) : fechaActual.getMonth() + 1;
-    const anioSeleccionado = anioParam ? parseInt(anioParam) : fechaActual.getFullYear();
-
-    // Obtener todos los talleres activos del grupo familiar
+    // Obtener todos los talleres del grupo familiar (activos, o incompletos con deuda hasta la baja)
     const [talleres] = await pool.execute<any[]>(
       `SELECT 
         at.cdAlumno,
@@ -45,7 +37,9 @@ export async function GET(
         t.dsMiercolesHoraDesde, t.dsMiercolesHoraHasta,
         t.dsJuevesHoraDesde, t.dsJuevesHoraHasta,
         t.dsViernesHoraDesde, t.dsViernesHoraHasta,
-        t.dsSabadoHoraDesde, t.dsSabadoHoraHasta
+        t.dsSabadoHoraDesde, t.dsSabadoHoraHasta,
+        DATE_FORMAT(at.feInscripcion, '%Y-%m-%d') as feInscripcion,
+        DATE_FORMAT(at.feBaja, '%Y-%m-%d') as feBaja
       FROM TR_ALUMNO_GRUPO_FAMILIAR agf
       INNER JOIN TD_ALUMNOS a ON agf.cdAlumno = a.cdAlumno
       INNER JOIN TR_ALUMNO_TALLER at ON a.cdAlumno = at.cdAlumno
@@ -53,7 +47,7 @@ export async function GET(
       INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
       INNER JOIN TD_PERSONAL p ON t.cdPersonal = p.cdPersonal
       WHERE agf.cdGrupoFamiliar = ?
-        AND at.feBaja IS NULL
+        AND (at.feBaja IS NULL OR at.cdEstado = 5)
         AND t.cdEstado IN (1, 2)
       ORDER BY a.dsApellido, a.dsNombre, tt.dsNombreTaller`,
       [cdGrupoFamiliar]
@@ -67,199 +61,33 @@ export async function GET(
       });
     }
 
-    // Obtener precios vigentes para cada tipo de taller
-    const tiposTaller = [...new Set(talleres.map((t: any) => t.cdTipoTaller))];
-    
-    // Calcular el último día del mes seleccionado
-    // Esto asegura que si hay un nuevo precio en un mes posterior, no se aplique a meses anteriores
-    const ultimoDiaMes = new Date(anioSeleccionado, mesSeleccionado, 0).getDate();
-    const fechaConsulta = `${anioSeleccionado}-${String(mesSeleccionado).padStart(2, '0')}-${String(ultimoDiaMes).padStart(2, '0')}`;
-    
-    const preciosPromises = tiposTaller.map(async (cdTipoTaller) => {
-      const [precios] = await pool.execute<any[]>(
-        `SELECT *
-         FROM TD_PRECIOS_TALLERES
-         WHERE cdTipoTaller = ?
-           AND feInicioVigencia <= ?
-           AND cdEstado = 1
-         ORDER BY feInicioVigencia DESC
-         LIMIT 1`,
-        [cdTipoTaller, fechaConsulta]
-      );
-      return { cdTipoTaller, precio: precios[0] || null };
-    });
-
-    const preciosData = await Promise.all(preciosPromises);
-    const preciosMap = new Map(preciosData.map((p) => [p.cdTipoTaller, p.precio]));
-
-    // Verificar que todos los talleres tengan precio
-    const sinPrecio = talleres.filter(
-      (t: any) => !preciosMap.get(t.cdTipoTaller)
-    );
-
-    if (sinPrecio.length > 0) {
-      return NextResponse.json({
-        error: 'Algunos talleres no tienen precio vigente',
-        talleresSinPrecio: sinPrecio,
-      }, { status: 400 });
-    }
-
-    // Obtener pagos ya realizados para este grupo familiar en el mes/año seleccionado
-    // con información detallada de montos para determinar si fue precio completo o descuento
+    // Traer TODOS los pagos ya realizados del grupo (sin filtrar por mes/año)
     const [pagosRealizados] = await pool.execute<any[]>(
-      `SELECT 
-         pd.cdAlumno, 
-         pd.cdTaller,
-         pd.nuMonto,
-         pd.cdPagoDetalle,
-         tt.cdTipoTaller
+      `SELECT pd.cdAlumno, pd.cdTaller, tt.cdTipoTaller, p.nuMes, p.nuAnio, pd.nuMonto
        FROM TD_PAGOS p
        INNER JOIN TD_PAGOS_DETALLE pd ON p.cdPago = pd.cdPago
        INNER JOIN TD_TALLERES t ON pd.cdTaller = t.cdTaller
        INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
-       WHERE p.cdGrupoFamiliar = ?
-         AND p.nuMes = ?
-         AND p.nuAnio = ?`,
-      [cdGrupoFamiliar, mesSeleccionado, anioSeleccionado]
+       WHERE p.cdGrupoFamiliar = ?`,
+      [cdGrupoFamiliar]
     );
 
-    // Analizar pagos previos: determinar cuántos fueron con precio completo
-    const pagosPreviosConTipoInfo = pagosRealizados.map((pago: any) => {
-      const precio = preciosMap.get(pago.cdTipoTaller);
-      let tipoPrecio = 'desconocido';
-      
-      if (precio) {
-        const monto = parseFloat(pago.nuMonto);
-        const precioCompletoEfectivo = parseFloat(precio.nuPrecioCompletoEfectivo);
-        const precioCompletoTransferencia = parseFloat(precio.nuPrecioCompletoTransferencia);
-        const precioDescuentoEfectivo = parseFloat(precio.nuPrecioDescuentoEfectivo);
-        const precioDescuentoTransferencia = parseFloat(precio.nuPrecioDescuentoTransferencia);
-        
-        // Determinar si fue precio completo o descuento (con tolerancia de 0.01 por redondeos)
-        if (Math.abs(monto - precioCompletoEfectivo) < 0.01 || Math.abs(monto - precioCompletoTransferencia) < 0.01) {
-          tipoPrecio = 'completo';
-        } else if (Math.abs(monto - precioDescuentoEfectivo) < 0.01 || Math.abs(monto - precioDescuentoTransferencia) < 0.01) {
-          tipoPrecio = 'descuento';
-        } else {
-          tipoPrecio = 'excepcion';
-        }
-      }
-      
-      return {
-        cdAlumno: pago.cdAlumno,
-        cdTaller: pago.cdTaller,
-        cdTipoTaller: pago.cdTipoTaller,
-        nuMonto: pago.nuMonto,
-        tipoPrecio
-      };
-    });
+    const { items, resumenPorPeriodo } = await calcularCuotasPendientes(talleres, pagosRealizados);
 
-    // Contar cuántos pagos previos fueron con precio completo
-    const cantidadPagosCompletos = pagosPreviosConTipoInfo.filter(
-      (p: any) => p.tipoPrecio === 'completo'
-    ).length;
-
-    // Crear un Set para búsqueda rápida
-    const pagoSet = new Set(
-      pagosRealizados.map((p: any) => `${p.cdAlumno}-${p.cdTaller}`)
-    );
-    
-    // Filtrar solo los items que NO han sido pagados
-    const items = talleres
-      .filter((taller: any) => {
-        const key = `${taller.cdAlumno}-${taller.cdTaller}`;
-        return !pagoSet.has(key);
-      })
-      .map((taller: any) => {
-        const precio = preciosMap.get(taller.cdTipoTaller);
-        
-        // Función helper para formatear hora TIME a HH:MM
-        const formatTime = (time: string | null) => {
-          if (!time) return null;
-          return time.substring(0, 5);
-        };
-        
-        // Formatear días de la semana con horarios
-        const diasInfo = [];
-        if (taller.snDomingo) {
-          const desde = formatTime(taller.dsDomingoHoraDesde);
-          const hasta = formatTime(taller.dsDomingoHoraHasta);
-          diasInfo.push({ dia: 'Dom', desde, hasta });
-        }
-        if (taller.snLunes) {
-          const desde = formatTime(taller.dsLunesHoraDesde);
-          const hasta = formatTime(taller.dsLunesHoraHasta);
-          diasInfo.push({ dia: 'Lun', desde, hasta });
-        }
-        if (taller.snMartes) {
-          const desde = formatTime(taller.dsMartesHoraDesde);
-          const hasta = formatTime(taller.dsMartesHoraHasta);
-          diasInfo.push({ dia: 'Mar', desde, hasta });
-        }
-        if (taller.snMiercoles) {
-          const desde = formatTime(taller.dsMiercolesHoraDesde);
-          const hasta = formatTime(taller.dsMiercolesHoraHasta);
-          diasInfo.push({ dia: 'Mié', desde, hasta });
-        }
-        if (taller.snJueves) {
-          const desde = formatTime(taller.dsJuevesHoraDesde);
-          const hasta = formatTime(taller.dsJuevesHoraHasta);
-          diasInfo.push({ dia: 'Jue', desde, hasta });
-        }
-        if (taller.snViernes) {
-          const desde = formatTime(taller.dsViernesHoraDesde);
-          const hasta = formatTime(taller.dsViernesHoraHasta);
-          diasInfo.push({ dia: 'Vie', desde, hasta });
-        }
-        if (taller.snSabado) {
-          const desde = formatTime(taller.dsSabadoHoraDesde);
-          const hasta = formatTime(taller.dsSabadoHoraHasta);
-          diasInfo.push({ dia: 'Sáb', desde, hasta });
-        }
-        
-        const diasTexto = diasInfo.map(d => {
-          if (d.desde && d.hasta) {
-            return `${d.dia} ${d.desde}-${d.hasta}`;
-          }
-          return d.dia;
-        }).join(', ');
-        
-        return {
-          cdAlumno: taller.cdAlumno,
-          nombreAlumno: `${taller.dsApellido}, ${taller.dsNombre}`,
-          cdTaller: taller.cdTaller,
-          nombreTaller: `${taller.dsNombreTaller} (${taller.nuAnioTaller})`,
-          cdTipoTaller: taller.cdTipoTaller,
-          nombreProfesor: taller.nombreProfesor,
-          diasClase: diasTexto,
-          horarioClase: taller.dsDescripcionHorarios || '',
-          mes: mesSeleccionado,
-          anio: anioSeleccionado,
-          precio,
-          // Estos valores se calcularán en el frontend según la lógica de descuentos
-          montoCalculado: 0,
-          tipoPago: 'Efectivo',
-          seleccionado: true,
-        };
-      });
-
-    // Verificar si hay items pendientes después del filtro
     if (items.length === 0) {
       return NextResponse.json({
         grupoFamiliar: cdGrupoFamiliar,
         items: [],
         cantidadTalleres: 0,
-        mensaje: 'No hay cuotas pendientes. Todos los pagos del mes actual ya fueron realizados.',
+        mensaje: 'No hay cuotas pendientes. Todos los pagos están al día.',
       });
     }
 
     return NextResponse.json({
       grupoFamiliar: cdGrupoFamiliar,
       items,
-      cantidadTalleres: talleres.length, // Total de talleres incluyendo pagados
-      pagosPrevios: pagosPreviosConTipoInfo, // Pagos ya realizados este mes con tipo
-      cantidadPagosCompletos, // Cuántos pagos previos fueron con precio completo
-      cantidadPagosDescuento: pagosPreviosConTipoInfo.filter((p: any) => p.tipoPrecio === 'descuento').length,
+      cantidadTalleres: talleres.length, // Total de talleres del grupo (para la regla de "único taller")
+      resumenPorPeriodo, // Conteo de pagos completos/descuento por "anio-mes", para el descuento familiar
     });
   } catch (error: any) {
     console.error('Error al calcular cuotas:', error);
