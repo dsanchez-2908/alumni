@@ -308,8 +308,8 @@ export async function GET(request: NextRequest) {
       -- Profesor
       INNER JOIN TD_PERSONAL p ON t.cdPersonal = p.cdPersonal
       
-      -- Alumno
-      INNER JOIN TD_ALUMNOS a ON pag.cdAlumno = a.cdAlumno
+      -- Alumno (el alumno real de este ítem del pago, no el responsable del pago)
+      INNER JOIN TD_ALUMNOS a ON pd.cdAlumno = a.cdAlumno
       
       WHERE 1=1
         -- El pago fue realizado en el mes/año consultado
