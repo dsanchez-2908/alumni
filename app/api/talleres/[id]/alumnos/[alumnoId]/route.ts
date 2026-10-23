@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import pool from '@/lib/db';
 import { registrarTraza, actualizarEstadoAlumno, verificarDeudasPendientes } from '@/lib/db-utils';
+import { verificarCupoInscripcion } from '@/lib/cupos';
 
 // PUT - Cambiar estado del alumno en el taller (dar de baja/reactivar)
 export async function PUT(
@@ -16,7 +17,7 @@ export async function PUT(
     }
 
     const id = parseInt(params.alumnoId);
-    const { activo, forzarBaja, feBaja } = await request.json();
+    const { activo, forzarBaja, feBaja, forzarCupo } = await request.json();
 
     // Obtener información del alumno y taller antes de actualizar
     const [infoPrevia] = await pool.execute<any[]>(
@@ -35,6 +36,19 @@ export async function PUT(
     const nombreTaller = info ? `${info.dsNombreTaller} ${info.nuAnioTaller}` : 'Desconocido';
 
     if (activo) {
+      // Reactivar vuelve a ocupar un lugar del cupo (si el alumno ya estaba activo no cambia nada)
+      const [inscripcionActual] = await pool.execute<any[]>(
+        'SELECT cdEstado, feBaja FROM TR_ALUMNO_TALLER WHERE id = ?',
+        [id]
+      );
+      const yaOcupaLugar = inscripcionActual[0]?.cdEstado === 1 && !inscripcionActual[0]?.feBaja;
+      if (info && !yaOcupaLugar) {
+        const cupo = await verificarCupoInscripcion(pool, session, [info.cdTaller], !!forzarCupo);
+        if (cupo) {
+          return NextResponse.json(cupo.body, { status: cupo.status });
+        }
+      }
+
       // Reactivar alumno (cdEstado = 1)
       await pool.execute(
         'UPDATE TR_ALUMNO_TALLER SET cdEstado = 1, feBaja = NULL WHERE id = ?',

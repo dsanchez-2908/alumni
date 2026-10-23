@@ -234,6 +234,7 @@ CREATE TABLE `TD_TALLERES` (
   `cdTipoTaller` INT NOT NULL,
   `cdPersonal` INT NOT NULL,
   `feInicioTaller` DATE NOT NULL,
+  `nuCupoMaximo` INT NULL DEFAULT NULL COMMENT 'Cantidad máxima de alumnos (NULL = sin límite)',
   `dsDescripcionHorarios` TEXT,
   `snLunes` TINYINT(1) DEFAULT 0,
   `dsLunesHoraDesde` TIME DEFAULT NULL,
@@ -486,6 +487,12 @@ CREATE TABLE `TD_NOVEDADES_ALUMNO` (
   CONSTRAINT `td_novedades_alumno_ibfk_2` FOREIGN KEY (`cdUsuario`) REFERENCES `TD_USUARIOS` (`cdUsuario`),
   CONSTRAINT `td_novedades_alumno_ibfk_3` FOREIGN KEY (`cdEstado`) REFERENCES `TD_ESTADOS` (`cdEstado`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =============================================
+-- TABLA: TD_PRECIOS_INSCRIPCIONES / TD_PAGOS_INSCRIPCIONES
+-- Descripción: Precios y pagos de inscripción anual (Fase 1 Inscripciones).
+-- Definición completa en database/add-inscripciones.sql (script idempotente para bases existentes).
+-- =============================================
 
 -- =============================================
 -- INSERTAR DATOS INICIALES

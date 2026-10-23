@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import pool from '@/lib/db';
 import { registrarTraza, actualizarEstadoAlumno } from '@/lib/db-utils';
+import { verificarCupoInscripcion } from '@/lib/cupos';
 
 interface Alumno {
   cdAlumno: number;
@@ -344,6 +345,7 @@ export async function POST(request: NextRequest) {
       dsMailContacto2,
       cdGrupoFamiliar,
       talleres = [],
+      forzarCupo = false,
     } = body;
 
     // Validaciones
@@ -352,6 +354,11 @@ export async function POST(request: NextRequest) {
         { error: 'Nombre, apellido, DNI, sexo y fecha de nacimiento son obligatorios' },
         { status: 400 }
       );
+    }
+
+    const cupo = await verificarCupoInscripcion(pool, session, talleres, !!forzarCupo);
+    if (cupo) {
+      return NextResponse.json(cupo.body, { status: cupo.status });
     }
 
     // Validar que el DNI no esté duplicado

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import pool from '@/lib/db';
 import { registrarTraza } from '@/lib/db-utils';
+import { parseCupoMaximo } from '@/lib/cupos';
 
 // GET - Obtener un taller por ID
 export async function GET(
@@ -24,6 +25,7 @@ export async function GET(
         t.cdTipoTaller,
         t.cdPersonal,
         DATE_FORMAT(t.feInicioTaller, '%Y-%m-%d') as feInicioTaller,
+        t.nuCupoMaximo,
         t.dsDescripcionHorarios,
         t.snLunes, t.dsLunesHoraDesde, t.dsLunesHoraHasta,
         t.snMartes, t.dsMartesHoraDesde, t.dsMartesHoraHasta,
@@ -38,7 +40,8 @@ export async function GET(
         tt.dsNombreTaller,
         tt.dsDescripcionTaller,
         p.dsNombreCompleto as nombrePersonal,
-        COUNT(DISTINCT CASE WHEN at.feBaja IS NULL THEN at.cdAlumno END) as cantidadAlumnos
+        COUNT(DISTINCT CASE WHEN at.feBaja IS NULL THEN at.cdAlumno END) as cantidadAlumnos,
+        COUNT(DISTINCT CASE WHEN at.feBaja IS NULL AND at.cdEstado = 1 THEN at.cdAlumno END) as cupoOcupado
       FROM TD_TALLERES t
       INNER JOIN TD_ESTADOS e ON t.cdEstado = e.cdEstado
       INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
@@ -84,6 +87,7 @@ export async function PUT(
       cdTipoTaller,
       cdPersonal,
       feInicioTaller,
+      nuCupoMaximo,
       dsDescripcionHorarios,
       snLunes, dsLunesHoraDesde, dsLunesHoraHasta,
       snMartes, dsMartesHoraDesde, dsMartesHoraHasta,
@@ -101,6 +105,11 @@ export async function PUT(
         { error: 'Faltan campos requeridos' },
         { status: 400 }
       );
+    }
+
+    const cupo = parseCupoMaximo(nuCupoMaximo);
+    if (cupo.error) {
+      return NextResponse.json({ error: cupo.error }, { status: 400 });
     }
 
     // Verificar que al menos un día esté seleccionado
@@ -136,6 +145,7 @@ export async function PUT(
         cdTipoTaller = ?,
         cdPersonal = ?,
         feInicioTaller = ?,
+        nuCupoMaximo = ?,
         dsDescripcionHorarios = ?,
         snLunes = ?, dsLunesHoraDesde = ?, dsLunesHoraHasta = ?,
         snMartes = ?, dsMartesHoraDesde = ?, dsMartesHoraHasta = ?,
@@ -149,7 +159,7 @@ export async function PUT(
         ${feInactivacionValor === 'NULL' ? ', feInactivacion = NULL' : ''}
       WHERE cdTaller = ?`,
       [
-        nuAnioTaller, cdTipoTaller, cdPersonal, feInicioTaller, dsDescripcionHorarios || null,
+        nuAnioTaller, cdTipoTaller, cdPersonal, feInicioTaller, cupo.valor, dsDescripcionHorarios || null,
         snLunes ? 1 : 0, dsLunesHoraDesde || null, dsLunesHoraHasta || null,
         snMartes ? 1 : 0, dsMartesHoraDesde || null, dsMartesHoraHasta || null,
         snMiercoles ? 1 : 0, dsMiercolesHoraDesde || null, dsMiercolesHoraHasta || null,
@@ -168,7 +178,7 @@ export async function PUT(
       dsAccion: 'Modificar',
       cdUsuario: (session.user as any).cdUsuario,
       cdElemento: cdTaller,
-      dsDetalle: `Taller actualizado - Año: ${nuAnioTaller}, Tipo: ${cdTipoTaller}`,
+      dsDetalle: `Taller actualizado - Año: ${nuAnioTaller}, Tipo: ${cdTipoTaller}, Cupo máximo: ${cupo.valor ?? 'sin límite'}`,
     });
 
     return NextResponse.json({ message: 'Taller actualizado exitosamente' });

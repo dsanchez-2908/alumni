@@ -66,6 +66,8 @@ interface Taller {
   dsDomingoHoraDesde: string;
   dsDomingoHoraHasta: string;
   feInactivacion: string | null;
+  nuCupoMaximo: number | null;
+  cupoOcupado: number;
 }
 
 interface AlumnoInscrito {
@@ -216,12 +218,12 @@ export default function TallerDetallePage() {
     });
   };
 
-  const inscribirAlumnoConfirmado = async (cdAlumno: number, forzarInscripcion = false) => {
+  const inscribirAlumnoConfirmado = async (cdAlumno: number, forzarInscripcion = false, forzarCupo = false) => {
     try {
       const response = await fetch(`/api/talleres/${cdTaller}/alumnos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cdAlumno, forzarInscripcion }),
+        body: JSON.stringify({ cdAlumno, forzarInscripcion, forzarCupo }),
       });
 
       if (response.ok) {
@@ -238,7 +240,7 @@ export default function TallerDetallePage() {
             title: '⚠️ Alumno inactivo con deudas pendientes',
             description: `${data.mensaje}\n\nDetalle de deudas:\n${detalleDeudas}\n\n¿Desea inscribirlo igualmente?`,
             variant: 'destructive',
-            onConfirm: () => inscribirAlumnoConfirmado(cdAlumno, true),
+            onConfirm: () => inscribirAlumnoConfirmado(cdAlumno, true, forzarCupo),
           });
           return;
         }
@@ -250,8 +252,22 @@ export default function TallerDetallePage() {
         setSearchTerm('');
         setAlumnosDisponibles([]);
         fetchAlumnosInscritos();
+        fetchTaller();
       } else {
         const errorData = await response.json();
+
+        if (errorData.cupoExcedido && errorData.puedeForzar) {
+          setConfirmDialog({
+            open: true,
+            title: '⚠️ Cupo completo',
+            description: `${errorData.error}\n\n¿Desea inscribirlo igualmente por encima del cupo?`,
+            variant: 'destructive',
+            onConfirm: () => inscribirAlumnoConfirmado(cdAlumno, forzarInscripcion, true),
+          });
+          return;
+        }
+
+        setConfirmDialog({ ...confirmDialog, open: false });
         error(errorData.error || 'Error al inscribir alumno');
       }
     } catch (err) {
@@ -283,12 +299,12 @@ export default function TallerDetallePage() {
     });
   };
 
-  const cambiarEstadoConfirmado = async (id: number, activo: boolean, forzarBaja = false, feBaja?: string) => {
+  const cambiarEstadoConfirmado = async (id: number, activo: boolean, forzarBaja = false, feBaja?: string, forzarCupo = false) => {
     try {
       const response = await fetch(`/api/talleres/${cdTaller}/alumnos/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ activo, forzarBaja, feBaja }),
+        body: JSON.stringify({ activo, forzarBaja, feBaja, forzarCupo }),
       });
 
       if (response.ok) {
@@ -315,8 +331,22 @@ export default function TallerDetallePage() {
         setBajaDialog({ ...bajaDialog, open: false });
         success(`Alumno ${activo ? 'reactivado' : 'dado de baja'} exitosamente`);
         fetchAlumnosInscritos();
+        fetchTaller();
       } else {
         const errorData = await response.json();
+
+        if (activo && errorData.cupoExcedido && errorData.puedeForzar) {
+          setConfirmDialog({
+            open: true,
+            title: '⚠️ Cupo completo',
+            description: `${errorData.error}\n\n¿Desea reactivarlo igualmente por encima del cupo?`,
+            variant: 'destructive',
+            onConfirm: () => cambiarEstadoConfirmado(id, activo, forzarBaja, feBaja, true),
+          });
+          return;
+        }
+
+        setConfirmDialog({ ...confirmDialog, open: false });
         error(errorData.error || 'Error al cambiar estado');
       }
     } catch (err) {
@@ -579,6 +609,18 @@ export default function TallerDetallePage() {
                 <p className="flex items-center gap-2 mt-1">
                   <Users className="h-4 w-4 text-gray-500" />
                   {alumnosInscritos.filter(a => !a.feBaja).length} activos
+                  {taller.nuCupoMaximo !== null && (
+                    <span
+                      className={
+                        taller.cupoOcupado >= taller.nuCupoMaximo
+                          ? 'font-semibold text-red-600'
+                          : 'text-gray-600'
+                      }
+                    >
+                      · Cupo máximo: {taller.nuCupoMaximo}
+                      {taller.cupoOcupado >= taller.nuCupoMaximo && ' (completo)'}
+                    </span>
+                  )}
                 </p>
               </div>
               {taller.dsEstado === 'Inactivo' && (

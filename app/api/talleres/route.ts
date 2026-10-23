@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import pool from '@/lib/db';
 import { registrarTraza } from '@/lib/db-utils';
+import { parseCupoMaximo } from '@/lib/cupos';
 
 interface Taller {
   cdTaller: number;
@@ -37,6 +38,8 @@ interface Taller {
   dsNombreTaller: string;
   nombrePersonal: string;
   cantidadAlumnos: number;
+  nuCupoMaximo: number | null;
+  cupoOcupado: number;
 }
 
 // GET - Listar talleres
@@ -54,6 +57,7 @@ export async function GET() {
         tt.dsNombreTaller,
         p.dsNombreCompleto as nombrePersonal,
         COUNT(DISTINCT CASE WHEN at.feBaja IS NULL THEN at.cdAlumno END) as cantidadAlumnos,
+        COUNT(DISTINCT CASE WHEN at.feBaja IS NULL AND at.cdEstado = 1 THEN at.cdAlumno END) as cupoOcupado,
         DATE_FORMAT(t.feInicioTaller, '%Y-%m-%d') as feInicioTaller
       FROM TD_TALLERES t
       INNER JOIN TD_ESTADOS e ON t.cdEstado = e.cdEstado
@@ -89,6 +93,7 @@ export async function POST(request: NextRequest) {
       cdTipoTaller,
       cdPersonal,
       feInicioTaller,
+      nuCupoMaximo,
       dsDescripcionHorarios,
       snLunes, dsLunesHoraDesde, dsLunesHoraHasta,
       snMartes, dsMartesHoraDesde, dsMartesHoraHasta,
@@ -107,6 +112,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const cupo = parseCupoMaximo(nuCupoMaximo);
+    if (cupo.error) {
+      return NextResponse.json({ error: cupo.error }, { status: 400 });
+    }
+
     // Verificar que al menos un día esté seleccionado con horarios
     const tieneDias = [snLunes, snMartes, snMiercoles, snJueves, snViernes, snSabado, snDomingo]
       .some(dia => dia === true || dia === 1);
@@ -120,7 +130,7 @@ export async function POST(request: NextRequest) {
 
     const [result] = await pool.execute<any>(
       `INSERT INTO TD_TALLERES (
-        nuAnioTaller, cdTipoTaller, cdPersonal, feInicioTaller, dsDescripcionHorarios,
+        nuAnioTaller, cdTipoTaller, cdPersonal, feInicioTaller, nuCupoMaximo, dsDescripcionHorarios,
         snLunes, dsLunesHoraDesde, dsLunesHoraHasta,
         snMartes, dsMartesHoraDesde, dsMartesHoraHasta,
         snMiercoles, dsMiercolesHoraDesde, dsMiercolesHoraHasta,
@@ -129,9 +139,9 @@ export async function POST(request: NextRequest) {
         snSabado, dsSabadoHoraDesde, dsSabadoHoraHasta,
         snDomingo, dsDomingoHoraDesde, dsDomingoHoraHasta,
         cdEstado
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
       [
-        nuAnioTaller, cdTipoTaller, cdPersonal, feInicioTaller, dsDescripcionHorarios || null,
+        nuAnioTaller, cdTipoTaller, cdPersonal, feInicioTaller, cupo.valor, dsDescripcionHorarios || null,
         snLunes ? 1 : 0, dsLunesHoraDesde || null, dsLunesHoraHasta || null,
         snMartes ? 1 : 0, dsMartesHoraDesde || null, dsMartesHoraHasta || null,
         snMiercoles ? 1 : 0, dsMiercolesHoraDesde || null, dsMiercolesHoraHasta || null,
@@ -157,7 +167,7 @@ export async function POST(request: NextRequest) {
       dsAccion: 'Agregar',
       cdUsuario: (session.user as any).cdUsuario,
       cdElemento: cdTaller,
-      dsDetalle: `${nombreTaller} | Año ${nuAnioTaller}`,
+      dsDetalle: `${nombreTaller} | Año ${nuAnioTaller} | Cupo máximo: ${cupo.valor ?? 'sin límite'}`,
     });
 
     return NextResponse.json(

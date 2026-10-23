@@ -23,6 +23,7 @@ import { ArrowLeft, UserPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 interface GrupoFamiliar {
   cdGrupoFamiliar: number;
@@ -57,6 +58,8 @@ interface Taller {
   snDomingo: boolean;
   dsDomingoHoraDesde: string | null;
   dsDomingoHoraHasta: string | null;
+  nuCupoMaximo?: number | null;
+  cupoOcupado?: number;
 }
 
 // Función helper para formatear días y horarios
@@ -95,7 +98,12 @@ export default function NuevoAlumnoPage() {
   const [gruposFamiliares, setGruposFamiliares] = useState<GrupoFamiliar[]>([]);
   const [talleres, setTalleres] = useState<Taller[]>([]);
   const [searchTalleres, setSearchTalleres] = useState('');
-
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false,
+    title: '',
+    description: '',
+    onConfirm: () => {},
+  });
   const [formData, setFormData] = useState({
     dsNombre: '',
     dsApellido: '',
@@ -186,14 +194,14 @@ export default function NuevoAlumnoPage() {
     }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const guardarAlumno = async (forzarCupo = false) => {
     setLoading(true);
 
     try {
       const payload = {
         ...formData,
         cdGrupoFamiliar: formData.cdGrupoFamiliar ? parseInt(formData.cdGrupoFamiliar) : null,
+        forzarCupo,
       };
 
       const response = await fetch('/api/alumnos', {
@@ -207,7 +215,16 @@ export default function NuevoAlumnoPage() {
         router.push('/dashboard/alumnos');
       } else {
         const data = await response.json();
-        error(data.error || 'Error al registrar alumno');
+        if (data.cupoExcedido && data.puedeForzar) {
+          setConfirmDialog({
+            open: true,
+            title: '⚠️ Cupo completo',
+            description: `${data.error}\n\n¿Desea inscribirlo igualmente por encima del cupo?`,
+            onConfirm: () => guardarAlumno(true),
+          });
+        } else {
+          error(data.error || 'Error al registrar alumno');
+        }
       }
     } catch (err) {
       console.error('Error:', err);
@@ -215,6 +232,11 @@ export default function NuevoAlumnoPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    guardarAlumno();
   };
 
   return (
@@ -681,6 +703,9 @@ export default function NuevoAlumnoPage() {
                       className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                     >
                       {taller.dsNombreTaller} - {taller.nuAnioTaller}
+                      {taller.nuCupoMaximo != null && (taller.cupoOcupado ?? 0) >= taller.nuCupoMaximo && (
+                        <span className="ml-2 text-xs font-semibold text-red-600">(Cupo completo)</span>
+                      )}
                       {taller.nombrePersonal && (
                         <span className="block text-xs text-gray-500 font-normal mt-1">
                           Prof: {taller.nombrePersonal}
@@ -731,6 +756,15 @@ export default function NuevoAlumnoPage() {
           </Button>
         </div>
       </form>
+
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onOpenChange={(open) => setConfirmDialog({ ...confirmDialog, open })}
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        onConfirm={confirmDialog.onConfirm}
+        variant="destructive"
+      />
     </div>
   );
 }

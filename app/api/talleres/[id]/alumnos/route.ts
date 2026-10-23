@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import pool from '@/lib/db';
 import { registrarTraza, actualizarEstadoAlumno, verificarDeudasAlumnoInactivo } from '@/lib/db-utils';
+import { verificarCupoInscripcion } from '@/lib/cupos';
 
 // GET - Obtener alumnos del taller
 export async function GET(
@@ -64,7 +65,7 @@ export async function POST(
     }
 
     const cdTaller = parseInt(params.id);
-    const { cdAlumno, forzarInscripcion } = await request.json();
+    const { cdAlumno, forzarInscripcion, forzarCupo } = await request.json();
 
     if (!cdAlumno) {
       return NextResponse.json(
@@ -112,6 +113,19 @@ export async function POST(
       [cdAlumno, cdTaller]
     );
 
+    if (existing.length > 0 && existing[0].cdEstado !== 2) {
+      return NextResponse.json(
+        { error: 'El alumno ya está inscrito en este taller' },
+        { status: 400 }
+      );
+    }
+
+    // Tanto una inscripción nueva como una reactivación ocupan un lugar del cupo
+    const cupo = await verificarCupoInscripcion(pool, session, [cdTaller], !!forzarCupo);
+    if (cupo) {
+      return NextResponse.json(cupo.body, { status: cupo.status });
+    }
+
     if (existing.length > 0) {
       // Si existe pero está inactivo (cdEstado = 2), reactivarlo
       if (existing[0].cdEstado === 2) {
@@ -148,11 +162,6 @@ export async function POST(
 
         return NextResponse.json({ message: 'Alumno reactivado en el taller' });
       }
-      
-      return NextResponse.json(
-        { error: 'El alumno ya está inscrito en este taller' },
-        { status: 400 }
-      );
     }
 
     // Inscribir nuevo alumno

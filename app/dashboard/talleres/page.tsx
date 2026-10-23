@@ -69,6 +69,8 @@ interface Taller {
   dsNombreTaller: string;
   nombrePersonal: string;
   cantidadAlumnos: number;
+  nuCupoMaximo: number | null;
+  cupoOcupado: number;
 }
 
 interface TipoTaller {
@@ -111,6 +113,7 @@ export default function TalleresPage() {
     cdTipoTaller: 0,
     cdPersonal: 0,
     feInicioTaller: '',
+    nuCupoMaximo: '' as number | string,
     dsDescripcionHorarios: '',
     snLunes: false,
     dsLunesHoraDesde: '',
@@ -206,6 +209,7 @@ export default function TalleresPage() {
         cdTipoTaller: taller.cdTipoTaller,
         cdPersonal: taller.cdPersonal,
         feInicioTaller: taller.feInicioTaller.split('T')[0],
+        nuCupoMaximo: taller.nuCupoMaximo ?? '',
         dsDescripcionHorarios: taller.dsDescripcionHorarios || '',
         snLunes: taller.snLunes,
         dsLunesHoraDesde: taller.dsLunesHoraDesde || '',
@@ -238,6 +242,7 @@ export default function TalleresPage() {
         cdTipoTaller: 0,
         cdPersonal: 0,
         feInicioTaller: '',
+        nuCupoMaximo: '',
         dsDescripcionHorarios: '',
         snLunes: false,
         dsLunesHoraDesde: '',
@@ -437,9 +442,23 @@ export default function TalleresPage() {
                       {formatHorario(taller)}
                     </TableCell>
                     <TableCell className="text-center">
-                      <span className="inline-flex items-center gap-1">
+                      <span
+                        className={`inline-flex items-center gap-1 ${
+                          taller.nuCupoMaximo !== null && taller.cupoOcupado >= taller.nuCupoMaximo
+                            ? 'font-semibold text-red-600'
+                            : ''
+                        }`}
+                        title={
+                          taller.nuCupoMaximo !== null
+                            ? taller.cupoOcupado >= taller.nuCupoMaximo
+                              ? 'Cupo completo'
+                              : `Cupo máximo: ${taller.nuCupoMaximo}`
+                            : 'Sin límite de cupo'
+                        }
+                      >
                         <Users className="h-4 w-4" />
                         {taller.cantidadAlumnos}
+                        {taller.nuCupoMaximo !== null && ` / ${taller.nuCupoMaximo}`}
                       </span>
                     </TableCell>
                     <TableCell>
@@ -588,17 +607,34 @@ export default function TalleresPage() {
                 </div>
               </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor="feInicioTaller">Fecha de Inicio *</Label>
-                <Input
-                  id="feInicioTaller"
-                  type="date"
-                  value={formData.feInicioTaller}
-                  onChange={(e) =>
-                    setFormData({ ...formData, feInicioTaller: e.target.value })
-                  }
-                  required
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="feInicioTaller">Fecha de Inicio *</Label>
+                  <Input
+                    id="feInicioTaller"
+                    type="date"
+                    value={formData.feInicioTaller}
+                    onChange={(e) =>
+                      setFormData({ ...formData, feInicioTaller: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="nuCupoMaximo">Cantidad máxima de alumnos</Label>
+                  <Input
+                    id="nuCupoMaximo"
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={formData.nuCupoMaximo}
+                    onChange={(e) =>
+                      setFormData({ ...formData, nuCupoMaximo: e.target.value })
+                    }
+                    placeholder="Sin límite"
+                  />
+                </div>
               </div>
 
               <div className="grid gap-2">

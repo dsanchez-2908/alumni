@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
+import pool from '@/lib/db';
 import { executeQuery, executeTransaction, actualizarEstadoAlumno, verificarDeudasAlumnoInactivo } from '@/lib/db-utils';
 import { registrarTraza } from '@/lib/db-utils';
+import { verificarCupoInscripcion } from '@/lib/cupos';
 
 export async function GET(
   request: NextRequest,
@@ -126,6 +128,7 @@ export async function PUT(
       cdGrupoFamiliar,
       talleres = [],
       forzarEdicion = false,
+      forzarCupo = false,
       // cdEstado ya no se recibe desde el frontend, se calculará automáticamente
     } = body;
 
@@ -186,6 +189,21 @@ export async function PUT(
         { error: 'La fecha de nacimiento no puede ser futura' },
         { status: 400 }
       );
+    }
+
+    // Solo los talleres a los que el alumno se suma ocupan un lugar nuevo del cupo
+    if (talleres.length > 0) {
+      const yaActivos = await executeQuery(
+        'SELECT cdTaller FROM TR_ALUMNO_TALLER WHERE cdAlumno = ? AND cdEstado = 1 AND feBaja IS NULL',
+        [cdAlumno]
+      );
+      const idsYaActivos = new Set(yaActivos.map((t: any) => t.cdTaller));
+      const talleresNuevos = talleres.filter((cdTaller: number) => !idsYaActivos.has(cdTaller));
+
+      const cupo = await verificarCupoInscripcion(pool, session, talleresNuevos, !!forzarCupo);
+      if (cupo) {
+        return NextResponse.json(cupo.body, { status: cupo.status });
+      }
     }
 
     // Usar transacción para actualizar alumno y talleres
