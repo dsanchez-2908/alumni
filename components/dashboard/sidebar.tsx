@@ -75,6 +75,11 @@ const menuCategories: MenuCategory[] = [
         href: '/dashboard/precios',
         roles: ['Administrador', 'Supervisor'],
       },
+      {
+        title: 'Precios de Inscripción',
+        href: '/dashboard/precios-inscripciones',
+        roles: ['Administrador', 'Supervisor'],
+      },
     ],
   },
   {
@@ -134,6 +139,11 @@ const menuCategories: MenuCategory[] = [
       {
         title: 'Registro de Pagos',
         href: '/dashboard/registro-pagos',
+        roles: ['Administrador', 'Supervisor', 'Operador'],
+      },
+      {
+        title: 'Pago Inscripciones',
+        href: '/dashboard/pago-inscripciones',
         roles: ['Administrador', 'Supervisor', 'Operador'],
       },
       {

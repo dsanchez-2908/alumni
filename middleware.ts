@@ -12,6 +12,7 @@ const routePermissions: { [key: string]: string[] } = {
   '/dashboard/personal': ['Administrador', 'Supervisor'],
   '/dashboard/talleres': ['Administrador', 'Supervisor', 'Operador', 'Profesor'],
   '/dashboard/precios': ['Administrador', 'Supervisor'],
+  '/dashboard/precios-inscripciones': ['Administrador', 'Supervisor'],
   
   // Alumnos
   '/dashboard/alumnos/nuevo': ['Administrador', 'Supervisor', 'Operador'],
@@ -26,6 +27,7 @@ const routePermissions: { [key: string]: string[] } = {
   
   // Pagos
   '/dashboard/registro-pagos': ['Administrador', 'Supervisor', 'Operador'],
+  '/dashboard/pago-inscripciones': ['Administrador', 'Supervisor', 'Operador'],
   '/dashboard/pagos': ['Administrador'],
   '/dashboard/pagos/dia': ['Administrador', 'Supervisor', 'Operador'],
   

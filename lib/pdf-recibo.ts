@@ -8,10 +8,13 @@ interface DetallePago {
   anio: number;
   monto: number;
   tipoPago: string;
+  periodo?: string; // Reemplaza "mes/año" cuando se informa (ej: inscripciones)
 }
 
 interface DatosRecibo {
   cdPago: number;
+  titulo?: string; // Por defecto "Comprobante de Pago"
+  numero?: string; // Por defecto cdPago con ceros a la izquierda
   fePago: string;
   nombreCliente: string;
   dniCliente?: string;
@@ -41,11 +44,11 @@ export function generarPDFRecibo(datos: DatosRecibo): Buffer {
 
   doc.setFontSize(12);
   doc.setFont('helvetica', 'normal');
-  doc.text('Comprobante de Pago', 105, 25, { align: 'center' });
+  doc.text(datos.titulo || 'Comprobante de Pago', 105, 25, { align: 'center' });
 
   // Número de comprobante y fecha
   doc.setFontSize(10);
-  doc.text(`Comprobante N° ${datos.cdPago.toString().padStart(6, '0')}`, 105, 32, {
+  doc.text(`Comprobante N° ${datos.numero || datos.cdPago.toString().padStart(6, '0')}`, 105, 32, {
     align: 'center',
   });
 
@@ -72,7 +75,7 @@ export function generarPDFRecibo(datos: DatosRecibo): Buffer {
   const tableData = datos.detalles.map((detalle) => [
     detalle.nombreAlumno,
     detalle.nombreTaller,
-    `${detalle.mes}/${detalle.anio}`,
+    detalle.periodo || `${detalle.mes}/${detalle.anio}`,
     detalle.tipoPago,
     `$${detalle.monto.toFixed(2)}`,
   ]);
