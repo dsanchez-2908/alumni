@@ -83,6 +83,7 @@ export default function RegistroPagosPage() {
   const [items, setItems] = useState<ItemPago[]>([]);
   const [tipoPagoGlobal, setTipoPagoGlobal] = useState<string>('');
   const [observacion, setObservacion] = useState('');
+  const [observacionAnterior, setObservacionAnterior] = useState<{ observacion: string; fePago: string | null } | null>(null);
   const [metodoNotificacion, setMetodoNotificacion] = useState<string>('Whatsapp');
   const [contactosNotificacion, setContactosNotificacion] = useState<{emails: string[], whatsapps: string[]}>({emails: [], whatsapps: []});
   const [emailNotificacion, setEmailNotificacion] = useState('');
@@ -124,8 +125,29 @@ export default function RegistroPagosPage() {
     }
   };
 
+  // Observación que se dejó en el último pago del alumno (ej: saldo a favor) para tenerla presente al cobrar
+  const cargarObservacionAnterior = async (cdAlumno: number) => {
+    setObservacionAnterior(null);
+    try {
+      const response = await fetch(`/api/alumnos/${cdAlumno}/observacion-ultimo-pago`, { cache: 'no-store' });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.observacion) setObservacionAnterior(data);
+      }
+    } catch (err) {
+      // Es solo informativo: si falla, el registro del pago sigue funcionando
+      console.error('Error al cargar la observación del pago anterior:', err);
+    }
+  };
+
+  const formatFechaPago = (fecha: string) => {
+    const [anio, mes, dia] = fecha.slice(0, 10).split('-');
+    return `${dia}/${mes}/${anio}`;
+  };
+
   const seleccionarAlumno = async (alumno: Alumno) => {
     setAlumnoSeleccionado(alumno);
+    setObservacionAnterior(null);
     setLoading(true);
 
     try {
@@ -155,6 +177,7 @@ export default function RegistroPagosPage() {
           setItems(data.items || []);
           setCantidadTalleresTotal(data.cantidadTalleres || 0);
           setResumenPorPeriodo(data.resumenPorPeriodo || {});
+          cargarObservacionAnterior(alumno.cdAlumno);
         }
       } else {
         const errorData = await response.json();
@@ -176,6 +199,7 @@ export default function RegistroPagosPage() {
     setAlumnoSeleccionado(null);
     setItems([]);
     setObservacion('');
+    setObservacionAnterior(null);
     setMetodoNotificacion('Whatsapp');
     setContactosNotificacion({emails: [], whatsapps: []});
     setEmailNotificacion('');
@@ -487,6 +511,7 @@ export default function RegistroPagosPage() {
     setAlumnoSeleccionado(null);
     setItems([]);
     setObservacion('');
+    setObservacionAnterior(null);
     setMetodoNotificacion('Whatsapp');
     setSearchTerm('');
   };
@@ -772,6 +797,22 @@ export default function RegistroPagosPage() {
                 </div>
               )}
             </div>
+
+            {observacionAnterior && (
+              <div className="mt-6 rounded-lg border border-amber-300 bg-amber-50 p-4">
+                <p className="text-sm font-semibold text-amber-900">
+                  Observación del pago anterior
+                  {observacionAnterior.fePago && (
+                    <span className="ml-2 font-normal text-amber-700">
+                      ({formatFechaPago(observacionAnterior.fePago)})
+                    </span>
+                  )}
+                </p>
+                <p className="mt-1 whitespace-pre-wrap text-sm text-amber-900">
+                  {observacionAnterior.observacion}
+                </p>
+              </div>
+            )}
 
             <div className="mt-6 flex justify-end">
               <Button

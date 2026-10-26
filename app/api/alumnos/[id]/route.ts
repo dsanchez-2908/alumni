@@ -5,6 +5,8 @@ import pool from '@/lib/db';
 import { executeQuery, executeTransaction, actualizarEstadoAlumno, verificarDeudasAlumnoInactivo } from '@/lib/db-utils';
 import { registrarTraza } from '@/lib/db-utils';
 import { verificarCupoInscripcion } from '@/lib/cupos';
+import { validarCamposAdicionales } from '@/lib/alumno-campos';
+import { sincronizarInscripcionesDeAlumno } from '@/lib/seguimiento-inscripciones';
 
 export async function GET(
   request: NextRequest,
@@ -31,6 +33,12 @@ export async function GET(
         DATE_FORMAT(a.feNacimiento, '%Y-%m-%d') as feNacimiento,
         TIMESTAMPDIFF(YEAR, a.feNacimiento, CURDATE()) as edad,
         a.dsDomicilio,
+        a.dsCiudad,
+        a.dsComoNosConocio,
+        a.dsEscuela,
+        a.dsTurnoEscuela,
+        a.snPermisoUsoImagen,
+        a.snPermisoRetiroSolo,
         a.dsTelefonoCelular,
         a.dsTelefonoFijo,
         a.dsMail,
@@ -191,6 +199,12 @@ export async function PUT(
       );
     }
 
+    const adicionales = validarCamposAdicionales(body, feNacimiento);
+    if (adicionales.error) {
+      return NextResponse.json({ error: adicionales.error }, { status: 400 });
+    }
+    const extra = adicionales.valores;
+
     // Solo los talleres a los que el alumno se suma ocupan un lugar nuevo del cupo
     if (talleres.length > 0) {
       const yaActivos = await executeQuery(
@@ -218,6 +232,12 @@ export async function PUT(
           dsNombreLlamar = ?,
           feNacimiento = ?,
           dsDomicilio = ?,
+          dsCiudad = ?,
+          dsComoNosConocio = ?,
+          dsEscuela = ?,
+          dsTurnoEscuela = ?,
+          snPermisoUsoImagen = ?,
+          snPermisoRetiroSolo = ?,
           dsTelefonoCelular = ?,
           dsTelefonoFijo = ?,
           dsMail = ?,
@@ -248,6 +268,12 @@ export async function PUT(
           dsNombreLlamar || null,
           feNacimiento,
           dsDomicilio || null,
+          extra.dsCiudad,
+          extra.dsComoNosConocio,
+          extra.dsEscuela,
+          extra.dsTurnoEscuela,
+          extra.snPermisoUsoImagen,
+          extra.snPermisoRetiroSolo,
           dsTelefonoCelular || null,
           dsTelefonoFijo || null,
           dsMail || null,
@@ -322,6 +348,7 @@ export async function PUT(
 
     // Actualizar estado del alumno automáticamente basándose en sus talleres activos
     await actualizarEstadoAlumno(cdAlumno);
+    await sincronizarInscripcionesDeAlumno(cdAlumno);
 
     // Obtener nombres de talleres para la traza
     let talleresNombres = '';

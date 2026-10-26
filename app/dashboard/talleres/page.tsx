@@ -100,6 +100,7 @@ export default function TalleresPage() {
   // Filtros
   const [searchTerm, setSearchTerm] = useState('');
   const [estadoFilter, setEstadoFilter] = useState('Activo');
+  const [anioFilter, setAnioFilter] = useState('Todos');
 
   const [confirmDialog, setConfirmDialog] = useState({
     open: false,
@@ -350,16 +351,20 @@ export default function TalleresPage() {
       taller.nombrePersonal.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesEstado = estadoFilter === 'Todos' || taller.dsEstado === estadoFilter;
+    const matchesAnio = anioFilter === 'Todos' || String(taller.nuAnioTaller) === anioFilter;
     
     // Si es Profesor, solo mostrar talleres activos propios
     if (hasRole('Profesor') && !hasRole(['Administrador', 'Supervisor', 'Operador'])) {
       const isOwnTaller = session?.user?.cdPersonal === taller.cdPersonal;
       const isActive = taller.cdEstado === 1; // Solo activos
-      return matchesSearch && matchesEstado && isOwnTaller && isActive;
+      return matchesSearch && matchesEstado && matchesAnio && isOwnTaller && isActive;
     }
     
-    return matchesSearch && matchesEstado;
+    return matchesSearch && matchesEstado && matchesAnio;
   });
+
+  // Años que tienen talleres (más reciente primero)
+  const aniosDisponibles = [...new Set(talleres.map((t) => t.nuAnioTaller))].sort((a, b) => b - a);
 
   return (
     <div className="container mx-auto py-8">
@@ -394,6 +399,19 @@ export default function TalleresPage() {
                 />
               </div>
             </div>
+            <Select value={anioFilter} onValueChange={setAnioFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Todos">Todos los años</SelectItem>
+                {aniosDisponibles.map((anio) => (
+                  <SelectItem key={anio} value={String(anio)}>
+                    {anio}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select value={estadoFilter} onValueChange={setEstadoFilter}>
               <SelectTrigger className="w-48">
                 <SelectValue />
@@ -424,7 +442,7 @@ export default function TalleresPage() {
               {filteredTalleres.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center text-gray-500">
-                    {searchTerm || estadoFilter !== 'Todos' 
+                    {searchTerm || estadoFilter !== 'Todos' || anioFilter !== 'Todos'
                       ? 'No se encontraron talleres con los filtros aplicados'
                       : 'No hay talleres activos registrados'}
                   </TableCell>

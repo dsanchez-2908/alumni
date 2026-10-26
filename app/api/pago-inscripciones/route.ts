@@ -11,6 +11,7 @@ import {
   ETIQUETA_TIPO_PRECIO,
   getAniosPermitidos,
 } from '@/lib/inscripciones';
+import { registrarPagoEnSeguimiento } from '@/lib/seguimiento-inscripciones';
 
 const TIPOS_PAGO = ['Efectivo', 'Transferencia', 'Excepcion'];
 
@@ -173,6 +174,12 @@ export async function POST(request: NextRequest) {
     );
 
     await connection.commit();
+
+    // Avanza a los alumnos en el seguimiento de la inscripción de ese año (si está iniciada)
+    await registrarPagoEnSeguimiento({
+      anio: anioInscripcion,
+      cdAlumnos: aPagar.map((i) => i.cdAlumno),
+    });
 
     for (let i = 0; i < aPagar.length; i++) {
       await registrarTraza({

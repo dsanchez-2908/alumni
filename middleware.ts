@@ -18,6 +18,7 @@ const routePermissions: { [key: string]: string[] } = {
   '/dashboard/alumnos/nuevo': ['Administrador', 'Supervisor', 'Operador'],
   '/dashboard/alumnos': ['Administrador', 'Supervisor', 'Operador'],
   '/dashboard/grupos-familiares': ['Administrador', 'Supervisor'],
+  '/dashboard/seguimiento-inscripciones': ['Administrador', 'Supervisor', 'Operador'],
   
   // Asistencia
   '/dashboard/registro-asistencia': ['Administrador', 'Supervisor', 'Operador', 'Profesor'],

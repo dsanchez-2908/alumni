@@ -1,6 +1,4 @@
-import { getParametro, setParametro } from '@/lib/db-utils';
-
-export const PARAM_ANIO_PROXIMO_HABILITADO = 'INSCRIPCION_ANIO_PROXIMO_HABILITADO';
+import pool from '@/lib/db';
 
 export type TipoPrecioInscripcion =
   | 'ALUMNO_ACTIVO'
@@ -63,29 +61,35 @@ export function getAnioActual(): number {
   return parseInt(anio, 10);
 }
 
-/** Devuelve el año próximo si el usuario habilitó su inscripción anticipada, o null. */
-export async function getAnioProximoHabilitado(): Promise<number | null> {
-  const valor = await getParametro(PARAM_ANIO_PROXIMO_HABILITADO);
-  const anioProximo = getAnioActual() + 1;
-  return valor && parseInt(valor, 10) === anioProximo ? anioProximo : null;
-}
-
-export async function setAnioProximoHabilitado(habilitado: boolean): Promise<void> {
-  await setParametro(
-    PARAM_ANIO_PROXIMO_HABILITADO,
-    habilitado ? String(getAnioActual() + 1) : ''
-  );
-}
-
-/** Años que se pueden pagar hoy: el actual y, si está habilitado, el próximo. */
+/**
+ * Años cuya inscripción se puede pagar hoy: el año actual y los años con una inscripción iniciada
+ * (Alumnos > Seguimiento Inscripciones).
+ */
 export async function getAniosPermitidos(): Promise<number[]> {
-  const anios = [getAnioActual()];
-  const proximo = await getAnioProximoHabilitado();
-  if (proximo) anios.push(proximo);
-  return anios;
+  const anios = new Set<number>([getAnioActual()]);
+  try {
+    const [rows] = await pool.execute<any[]>(
+      'SELECT nuAnio FROM TD_INSCRIPCIONES WHERE cdEstado = 1'
+    );
+    rows.forEach((r) => anios.add(r.nuAnio));
+  } catch (error) {
+    // Sin la tabla de seguimiento (migración pendiente) se mantiene el pago del año actual
+    console.error('No se pudieron leer las inscripciones iniciadas:', error);
+  }
+  return [...anios].sort((a, b) => a - b);
 }
 
-/** Precio vigente a la fecha actual (última vigencia con inicio <= hoy). */
+/** Fecha de hoy (YYYY-MM-DD) en horario de Argentina: el servidor/base pueden estar en UTC y "hoy" cambiaría a las 21:00. */
+export function getFechaHoyArgentina(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+}
+
+/** Precio vigente a la fecha actual (última vigencia con inicio <= hoy, hora de Argentina). */
 export async function getPrecioInscripcionVigente(db: Db): Promise<PrecioInscripcion | null> {
   const [rows] = await db.execute(
     `SELECT
@@ -97,9 +101,10 @@ export async function getPrecioInscripcionVigente(db: Db): Promise<PrecioInscrip
        nuPrecioFamiliarNuevo
      FROM TD_PRECIOS_INSCRIPCIONES
      WHERE cdEstado = 1
-       AND feInicioVigencia <= CURDATE()
+       AND feInicioVigencia <= ?
      ORDER BY feInicioVigencia DESC
-     LIMIT 1`
+     LIMIT 1`,
+    [getFechaHoyArgentina()]
   );
   if (rows.length === 0) return null;
   const r = rows[0];

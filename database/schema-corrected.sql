@@ -167,6 +167,7 @@ CREATE TABLE `TD_ALUMNOS` (
   `dsWhatsappNotificacion` VARCHAR(50) DEFAULT NULL,
   `feNacimiento` DATE NOT NULL,
   `dsDomicilio` VARCHAR(255) DEFAULT NULL,
+  `dsCiudad` VARCHAR(100) DEFAULT NULL,
   `dsTelefonoCelular` VARCHAR(50) DEFAULT NULL,
   `dsTelefonoFijo` VARCHAR(50) DEFAULT NULL,
   `dsNombreCompletoContacto1` VARCHAR(255) DEFAULT NULL,
@@ -179,6 +180,11 @@ CREATE TABLE `TD_ALUMNOS` (
   `dsDNIContacto2` VARCHAR(20) DEFAULT NULL,
   `dsTelefonoContacto2` VARCHAR(50) DEFAULT NULL,
   `dsMailContacto2` VARCHAR(100) DEFAULT NULL,
+  `dsComoNosConocio` VARCHAR(255) DEFAULT NULL,
+  `dsEscuela` VARCHAR(150) DEFAULT NULL,
+  `dsTurnoEscuela` VARCHAR(20) DEFAULT NULL,
+  `snPermisoUsoImagen` ENUM('SI', 'NO') DEFAULT NULL,
+  `snPermisoRetiroSolo` ENUM('SI', 'NO') DEFAULT NULL,
   `cdEstado` INT NOT NULL DEFAULT 1,
   `feAlta` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `feModificacion` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -492,6 +498,12 @@ CREATE TABLE `TD_NOVEDADES_ALUMNO` (
 -- TABLA: TD_PRECIOS_INSCRIPCIONES / TD_PAGOS_INSCRIPCIONES
 -- Descripción: Precios y pagos de inscripción anual (Fase 1 Inscripciones).
 -- Definición completa en database/add-inscripciones.sql (script idempotente para bases existentes).
+-- =============================================
+
+-- =============================================
+-- TABLA: TD_INSCRIPCIONES / TD_INSCRIPCIONES_ALUMNOS / TD_INSCRIPCIONES_HISTORIAL
+-- Descripción: Seguimiento anual de inscripciones (Fase 2 Inscripciones).
+-- Definición completa en database/add-seguimiento-inscripciones.sql (script idempotente para bases existentes).
 -- =============================================
 
 -- =============================================

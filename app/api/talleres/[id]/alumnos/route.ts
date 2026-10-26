@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth-config';
 import pool from '@/lib/db';
 import { registrarTraza, actualizarEstadoAlumno, verificarDeudasAlumnoInactivo } from '@/lib/db-utils';
 import { verificarCupoInscripcion } from '@/lib/cupos';
+import { sincronizarInscripcionesDeAlumno } from '@/lib/seguimiento-inscripciones';
 
 // GET - Obtener alumnos del taller
 export async function GET(
@@ -159,6 +160,7 @@ export async function POST(
 
         // Actualizar estado del alumno a Activo
         await actualizarEstadoAlumno(cdAlumno);
+        await sincronizarInscripcionesDeAlumno(cdAlumno);
 
         return NextResponse.json({ message: 'Alumno reactivado en el taller' });
       }
@@ -195,6 +197,7 @@ export async function POST(
 
     // Actualizar estado del alumno a Activo
     await actualizarEstadoAlumno(cdAlumno);
+    await sincronizarInscripcionesDeAlumno(cdAlumno);
 
     return NextResponse.json(
       { message: 'Alumno inscrito exitosamente' },

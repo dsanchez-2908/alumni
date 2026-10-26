@@ -47,6 +47,9 @@ import {
   FileSpreadsheet,
 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { DatosEscuelaPermisos } from '@/components/alumnos/datos-escuela-permisos';
+import { esMenorDeEdad } from '@/lib/alumno-campos';
+import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/use-permissions';
 import * as XLSX from 'xlsx';
 
@@ -68,6 +71,10 @@ interface Alumno {
   dsEstado: string;
   cdEstado: number;
   talleres: string | null;
+  talleresDetalle: { nombre: string; horario: string }[];
+  snDiscapacidad: 'SI' | 'NO' | null;
+  snPermisoUsoImagen: 'SI' | 'NO' | null;
+  snPermisoRetiroSolo: 'SI' | 'NO' | null;
   feCreacion: string;
 }
 
@@ -150,6 +157,7 @@ const formatHorarioTaller = (taller: Taller): string => {
 
 export default function AlumnosPage() {
   const router = useRouter();
+  const { error: mostrarError } = useToast();
   const { canEdit, canDelete } = usePermissions();
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
   const [gruposFamiliares, setGruposFamiliares] = useState<GrupoFamiliar[]>([]);
@@ -202,6 +210,12 @@ export default function AlumnosPage() {
     feNacimiento: '',
     dsNombreLlamar: '',
     dsDomicilio: '',
+    dsCiudad: '',
+    dsComoNosConocio: '',
+    dsEscuela: '',
+    dsTurnoEscuela: '',
+    snPermisoUsoImagen: '',
+    snPermisoRetiroSolo: '',
     dsTelefonoCelular: '',
     dsTelefonoFijo: '',
     dsMail: '',
@@ -372,6 +386,12 @@ export default function AlumnosPage() {
           feNacimiento: alumno.feNacimiento.split('T')[0],
           dsNombreLlamar: data.alumno.dsNombreLlamar || '',
           dsDomicilio: alumno.dsDomicilio || '',
+          dsCiudad: data.alumno.dsCiudad || '',
+          dsComoNosConocio: data.alumno.dsComoNosConocio || '',
+          dsEscuela: data.alumno.dsEscuela || '',
+          dsTurnoEscuela: data.alumno.dsTurnoEscuela || '',
+          snPermisoUsoImagen: data.alumno.snPermisoUsoImagen || '',
+          snPermisoRetiroSolo: data.alumno.snPermisoRetiroSolo || '',
           dsTelefonoCelular: alumno.dsTelefonoCelular || '',
           dsTelefonoFijo: alumno.dsTelefonoFijo || '',
           dsMail: alumno.dsMail || '',
@@ -410,6 +430,12 @@ export default function AlumnosPage() {
         feNacimiento: '',
         dsNombreLlamar: '',
         dsDomicilio: '',
+        dsCiudad: '',
+        dsComoNosConocio: '',
+        dsEscuela: '',
+        dsTurnoEscuela: '',
+        snPermisoUsoImagen: '',
+        snPermisoRetiroSolo: '',
         dsTelefonoCelular: '',
         dsTelefonoFijo: '',
         dsMail: '',
@@ -443,6 +469,15 @@ export default function AlumnosPage() {
     e.preventDefault();
     setMessage(null);
 
+    if (!formData.snPermisoUsoImagen) {
+      mostrarError('El Permiso de Uso de Imagen es obligatorio');
+      return;
+    }
+    if (esMenorDeEdad(formData.feNacimiento) && !formData.snPermisoRetiroSolo) {
+      mostrarError('El Permiso de Retiro Solo es obligatorio para menores de edad');
+      return;
+    }
+
     try {
       const url = isEditing ? `/api/alumnos/${currentId}` : '/api/alumnos';
       const method = isEditing ? 'PUT' : 'POST';
@@ -469,6 +504,7 @@ export default function AlumnosPage() {
         });
       } else {
         setMessage({ type: 'error', text: data.error });
+        mostrarError(data.error || 'Error al guardar el alumno');
       }
     } catch (error) {
       setMessage({ type: 'error', text: 'Error al guardar el alumno' });
@@ -503,6 +539,16 @@ export default function AlumnosPage() {
     }
   };
 
+  const renderSiNo = (valor: 'SI' | 'NO' | null | undefined) => {
+    if (valor === 'SI') {
+      return <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">Sí</span>;
+    }
+    if (valor === 'NO') {
+      return <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">No</span>;
+    }
+    return <span className="text-gray-400" title="Sin dato / no aplica">-</span>;
+  };
+
   const exportToExcel = () => {
     const data = alumnos.map((alumno) => ({
       'Nombre Completo': alumno.dsNombreCompleto,
@@ -512,6 +558,13 @@ export default function AlumnosPage() {
       'Edad': alumno.edad,
       'Grupo Familiar': alumno.dsGrupoFamiliar || 'Individual',
       'Talleres': alumno.talleres || 'Sin talleres',
+      'Talleres (día y horario)':
+        alumno.talleresDetalle && alumno.talleresDetalle.length > 0
+          ? alumno.talleresDetalle.map((t) => `${t.nombre}${t.horario ? ` (${t.horario})` : ''}`).join(' | ')
+          : 'Sin talleres',
+      'Uso de Imagen': alumno.snPermisoUsoImagen === 'SI' ? 'SI' : alumno.snPermisoUsoImagen === 'NO' ? 'NO' : '',
+      'Se retira solo': alumno.snPermisoRetiroSolo === 'SI' ? 'SI' : alumno.snPermisoRetiroSolo === 'NO' ? 'NO' : '',
+      'Discapacidad': alumno.snDiscapacidad === 'SI' ? 'SI' : 'NO',
       'Celular': alumno.dsTelefonoCelular || '',
       'Teléfono': alumno.dsTelefonoFijo || '',
       'Email': alumno.dsMail || '',
@@ -999,11 +1052,12 @@ export default function AlumnosPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Nombre Completo</TableHead>
-                <TableHead>DNI</TableHead>
                 <TableHead>Edad</TableHead>
                 <TableHead>Grupo Familiar</TableHead>
                 <TableHead>Talleres</TableHead>
-                <TableHead>Contacto</TableHead>
+                <TableHead className="text-center">Uso Imagen</TableHead>
+                <TableHead className="text-center">Se retira solo</TableHead>
+                <TableHead className="text-center">Discapacidad</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
@@ -1014,7 +1068,6 @@ export default function AlumnosPage() {
                   <TableCell className="font-medium">
                     {alumno.dsNombreCompleto}
                   </TableCell>
-                  <TableCell>{alumno.dsDNI}</TableCell>
                   <TableCell>{alumno.edad} años</TableCell>
                   <TableCell>
                     {alumno.dsGrupoFamiliar ? (
@@ -1025,23 +1078,23 @@ export default function AlumnosPage() {
                       <span className="text-gray-400">-</span>
                     )}
                   </TableCell>
-                  <TableCell className="max-w-xs truncate">
-                    {alumno.talleres || (
+                  <TableCell className="min-w-[220px] whitespace-normal">
+                    {alumno.talleresDetalle && alumno.talleresDetalle.length > 0 ? (
+                      <div className="space-y-1">
+                        {alumno.talleresDetalle.map((t, i) => (
+                          <div key={i} className="text-sm">
+                            {t.nombre}
+                            {t.horario && <span className="block text-xs text-gray-500">{t.horario}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
                       <span className="text-gray-400">Sin talleres</span>
                     )}
                   </TableCell>
-                  <TableCell>
-                    <div className="text-sm">
-                      {alumno.dsTelefonoCelular && <div>{alumno.dsTelefonoCelular}</div>}
-                      {alumno.dsTelefonoFijo && <div className="text-gray-600">{alumno.dsTelefonoFijo}</div>}
-                      {alumno.dsMail && (
-                        <div className="text-gray-600 truncate max-w-[150px]">
-                          {alumno.dsMail}
-                        </div>
-                      )}
-                      {!alumno.dsTelefonoCelular && !alumno.dsTelefonoFijo && !alumno.dsMail && '-'}
-                    </div>
-                  </TableCell>
+                  <TableCell className="text-center">{renderSiNo(alumno.snPermisoUsoImagen)}</TableCell>
+                  <TableCell className="text-center">{renderSiNo(alumno.snPermisoRetiroSolo)}</TableCell>
+                  <TableCell className="text-center">{renderSiNo(alumno.snDiscapacidad)}</TableCell>
                   <TableCell>
                     <span
                       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -1087,7 +1140,7 @@ export default function AlumnosPage() {
               ))}
               {alumnos.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                  <TableCell colSpan={9} className="text-center py-8 text-gray-500">
                     No se encontraron alumnos
                   </TableCell>
                 </TableRow>
@@ -1398,8 +1451,39 @@ export default function AlumnosPage() {
                       placeholder="Dirección completa"
                     />
                   </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="dsCiudad">Ciudad / Localidad</Label>
+                    <Input
+                      id="dsCiudad"
+                      value={formData.dsCiudad}
+                      maxLength={100}
+                      onChange={(e) =>
+                        setFormData({ ...formData, dsCiudad: e.target.value })
+                      }
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="dsComoNosConocio">¿Cómo nos conocieron?</Label>
+                    <Input
+                      id="dsComoNosConocio"
+                      value={formData.dsComoNosConocio}
+                      maxLength={255}
+                      onChange={(e) =>
+                        setFormData({ ...formData, dsComoNosConocio: e.target.value })
+                      }
+                    />
+                  </div>
                 </div>
               </div>
+
+              <DatosEscuelaPermisos
+                idPrefijo="dlg-"
+                valores={formData}
+                esMenor={esMenorDeEdad(formData.feNacimiento)}
+                onChange={(campo, valor) => setFormData({ ...formData, [campo]: valor })}
+              />
 
               {/* Datos de Contacto 1 */}
               <div className="border-b pb-4">

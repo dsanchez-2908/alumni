@@ -27,7 +27,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Plus, DollarSign, Pencil, CalendarCheck } from 'lucide-react';
+import { Plus, DollarSign, Pencil } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/use-permissions';
 
@@ -49,12 +49,6 @@ interface FormPrecios {
   nuPrecioFamiliarActivo: string;
   nuPrecioAlumnoNuevo: string;
   nuPrecioFamiliarNuevo: string;
-}
-
-interface ConfigInscripcion {
-  anioActual: number;
-  anioProximo: number;
-  anioProximoHabilitado: boolean;
 }
 
 const FORM_VACIO: FormPrecios = {
@@ -82,22 +76,18 @@ const formatDate = (fecha: string) => {
 
 export default function PreciosInscripcionesPage() {
   const { success, error } = useToast();
-  const { canCreate, canEdit, hasRole } = usePermissions();
+  const { canCreate, canEdit } = usePermissions();
 
   const [precios, setPrecios] = useState<PrecioInscripcion[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [config, setConfig] = useState<ConfigInscripcion | null>(null);
 
   const [dialogAbierto, setDialogAbierto] = useState(false);
   const [editando, setEditando] = useState<PrecioInscripcion | null>(null);
   const [form, setForm] = useState<FormPrecios>(FORM_VACIO);
 
-  const puedeConfigurar = hasRole(['Administrador', 'Supervisor']);
-
   useEffect(() => {
     fetchPrecios();
-    fetchConfig();
   }, []);
 
   const fetchPrecios = async () => {
@@ -111,43 +101,6 @@ export default function PreciosInscripcionesPage() {
       console.error('Error al cargar precios de inscripción:', err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchConfig = async () => {
-    try {
-      const response = await fetch('/api/inscripciones/config');
-      if (response.ok) {
-        setConfig(await response.json());
-      }
-    } catch (err) {
-      console.error('Error al cargar configuración de inscripciones:', err);
-    }
-  };
-
-  const toggleAnioProximo = async () => {
-    if (!config) return;
-    try {
-      const response = await fetch('/api/inscripciones/config', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ habilitado: !config.anioProximoHabilitado }),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setConfig({ ...config, anioProximoHabilitado: data.habilitado });
-        success(
-          data.habilitado
-            ? `Inscripción ${config.anioProximo} habilitada`
-            : `Inscripción ${config.anioProximo} deshabilitada`
-        );
-      } else {
-        const errorData = await response.json();
-        error(errorData.error || 'No se pudo actualizar la configuración');
-      }
-    } catch (err) {
-      console.error('Error al actualizar configuración:', err);
-      error('Error al actualizar la configuración');
     }
   };
 
@@ -232,42 +185,6 @@ export default function PreciosInscripcionesPage() {
           </Button>
         )}
       </div>
-
-      {config && puedeConfigurar && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CalendarCheck className="h-5 w-5" />
-              Inscripción {config.anioProximo}
-            </CardTitle>
-            <CardDescription>
-              Al habilitarla, en Pagos &gt; Pago Inscripciones se podrá pagar la inscripción del año{' '}
-              {config.anioProximo} además de la del {config.anioActual}.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex items-center gap-4">
-            <Badge
-              variant="outline"
-              className={
-                config.anioProximoHabilitado
-                  ? 'bg-green-100 text-green-800 border-green-300'
-                  : 'bg-gray-100 text-gray-700 border-gray-300'
-              }
-            >
-              {config.anioProximoHabilitado ? 'Habilitada' : 'No habilitada'}
-            </Badge>
-            <Button
-              variant={config.anioProximoHabilitado ? 'outline' : 'default'}
-              onClick={toggleAnioProximo}
-              className={config.anioProximoHabilitado ? undefined : 'bg-indigo-600 hover:bg-indigo-700'}
-            >
-              {config.anioProximoHabilitado
-                ? `Deshabilitar inscripción ${config.anioProximo}`
-                : `Habilitar inscripción ${config.anioProximo}`}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
 
       <Card>
         <CardHeader>

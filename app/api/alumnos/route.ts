@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth-config';
 import pool from '@/lib/db';
 import { registrarTraza, actualizarEstadoAlumno } from '@/lib/db-utils';
 import { verificarCupoInscripcion } from '@/lib/cupos';
+import { validarCamposAdicionales } from '@/lib/alumno-campos';
+import { formatearHorario } from '@/lib/cuotas-pendientes';
 
 interface Alumno {
   cdAlumno: number;
@@ -81,6 +83,9 @@ export async function GET(request: NextRequest) {
         a.dsTelefonoCelular,
         a.dsTelefonoFijo,
         a.dsMail,
+        a.snDiscapacidad,
+        a.snPermisoUsoImagen,
+        a.snPermisoRetiroSolo,
         agf.cdGrupoFamiliar,
         gf.dsNombreGrupo as dsGrupoFamiliar,
         CASE 
@@ -209,6 +214,7 @@ export async function GET(request: NextRequest) {
     query += `
        GROUP BY a.cdAlumno, a.dsNombre, a.dsApellido, a.dsDNI, a.dsSexo, a.feNacimiento,
                 a.dsDomicilio, a.dsTelefonoCelular, a.dsTelefonoFijo, a.dsMail, agf.cdGrupoFamiliar,
+                a.snDiscapacidad, a.snPermisoUsoImagen, a.snPermisoRetiroSolo,
                 gf.dsNombreGrupo, a.cdEstado, a.feAlta`;
 
     // Aplicar filtro de edad después del GROUP BY usando HAVING
@@ -245,8 +251,42 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * limit;
     query += ` LIMIT ${limit} OFFSET ${offset}`;
 
-    const [alumnos] = await pool.execute<any[]>(query, params);
+    const [alumnosPagina] = await pool.execute<any[]>(query, params);
 
+    // Talleres activos de los alumnos de la página, con sus días y horarios
+    const talleresPorAlumno = new Map<number, { nombre: string; horario: string }[]>();
+    if (alumnosPagina.length > 0) {
+      const idsPagina = [...new Set(alumnosPagina.map((a) => a.cdAlumno))];
+      const [detalleTalleres] = await pool.execute<any[]>(
+        `SELECT at.cdAlumno, tt.dsNombreTaller, t.nuAnioTaller,
+                t.snDomingo, t.snLunes, t.snMartes, t.snMiercoles, t.snJueves, t.snViernes, t.snSabado,
+                t.dsDomingoHoraDesde, t.dsDomingoHoraHasta,
+                t.dsLunesHoraDesde, t.dsLunesHoraHasta,
+                t.dsMartesHoraDesde, t.dsMartesHoraHasta,
+                t.dsMiercolesHoraDesde, t.dsMiercolesHoraHasta,
+                t.dsJuevesHoraDesde, t.dsJuevesHoraHasta,
+                t.dsViernesHoraDesde, t.dsViernesHoraHasta,
+                t.dsSabadoHoraDesde, t.dsSabadoHoraHasta
+         FROM TR_ALUMNO_TALLER at
+         INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
+         INNER JOIN TD_TIPO_TALLERES tt ON t.cdTipoTaller = tt.cdTipoTaller
+         WHERE at.feBaja IS NULL AND at.cdEstado = 1
+           AND at.cdAlumno IN (${idsPagina.map(() => '?').join(',')})
+         ORDER BY tt.dsNombreTaller, t.cdTaller`,
+        idsPagina
+      );
+      for (const d of detalleTalleres) {
+        if (!talleresPorAlumno.has(d.cdAlumno)) talleresPorAlumno.set(d.cdAlumno, []);
+        talleresPorAlumno.get(d.cdAlumno)!.push({
+          nombre: `${d.dsNombreTaller} ${d.nuAnioTaller}`,
+          horario: formatearHorario(d),
+        });
+      }
+    }
+    const alumnos = alumnosPagina.map((a) => ({
+      ...a,
+      talleresDetalle: talleresPorAlumno.get(a.cdAlumno) || [],
+    }));
 
     // Obtener grupos familiares para el dropdown
     const [gruposFamiliares] = await pool.execute<any[]>(
@@ -356,6 +396,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const adicionales = validarCamposAdicionales(body, feNacimiento);
+    if (adicionales.error) {
+      return NextResponse.json({ error: adicionales.error }, { status: 400 });
+    }
+    const extra = adicionales.valores;
+
     const cupo = await verificarCupoInscripcion(pool, session, talleres, !!forzarCupo);
     if (cupo) {
       return NextResponse.json(cupo.body, { status: cupo.status });
@@ -417,10 +463,16 @@ export async function POST(request: NextRequest) {
         dsDNIContacto2,
         dsTelefonoContacto2,
         dsMailContacto2,
+        dsCiudad,
+        dsComoNosConocio,
+        dsEscuela,
+        dsTurnoEscuela,
+        snPermisoUsoImagen,
+        snPermisoRetiroSolo,
         cdEstado,
         feAlta,
         feModificacion
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
         dsNombre,
         dsApellido,
@@ -449,6 +501,12 @@ export async function POST(request: NextRequest) {
         dsDNIContacto2 || null,
         dsTelefonoContacto2 || null,
         dsMailContacto2 || null,
+        extra.dsCiudad,
+        extra.dsComoNosConocio,
+        extra.dsEscuela,
+        extra.dsTurnoEscuela,
+        extra.snPermisoUsoImagen,
+        extra.snPermisoRetiroSolo,
         cdEstadoInicial, // Estado automático basado en talleres
       ]
     );

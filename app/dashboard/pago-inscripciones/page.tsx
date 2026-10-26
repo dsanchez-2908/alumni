@@ -75,8 +75,7 @@ interface CalculoInscripcion {
 
 interface ConfigInscripcion {
   anioActual: number;
-  anioProximo: number;
-  anioProximoHabilitado: boolean;
+  aniosHabilitados: number[];
 }
 
 interface ItemPago {
@@ -457,18 +456,17 @@ export default function PagoInscripcionesPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Año de inscripción a pagar</Label>
-                  {config?.anioProximoHabilitado ? (
+                  {config && config.aniosHabilitados.length > 1 ? (
                     <Select value={String(anio)} onValueChange={cambiarAnio}>
                       <SelectTrigger className="mt-2">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value={String(config.anioActual)}>
-                          {config.anioActual} (año actual)
-                        </SelectItem>
-                        <SelectItem value={String(config.anioProximo)}>
-                          {config.anioProximo} (año próximo)
-                        </SelectItem>
+                        {config.aniosHabilitados.map((a) => (
+                          <SelectItem key={a} value={String(a)}>
+                            {a} {a === config.anioActual ? '(año actual)' : a > config.anioActual ? '(año próximo)' : ''}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   ) : (

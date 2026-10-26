@@ -24,6 +24,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { DatosEscuelaPermisos } from '@/components/alumnos/datos-escuela-permisos';
+import { esMenorDeEdad } from '@/lib/alumno-campos';
 
 interface GrupoFamiliar {
   cdGrupoFamiliar: number;
@@ -112,6 +114,13 @@ export default function NuevoAlumnoPage() {
     dsNombreLlamar: '',
     feNacimiento: '',
     dsDomicilio: '',
+    dsCiudad: '',
+    dsComoNosConocio: '',
+    // Datos de escuela (solo menores) y permisos
+    dsEscuela: '',
+    dsTurnoEscuela: '',
+    snPermisoUsoImagen: '',
+    snPermisoRetiroSolo: '',
     // Nuevos campos
     snDiscapacidad: 'NO',
     dsObservacionesDiscapacidad: '',
@@ -236,6 +245,17 @@ export default function NuevoAlumnoPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    const menor = esMenorDeEdad(formData.feNacimiento);
+    if (!formData.snPermisoUsoImagen) {
+      error('El Permiso de Uso de Imagen es obligatorio');
+      return;
+    }
+    if (menor && !formData.snPermisoRetiroSolo) {
+      error('El Permiso de Retiro Solo es obligatorio para menores de edad');
+      return;
+    }
+
     guardarAlumno();
   };
 
@@ -342,6 +362,27 @@ export default function NuevoAlumnoPage() {
                 id="dsDomicilio"
                 value={formData.dsDomicilio}
                 onChange={(e) => handleChange('dsDomicilio', e.target.value)}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="dsCiudad">Ciudad / Localidad</Label>
+              <Input
+                id="dsCiudad"
+                value={formData.dsCiudad}
+                maxLength={100}
+                onChange={(e) => handleChange('dsCiudad', e.target.value)}
+              />
+            </div>
+
+            <div className="col-span-2">
+              <Label htmlFor="dsComoNosConocio">¿Cómo nos conocieron?</Label>
+              <Input
+                id="dsComoNosConocio"
+                value={formData.dsComoNosConocio}
+                maxLength={255}
+                onChange={(e) => handleChange('dsComoNosConocio', e.target.value)}
+                placeholder="Ej: recomendación de un amigo, redes sociales, vi el cartel..."
               />
             </div>
 
@@ -657,6 +698,13 @@ export default function NuevoAlumnoPage() {
         </Card>
 
         {/* Talleres */}
+        <DatosEscuelaPermisos
+          variante="card"
+          valores={formData}
+          esMenor={esMenorDeEdad(formData.feNacimiento)}
+          onChange={(campo, valor) => handleChange(campo, valor)}
+        />
+
         <Card>
           <CardHeader>
             <CardTitle>Inscripción a Talleres</CardTitle>

@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import pool from '@/lib/db';
 import { registrarTraza } from '@/lib/db-utils';
-import { getPrecioInscripcionVigente } from '@/lib/inscripciones';
+import { getFechaHoyArgentina, getPrecioInscripcionVigente } from '@/lib/inscripciones';
 
 const CAMPOS_PRECIO = [
   'nuPrecioAlumnoActivo',
@@ -35,16 +35,17 @@ export async function GET(request: NextRequest) {
          p.nuPrecioAlumnoNuevo,
          p.nuPrecioFamiliarNuevo,
          u.dsNombreCompleto as nombreUsuarioAlta,
-         (p.feInicioVigencia <= CURDATE()
+         (p.feInicioVigencia <= ?
            AND p.feInicioVigencia = (
              SELECT MAX(p2.feInicioVigencia) FROM TD_PRECIOS_INSCRIPCIONES p2
-             WHERE p2.cdEstado = 1 AND p2.feInicioVigencia <= CURDATE()
+             WHERE p2.cdEstado = 1 AND p2.feInicioVigencia <= ?
            )
          ) as vigente
        FROM TD_PRECIOS_INSCRIPCIONES p
        LEFT JOIN TD_USUARIOS u ON p.cdUsuarioAlta = u.cdUsuario
        WHERE p.cdEstado = 1
-       ORDER BY p.feInicioVigencia DESC`
+       ORDER BY p.feInicioVigencia DESC`,
+      [getFechaHoyArgentina(), getFechaHoyArgentina()]
     );
 
     return NextResponse.json(

@@ -102,6 +102,11 @@ const menuCategories: MenuCategory[] = [
         href: '/dashboard/grupos-familiares',
         roles: ['Administrador', 'Supervisor'],
       },
+      {
+        title: 'Seguimiento Inscripciones',
+        href: '/dashboard/seguimiento-inscripciones',
+        roles: ['Administrador', 'Supervisor', 'Operador'],
+      },
     ],
   },
   {

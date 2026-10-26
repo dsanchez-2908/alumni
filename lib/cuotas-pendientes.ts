@@ -59,7 +59,7 @@ export interface ResumenPeriodo {
 
 const formatTime = (time: string | null) => (time ? time.substring(0, 5) : null);
 
-function formatearHorario(taller: TallerConDeuda) {
+export function formatearHorario(taller: TallerConDeuda) {
   const diasInfo: { dia: string; desde: string | null; hasta: string | null }[] = [];
   if (taller.snDomingo) diasInfo.push({ dia: 'Dom', desde: formatTime(taller.dsDomingoHoraDesde), hasta: formatTime(taller.dsDomingoHoraHasta) });
   if (taller.snLunes) diasInfo.push({ dia: 'Lun', desde: formatTime(taller.dsLunesHoraDesde), hasta: formatTime(taller.dsLunesHoraHasta) });

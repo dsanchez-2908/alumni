@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth-config';
 import pool from '@/lib/db';
 import { registrarTraza, actualizarEstadoAlumno, verificarDeudasPendientes } from '@/lib/db-utils';
 import { verificarCupoInscripcion } from '@/lib/cupos';
+import { sincronizarInscripcionesDeAlumno } from '@/lib/seguimiento-inscripciones';
 
 // PUT - Cambiar estado del alumno en el taller (dar de baja/reactivar)
 export async function PUT(
@@ -81,6 +82,8 @@ export async function PUT(
       // Verificar si el alumno tiene otros talleres activos y actualizar su estado
       await actualizarEstadoAlumno(info.cdAlumno);
     }
+
+    await sincronizarInscripcionesDeAlumno(info.cdAlumno);
 
     await registrarTraza({
       dsProceso: 'Talleres - Alumnos',
@@ -169,6 +172,7 @@ export async function DELETE(
 
     // Verificar si el alumno tiene otros talleres activos y actualizar su estado
     await actualizarEstadoAlumno(info.cdAlumno);
+    await sincronizarInscripcionesDeAlumno(info.cdAlumno);
 
     await registrarTraza({
       dsProceso: 'Talleres - Alumnos',

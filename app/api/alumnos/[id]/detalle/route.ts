@@ -27,6 +27,12 @@ export async function GET(
         a.dsNombreLlamar,
         DATE_FORMAT(a.feNacimiento, '%Y-%m-%d') as feNacimiento,
         a.dsDomicilio,
+        a.dsCiudad,
+        a.dsComoNosConocio,
+        a.dsEscuela,
+        a.dsTurnoEscuela,
+        a.snPermisoUsoImagen,
+        a.snPermisoRetiroSolo,
         a.dsTelefonoCelular,
         a.dsTelefonoFijo,
         a.dsMail,
@@ -535,15 +541,45 @@ export async function GET(
     const pagosRealizadosFormateados = formatearDiasYHorarios(pagosRealizados);
     const faltasFormateadas = formatearDiasYHorarios(faltas);
 
+    // Inscripciones anuales pagadas por el alumno
+    const [inscripcionesPagadas] = await pool.execute<any[]>(
+      `SELECT
+         p.cdPagoInscripcion,
+         p.cdComprobante,
+         p.nuAnioInscripcion,
+         DATE_FORMAT(p.fePago, '%Y-%m-%d') as fePago,
+         p.dsTipoPago,
+         p.dsTipoPrecio,
+         p.nuMonto,
+         p.dsObservacion
+       FROM TD_PAGOS_INSCRIPCIONES p
+       WHERE p.cdAlumno = ? AND p.cdEstado = 1
+       ORDER BY p.nuAnioInscripcion DESC, p.cdPagoInscripcion DESC`,
+      [cdAlumno]
+    );
+
+    // Inscripción abierta en la que el alumno está pendiente de recibir / completar el formulario digital
+    const [inscripcionesFormulario] = await pool.execute<any[]>(
+      `SELECT ia.cdInscripcion, ia.cdInscripcionAlumno, ia.cdEstadoInscripcion, i.nuAnio
+       FROM TD_INSCRIPCIONES_ALUMNOS ia
+       INNER JOIN TD_INSCRIPCIONES i ON ia.cdInscripcion = i.cdInscripcion
+       WHERE ia.cdAlumno = ? AND i.cdEstado = 1 AND ia.cdEstadoInscripcion IN (2, 3)
+       ORDER BY i.nuAnio ASC
+       LIMIT 1`,
+      [cdAlumno]
+    );
+
     // Retornar todo
     return NextResponse.json({
       alumno: alumnoData,
+      inscripcionFormulario: inscripcionesFormulario[0] || null,
       grupoFamiliar,
       miembrosGrupo,
       talleresActivos: talleresActivosFormateados,
       talleresFinalizados: talleresFinalizadosFormateados,
       talleresIncompletos: talleresIncompletosFormateados,
       pagosRealizados: pagosRealizadosFormateados,
+      inscripcionesPagadas,
       pagosPendientes,
       faltas: faltasFormateadas,
       resumen: {

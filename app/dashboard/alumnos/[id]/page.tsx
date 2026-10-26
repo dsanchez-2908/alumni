@@ -42,6 +42,8 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { esMenorDeEdad } from '@/lib/alumno-campos';
+import { BotonWhatsApp, InscripcionFormulario } from '@/components/alumnos/boton-whatsapp';
 
 interface AlumnoDetalle {
   alumno: any;
@@ -51,6 +53,8 @@ interface AlumnoDetalle {
   talleresFinalizados: any[];
   talleresIncompletos: any[];
   pagosRealizados: any[];
+  inscripcionesPagadas: any[];
+  inscripcionFormulario: InscripcionFormulario | null;
   pagosPendientes: any[];
   faltas: any[];
   resumen: {
@@ -68,6 +72,13 @@ interface AlumnoDetalle {
 
 const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
+const ETIQUETA_TIPO_PRECIO_INSCRIPCION: Record<string, string> = {
+  ALUMNO_ACTIVO: 'Alumno Activo',
+  FAMILIAR_ACTIVO: 'Familiar de Alumno Activo',
+  ALUMNO_NUEVO: 'Alumno Nuevo',
+  FAMILIAR_NUEVO: 'Familiar de Alumno Nuevo',
+};
+
 export default function AlumnoDetallePage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const { success, error } = useToast();
@@ -84,9 +95,9 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
     fetchNovedades();
   }, [params.id]);
 
-  const fetchDetalle = async () => {
+  const fetchDetalle = async (silencioso = false) => {
     try {
-      setLoading(true);
+      if (!silencioso) setLoading(true);
       const response = await fetch(`/api/alumnos/${params.id}/detalle`);
       if (response.ok) {
         const result = await response.json();
@@ -193,6 +204,29 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
     }
   };
 
+  const descargarComprobanteInscripcion = async (cdComprobante: number) => {
+    try {
+      const response = await fetch(`/api/pago-inscripciones/comprobante/${cdComprobante}/pdf`);
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Comprobante_Inscripcion_${cdComprobante.toString().padStart(6, '0')}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        error('Error al generar el PDF');
+      }
+    } catch (err) {
+      console.error('Error al descargar PDF de inscripción:', err);
+      error('Error al descargar el PDF');
+    }
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto py-8">
@@ -214,6 +248,15 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
   }
 
   const { alumno, grupoFamiliar, miembrosGrupo, talleresActivos, talleresFinalizados, talleresIncompletos, pagosRealizados, pagosPendientes, faltas, resumen } = data;
+  const inscripcionesPagadas = data.inscripcionesPagadas || [];
+
+  // Props comunes de los botones de WhatsApp de esta pantalla
+  const propsWhatsApp = (telefono: string) => ({
+    telefono,
+    nombreAlumno: `${alumno.dsNombre} ${alumno.dsApellido}`,
+    inscripcionFormulario: data.inscripcionFormulario,
+    onFormularioGenerado: () => fetchDetalle(true),
+  });
 
   return (
     <div className="container mx-auto py-8">
@@ -221,11 +264,15 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
       <div className="mb-6">
         <Button
           variant="ghost"
-          onClick={() => router.push('/dashboard/alumnos')}
+          onClick={() => {
+            // Vuelve a la pantalla desde la que se llegó; si se abrió directo, a Consulta de Alumnos
+            if (window.history.length > 1) router.back();
+            else router.push('/dashboard/alumnos');
+          }}
           className="mb-4"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Volver a Alumnos
+          Volver
         </Button>
 
         <div className="flex items-start justify-between">
@@ -369,13 +416,28 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
                       <p className="text-base">{alumno.dsDomicilio}</p>
                     </div>
                   )}
+                  {alumno.dsCiudad && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Ciudad / Localidad</label>
+                      <p className="text-base">{alumno.dsCiudad}</p>
+                    </div>
+                  )}
+                  {alumno.dsComoNosConocio && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">¿Cómo nos conocieron?</label>
+                      <p className="text-base">{alumno.dsComoNosConocio}</p>
+                    </div>
+                  )}
                   {alumno.dsTelefonoCelular && (
                     <div>
                       <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                         <Phone className="h-4 w-4" />
                         Celular
                       </label>
-                      <p className="text-base">{alumno.dsTelefonoCelular}</p>
+                      <div className="flex items-center gap-3">
+                        <p className="text-base">{alumno.dsTelefonoCelular}</p>
+                        <BotonWhatsApp {...propsWhatsApp(alumno.dsTelefonoCelular)} />
+                      </div>
                     </div>
                   )}
                   {alumno.dsMail && (
@@ -400,6 +462,30 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
                         <Badge variant="secondary">No</Badge>
                       )}
                     </p>
+                  </div>
+                  {esMenorDeEdad(alumno.feNacimiento) && (alumno.dsEscuela || alumno.dsTurnoEscuela) && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Escuela</label>
+                      <p className="text-base">
+                        {alumno.dsEscuela || '-'}
+                        {alumno.dsTurnoEscuela && (
+                          <span className="text-muted-foreground"> · Turno {alumno.dsTurnoEscuela}</span>
+                        )}
+                      </p>
+                    </div>
+                  )}
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Permisos</label>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      <Badge variant={alumno.snPermisoUsoImagen === 'SI' ? 'secondary' : 'outline'}>
+                        Uso de imagen: {alumno.snPermisoUsoImagen === 'SI' ? 'Sí' : alumno.snPermisoUsoImagen === 'NO' ? 'No' : 'Sin dato'}
+                      </Badge>
+                      {esMenorDeEdad(alumno.feNacimiento) && (
+                        <Badge variant={alumno.snPermisoRetiroSolo === 'SI' ? 'secondary' : 'outline'}>
+                          Retiro solo: {alumno.snPermisoRetiroSolo === 'SI' ? 'Sí' : alumno.snPermisoRetiroSolo === 'NO' ? 'No' : 'Sin dato'}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                   {alumno.snDiscapacidad === 'SI' && alumno.dsObservacionesDiscapacidad && (
                     <div>
@@ -473,7 +559,10 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
                 {alumno.dsTelefonoContacto1 && (
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Teléfono</label>
-                    <p className="text-base">{alumno.dsTelefonoContacto1}</p>
+                    <div className="flex items-center gap-3">
+                      <p className="text-base">{alumno.dsTelefonoContacto1}</p>
+                      <BotonWhatsApp {...propsWhatsApp(alumno.dsTelefonoContacto1)} />
+                    </div>
                   </div>
                 )}
                 {alumno.dsMailContacto1 && (
@@ -517,7 +606,10 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
                 {alumno.dsTelefonoContacto2 && (
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Teléfono</label>
-                    <p className="text-base">{alumno.dsTelefonoContacto2}</p>
+                    <div className="flex items-center gap-3">
+                      <p className="text-base">{alumno.dsTelefonoContacto2}</p>
+                      <BotonWhatsApp {...propsWhatsApp(alumno.dsTelefonoContacto2)} />
+                    </div>
                   </div>
                 )}
                 {alumno.dsMailContacto2 && (
@@ -575,7 +667,10 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
                 {alumno.dsWhatsappNotificacion && (
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">WhatsApp</label>
-                    <p className="text-base">{alumno.dsWhatsappNotificacion}</p>
+                    <div className="flex items-center gap-3">
+                      <p className="text-base">{alumno.dsWhatsappNotificacion}</p>
+                      <BotonWhatsApp {...propsWhatsApp(alumno.dsWhatsappNotificacion)} />
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -738,7 +833,76 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
         </TabsContent>
 
         {/* Tab: Pagos */}
-        <TabsContent value="pagos">
+        <TabsContent value="pagos" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5" />
+                Inscripciones Pagadas
+              </CardTitle>
+              <CardDescription>
+                Pago anual de inscripción - Total:{' '}
+                {formatMoneda(
+                  inscripcionesPagadas.reduce((sum: number, p: any) => sum + parseFloat(p.nuMonto || 0), 0)
+                )}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {inscripcionesPagadas.length === 0 ? (
+                <p className="text-muted-foreground text-center py-4">
+                  No hay inscripciones pagadas
+                </p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Año</TableHead>
+                      <TableHead>Fecha de Pago</TableHead>
+                      <TableHead>Precio Aplicado</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead className="text-right">Importe</TableHead>
+                      <TableHead>Observaciones</TableHead>
+                      <TableHead className="text-center">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {inscripcionesPagadas.map((pago) => (
+                      <TableRow key={pago.cdPagoInscripcion}>
+                        <TableCell className="font-medium">{pago.nuAnioInscripcion}</TableCell>
+                        <TableCell>{formatFecha(pago.fePago)}</TableCell>
+                        <TableCell className="text-sm">
+                          {ETIQUETA_TIPO_PRECIO_INSCRIPCION[pago.dsTipoPrecio] || pago.dsTipoPrecio}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{pago.dsTipoPago}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatMoneda(pago.nuMonto)}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {pago.dsObservacion || '-'}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {pago.cdComprobante && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => descargarComprobanteInscripcion(pago.cdComprobante)}
+                              title="Descargar comprobante PDF"
+                            >
+                              <FileText className="h-4 w-4 mr-1" />
+                              PDF
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
