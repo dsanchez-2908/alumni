@@ -11,9 +11,15 @@ export async function GET() {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
+    const aniosHabilitados = await getAniosPermitidos();
+    // Si hay una inscripción abierta de un año posterior (ej: la del año próximo), ese es el año por defecto
+    // para que el usuario no tenga que acordarse de cambiarlo
+    const anioPorDefecto = Math.max(getAnioActual(), ...aniosHabilitados);
+
     return NextResponse.json({
       anioActual: getAnioActual(),
-      aniosHabilitados: await getAniosPermitidos(),
+      anioPorDefecto,
+      aniosHabilitados,
     });
   } catch (error: any) {
     console.error('Error al obtener configuración de inscripciones:', error);

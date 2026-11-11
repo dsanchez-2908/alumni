@@ -75,6 +75,7 @@ interface CalculoInscripcion {
 
 interface ConfigInscripcion {
   anioActual: number;
+  anioPorDefecto?: number;
   aniosHabilitados: number[];
 }
 
@@ -133,7 +134,7 @@ export default function PagoInscripcionesPage() {
         if (response.ok) {
           const data: ConfigInscripcion = await response.json();
           setConfig(data);
-          setAnio(data.anioActual);
+          setAnio(data.anioPorDefecto ?? data.anioActual);
         }
       } catch (err) {
         console.error('Error al cargar configuración:', err);

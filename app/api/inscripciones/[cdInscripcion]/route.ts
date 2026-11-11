@@ -70,6 +70,76 @@ export async function PUT(
   }
 }
 
+// PATCH - Cerrar o reabrir la inscripción de un año (solo Administrador o Supervisor).
+// Al cerrarla ya no se puede pagar la inscripción de ese año como "año próximo", los links del formulario
+// digital dejan de funcionar y no se pueden agregar alumnos ni cambiar estados; la información queda de consulta.
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { cdInscripcion: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
+    const roles: string[] = (session.user as any).roles || [];
+    if (!roles.some((r) => ['Administrador', 'Supervisor'].includes(r))) {
+      return NextResponse.json(
+        { error: 'Solo un Administrador o Supervisor puede cerrar o reabrir una inscripción' },
+        { status: 403 }
+      );
+    }
+
+    const cdInscripcion = parseInt(params.cdInscripcion);
+    const { accion } = await request.json();
+    if (accion !== 'cerrar' && accion !== 'reabrir') {
+      return NextResponse.json({ error: 'Acción inválida' }, { status: 400 });
+    }
+
+    const [rows] = await pool.execute<any[]>(
+      'SELECT cdInscripcion, nuAnio, cdEstado FROM TD_INSCRIPCIONES WHERE cdInscripcion = ?',
+      [cdInscripcion]
+    );
+    if (rows.length === 0) {
+      return NextResponse.json({ error: 'Inscripción no encontrada' }, { status: 404 });
+    }
+    const inscripcion = rows[0];
+
+    const estadoNuevo = accion === 'cerrar' ? 2 : 1;
+    if (inscripcion.cdEstado === estadoNuevo) {
+      return NextResponse.json(
+        { error: `La inscripción ${inscripcion.nuAnio} ya está ${accion === 'cerrar' ? 'cerrada' : 'abierta'}` },
+        { status: 400 }
+      );
+    }
+
+    await pool.execute('UPDATE TD_INSCRIPCIONES SET cdEstado = ? WHERE cdInscripcion = ?', [
+      estadoNuevo,
+      cdInscripcion,
+    ]);
+
+    await registrarTraza({
+      dsProceso: 'Seguimiento Inscripciones',
+      dsAccion: 'Modificar',
+      cdUsuario: (session.user as any).cdUsuario,
+      cdElemento: cdInscripcion,
+      dsDetalle: `Inscripción ${inscripcion.nuAnio} ${accion === 'cerrar' ? 'cerrada' : 'reabierta'}`,
+    });
+
+    return NextResponse.json({
+      message: `Inscripción ${inscripcion.nuAnio} ${accion === 'cerrar' ? 'cerrada' : 'reabierta'}`,
+      cdEstado: estadoNuevo,
+    });
+  } catch (error: any) {
+    console.error('Error al cerrar/reabrir la inscripción:', error);
+    return NextResponse.json(
+      { error: 'Error al actualizar la inscripción', details: error.message },
+      { status: 500 }
+    );
+  }
+}
+
 // GET - Detalle de la inscripción de un año: todos sus alumnos con estado, talleres actuales y talleres del año
 export async function GET(
   request: NextRequest,

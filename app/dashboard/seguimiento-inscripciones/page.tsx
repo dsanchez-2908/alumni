@@ -33,6 +33,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { Plus, ClipboardList, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/use-permissions';
@@ -187,7 +188,14 @@ export default function SeguimientoInscripcionesPage() {
                     className="cursor-pointer hover:bg-gray-50"
                     onClick={() => verDetalle(i.cdInscripcion)}
                   >
-                    <TableCell className="font-semibold">{i.nuAnio}</TableCell>
+                    <TableCell className="font-semibold">
+                      {i.nuAnio}
+                      {i.cdEstado !== 1 && (
+                        <Badge variant="secondary" className="ml-2">
+                          Cerrada
+                        </Badge>
+                      )}
+                    </TableCell>
                     <TableCell className="text-center">{i.cantidadAlumnos}</TableCell>
                     <TableCell className="text-center text-green-700">{i.pagoInscripcion}</TableCell>
                     <TableCell className="text-center text-red-600">{i.pendientePago}</TableCell>

@@ -36,7 +36,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Eye, MessageSquare, Search, UserPlus, X, FileText, FileSpreadsheet, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Eye, MessageSquare, Search, UserPlus, X, FileText, FileSpreadsheet, ExternalLink, Lock, Unlock } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import * as XLSX from 'xlsx';
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/use-permissions';
@@ -156,6 +157,8 @@ export default function DetalleInscripcionPage() {
   const [abriendoLink, setAbriendoLink] = useState<number | null>(null);
   const [guardandoMensaje, setGuardandoMensaje] = useState(false);
   const puedeEditarMensaje = hasRole(['Administrador', 'Supervisor']);
+  const [confirmarCierre, setConfirmarCierre] = useState(false);
+  const [cambiandoEstadoAnio, setCambiandoEstadoAnio] = useState(false);
 
   // Filtros
   const [busqueda, setBusqueda] = useState('');
@@ -343,6 +346,31 @@ export default function DetalleInscripcionPage() {
     XLSX.writeFile(libro, `Seguimiento_Inscripcion_${detalle?.inscripcion.nuAnio ?? ''}_${fecha}.xlsx`);
   };
 
+  const cambiarEstadoInscripcion = async (accion: 'cerrar' | 'reabrir') => {
+    setCambiandoEstadoAnio(true);
+    try {
+      const response = await fetch(`/api/inscripciones/${cdInscripcion}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accion }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        success(data.message);
+        setDetalle((actual) =>
+          actual ? { ...actual, inscripcion: { ...actual.inscripcion, cdEstado: data.cdEstado } } : actual
+        );
+      } else {
+        error(data.error || 'No se pudo actualizar la inscripción');
+      }
+    } catch (err) {
+      console.error('Error al cerrar/reabrir la inscripción:', err);
+      error('No se pudo actualizar la inscripción');
+    } finally {
+      setCambiandoEstadoAnio(false);
+    }
+  };
+
   const guardarMensaje = async () => {
     setGuardandoMensaje(true);
     try {
@@ -491,7 +519,14 @@ export default function DetalleInscripcionPage() {
         </Button>
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Inscripción {inscripcion.nuAnio}</h1>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Inscripción {inscripcion.nuAnio}
+              {inscripcion.cdEstado !== 1 && (
+                <Badge variant="secondary" className="ml-3 align-middle">
+                  Cerrada
+                </Badge>
+              )}
+            </h1>
             <p className="text-gray-600 mt-1">{detalle.total} alumnos en seguimiento</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -521,6 +556,28 @@ export default function DetalleInscripcionPage() {
                 Agregar Alumno
               </Button>
             )}
+            {puedeEditarMensaje &&
+              (inscripcion.cdEstado === 1 ? (
+                <Button
+                  variant="outline"
+                  onClick={() => setConfirmarCierre(true)}
+                  disabled={cambiandoEstadoAnio}
+                  className="gap-2 border-red-300 text-red-700 hover:bg-red-50"
+                >
+                  <Lock className="h-4 w-4" />
+                  Cerrar Inscripción
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  onClick={() => cambiarEstadoInscripcion('reabrir')}
+                  disabled={cambiandoEstadoAnio}
+                  className="gap-2"
+                >
+                  <Unlock className="h-4 w-4" />
+                  Reabrir Inscripción
+                </Button>
+              ))}
           </div>
         </div>
       </div>
@@ -755,6 +812,20 @@ export default function DetalleInscripcionPage() {
       </Card>
 
       {/* Mensaje del formulario digital */}
+      <ConfirmDialog
+        open={confirmarCierre}
+        onOpenChange={setConfirmarCierre}
+        title={`Cerrar la inscripción ${inscripcion.nuAnio}`}
+        description={
+          `Quedan ${(resumen[1] ?? 0) + (resumen[2] ?? 0) + (resumen[3] ?? 0) + (resumen[4] ?? 0)} alumnos sin completar la inscripción. ` +
+          'Al cerrarla ya no se podrá agregar alumnos ni cambiar estados, los links del formulario digital dejarán de funcionar ' +
+          'y el pago de esta inscripción solo estará disponible si corresponde al año actual. Podés reabrirla más adelante.'
+        }
+        confirmText="Cerrar Inscripción"
+        variant="destructive"
+        onConfirm={() => cambiarEstadoInscripcion('cerrar')}
+      />
+
       <Dialog open={mensajeAbierto} onOpenChange={setMensajeAbierto}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
