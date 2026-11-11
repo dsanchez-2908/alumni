@@ -23,11 +23,6 @@ interface Props {
   onFormularioGenerado?: () => void;
 }
 
-const formatearFecha = (fecha: string) => {
-  const [anio, mes, dia] = fecha.slice(0, 10).split('-');
-  return `${dia}/${mes}/${anio}`;
-};
-
 /**
  * Abre WhatsApp con el número indicado. Si el alumno tiene el formulario digital pendiente,
  * genera un link exclusivo y lo incluye en el mensaje.
@@ -64,12 +59,14 @@ export function BotonWhatsApp({
 
         const url = `${window.location.origin}/formulario/${datos.token}`;
         mensaje =
-          `Hola! 👋\n\n` +
-          `Te escribimos de *Índigo Teatro* por la inscripción ${datos.nuAnio} de *${nombreAlumno}*.\n\n` +
-          `Ya registramos el pago de la inscripción. Para reservar la vacante, completá el formulario digital ingresando a este link:\n` +
+          `Ya registramos el pago de la inscripción ${datos.nuAnio} de ${nombreAlumno}\n` +
+          `‼️Importante:\n` +
+          `1- Para que tu vacante quede reservada, es indispensable completar todos tus datos.\n` +
+          `2- Recordá colocar en OBSERVACIONES si presentás alguna discapacidad y/o alguna otra información que consideres importante que sepamos.\n` +
+          `3- Al inscribirte aceptas todos los puntos enunciados en el documento de Beneficios e información importante para alumnos de Índigo que podes leer aqui (tene en cuenta leer las 3 páginas) https://canva.link/beneficios-e-info-2027\n\n` +
+          `Ahora sí, ya podés completar el formulario digital ingresando a este link:\n` +
           `${url}\n\n` +
-          `Vas a necesitar el DNI del alumno para ingresar. El link es de un solo uso y vence el ${formatearFecha(datos.feVencimiento)}.\n\n` +
-          `¡Gracias! 🎭`;
+          `Vas a necesitar el DNI del alumno para ingresar.`;
 
         onFormularioGenerado?.();
       }

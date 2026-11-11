@@ -127,9 +127,18 @@ export async function GET(
 
     // Buscar pagos pendientes de meses anteriores al seleccionado
     for (const inscripcion of inscripciones) {
-      const fechaInscripcion = parseFechaLocal(inscripcion.feInscripcion);
+      // Se debe desde el inicio del taller o la inscripción, lo que ocurra último
+      let fechaInscripcion = parseFechaLocal(inscripcion.feInscripcion);
+      const fechaInicioTaller = parseFechaLocal(inscripcion.feInicioTaller);
+      if (fechaInicioTaller > fechaInscripcion) fechaInscripcion = fechaInicioTaller;
       const mesInscripcion = fechaInscripcion.getMonth() + 1;
       const anioInscripcion = fechaInscripcion.getFullYear();
+
+      // Los talleres cierran en diciembre: un taller de un año anterior no genera deuda en el año consultado
+      if (inscripcion.nuAnioTaller < anioActual) continue;
+
+      // El taller todavía no había comenzado en el año consultado
+      if (anioInscripcion > anioActual) continue;
 
       // Determinar desde qué mes buscar deudas
       const mesDesde = (anioInscripcion === anioActual) ? mesInscripcion : 1;

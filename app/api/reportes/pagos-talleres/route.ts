@@ -141,13 +141,15 @@ export async function GET(request: NextRequest) {
           OR YEAR(at.feBaja) > ? 
           OR (YEAR(at.feBaja) = ? AND MONTH(at.feBaja) >= ?)
         )
+        -- Y el taller ya había comenzado a más tardar en el mes consultado
+        AND t.feInicioTaller <= LAST_DAY(CONCAT(?, '-', LPAD(?, 2, '0'), '-01'))
     `;
 
     // Agregar parámetros para mes y año en el SELECT, y para los subconsultas de precio y detalle
     queryParams.push(mes, anio, anio, mes, mes, anio);
     
-    // Agregar parámetros para la validación de fecha de inscripción y baja
-    queryParams.push(anio, anio, mes, anio, anio, mes);
+    // Agregar parámetros para la validación de fecha de inscripción, baja e inicio del taller
+    queryParams.push(anio, anio, mes, anio, anio, mes, anio, mes);
 
     // Aplicar filtros opcionales
     if (cdTipoTaller) {

@@ -71,10 +71,15 @@ export async function GET(request: NextRequest) {
            AND at.feBaja IS NULL
            AND t.cdEstado IN (1, 2)
            AND t.nuAnioTaller = ?
-           -- El alumno debe estar inscrito antes o durante el mes actual
+           -- El alumno debe estar inscrito (y el taller iniciado) antes o durante el mes actual
            AND (
-             YEAR(at.feInscripcion) < ? 
-             OR (YEAR(at.feInscripcion) = ? AND MONTH(at.feInscripcion) <= ?)
+             YEAR(GREATEST(DATE(at.feInscripcion), t.feInicioTaller)) < ? 
+             OR (YEAR(GREATEST(DATE(at.feInscripcion), t.feInicioTaller)) = ? AND MONTH(GREATEST(DATE(at.feInscripcion), t.feInicioTaller)) <= ?)
+           )
+           -- Un taller inactivo no genera deuda después del mes en que pasó a Inactivo
+           AND (
+             t.cdEstado <> 2
+             OR ? * 100 + ? <= YEAR(COALESCE(t.feInactivacion, t.feModificacion)) * 100 + MONTH(COALESCE(t.feInactivacion, t.feModificacion))
            )
            AND NOT EXISTS (
              SELECT 1 FROM TD_PAGOS p
@@ -84,7 +89,7 @@ export async function GET(request: NextRequest) {
                AND p.nuMes = ?
                AND p.nuAnio = ?
            )`,
-        [currentYear, currentYear, currentYear, currentMonth, currentMonth, currentYear]
+        [currentYear, currentYear, currentYear, currentMonth, currentYear, currentMonth, currentMonth, currentYear]
       );
       alumnosMesActual = alumnosMesActualRows[0]?.total || 0;
 
@@ -107,10 +112,15 @@ export async function GET(request: NextRequest) {
              AND t.cdEstado IN (1, 2)
              AND t.nuAnioTaller = ?
              AND mes.mes < ?
-             -- El mes debe ser >= al mes de inscripción del alumno
-             AND mes.mes >= MONTH(at.feInscripcion)
-             -- Y la inscripción debe ser de este año o antes
-             AND YEAR(at.feInscripcion) <= ?
+             -- El mes debe ser >= al mes de inicio (inscripción o comienzo del taller, el último)
+             AND mes.mes >= MONTH(GREATEST(DATE(at.feInscripcion), t.feInicioTaller))
+             -- Y el inicio debe ser de este año o antes
+             AND YEAR(GREATEST(DATE(at.feInscripcion), t.feInicioTaller)) <= ?
+             -- Un taller inactivo no genera deuda después del mes en que pasó a Inactivo
+             AND (
+               t.cdEstado <> 2
+               OR ? * 100 + mes.mes <= YEAR(COALESCE(t.feInactivacion, t.feModificacion)) * 100 + MONTH(COALESCE(t.feInactivacion, t.feModificacion))
+             )
              AND NOT EXISTS (
                SELECT 1 FROM TD_PAGOS p
                INNER JOIN TD_PAGOS_DETALLE pd ON p.cdPago = pd.cdPago
@@ -120,7 +130,7 @@ export async function GET(request: NextRequest) {
                  AND p.nuAnio = ?
              )
          ) sub`,
-        [currentYear, currentMonth, currentYear, currentYear]
+        [currentYear, currentMonth, currentYear, currentYear, currentYear]
       );
       alumnosMesesAnteriores = alumnosMesesAnterioresRows[0]?.total || 0;
 
@@ -141,13 +151,18 @@ export async function GET(request: NextRequest) {
              AND at.cdEstado = 5  -- Taller INCOMPLETO
              AND at.feBaja IS NOT NULL
              AND t.nuAnioTaller = ?
-             -- El mes debe estar entre la inscripción y la baja
-             AND mes.mes >= MONTH(at.feInscripcion)
+             -- El mes debe estar entre el inicio (inscripción o comienzo del taller) y la baja
+             AND mes.mes >= MONTH(GREATEST(DATE(at.feInscripcion), t.feInicioTaller))
              AND mes.mes <= MONTH(at.feBaja)
-             -- Y la inscripción/baja deben ser de este año o antes
+             -- Y el inicio/baja deben ser de este año o antes
              AND (
-               (YEAR(at.feInscripcion) = ? AND YEAR(at.feBaja) = ?)
-               OR YEAR(at.feInscripcion) < ?
+               (YEAR(GREATEST(DATE(at.feInscripcion), t.feInicioTaller)) = ? AND YEAR(at.feBaja) = ?)
+               OR YEAR(GREATEST(DATE(at.feInscripcion), t.feInicioTaller)) < ?
+             )
+             -- Un taller inactivo no genera deuda después del mes en que pasó a Inactivo
+             AND (
+               t.cdEstado <> 2
+               OR ? * 100 + mes.mes <= YEAR(COALESCE(t.feInactivacion, t.feModificacion)) * 100 + MONTH(COALESCE(t.feInactivacion, t.feModificacion))
              )
              AND NOT EXISTS (
                SELECT 1 FROM TD_PAGOS p
@@ -158,7 +173,7 @@ export async function GET(request: NextRequest) {
                  AND p.nuAnio = ?
              )
          ) sub`,
-        [currentYear, currentYear, currentYear, currentYear, currentYear]
+        [currentYear, currentYear, currentYear, currentYear, currentYear, currentYear]
       );
       alumnosInactivosConDeudas = alumnosInactivosConDeudasRows[0]?.total || 0;
 

@@ -22,7 +22,11 @@ export interface TallerConDeuda extends RowDataPacket {
   dsViernesHoraDesde: string | null; dsViernesHoraHasta: string | null;
   dsSabadoHoraDesde: string | null; dsSabadoHoraHasta: string | null;
   feInscripcion: string;
+  feInicioTaller?: string | null;
   feBaja: string | null;
+  feFinalizacion?: string | null;
+  feInactivacion?: string | null;
+  cdEstadoTaller?: number;
 }
 
 export interface PagoRealizado extends RowDataPacket {
@@ -112,7 +116,34 @@ function clasificarTipoPrecio(monto: string, precio: any): 'completo' | 'descuen
 }
 
 /**
- * Calcula, para un conjunto de inscripciones (activas o incompletas con deuda),
+ * Un taller deja de generar cuotas en la fecha de finalización (si ya fue finalizado), en la fecha
+ * en que pasó a Inactivo (si está inactivo) y, en todos los casos, después de diciembre del año del
+ * taller (los talleres cierran en diciembre y se retoman en marzo). Devuelve el último período a
+ * considerar a partir de uno dado.
+ */
+export function limitarPeriodoAlTaller(
+  taller: { nuAnioTaller: number; feFinalizacion?: string | null; feInactivacion?: string | null },
+  anio: number,
+  mes: number
+): { anio: number; mes: number } {
+  const limites: Array<{ anio: number; mes: number }> = [{ anio: taller.nuAnioTaller, mes: 12 }];
+  for (const fecha of [taller.feFinalizacion, taller.feInactivacion]) {
+    if (fecha) {
+      const fe = parseFechaLocal(fecha);
+      limites.push({ anio: fe.getFullYear(), mes: fe.getMonth() + 1 });
+    }
+  }
+  let resultado = { anio, mes };
+  for (const l of limites) {
+    if (l.anio < resultado.anio || (l.anio === resultado.anio && l.mes < resultado.mes)) {
+      resultado = l;
+    }
+  }
+  return resultado;
+}
+
+/**
+ * Calcula, para un conjunto de inscripciones (activas, incompletas con deuda o finalizadas con deuda),
  * TODOS los períodos pendientes de pago desde la inscripción hasta hoy (o hasta la
  * fecha de baja si el alumno ya no está activo), agrupando la info de pagos previos
  * por período para poder aplicar el descuento familiar mes a mes.
@@ -146,7 +177,12 @@ export async function calcularCuotasPendientes(
   const items: ItemPendiente[] = [];
 
   for (const taller of talleres) {
-    const feInscripcion = parseFechaLocal(taller.feInscripcion);
+    // Se debe desde el inicio del taller o la inscripción, lo que ocurra último
+    let feInscripcion = parseFechaLocal(taller.feInscripcion);
+    if (taller.feInicioTaller) {
+      const feInicioTaller = parseFechaLocal(taller.feInicioTaller);
+      if (feInicioTaller > feInscripcion) feInscripcion = feInicioTaller;
+    }
     let mesFin = mesActual;
     let anioFin = anioActual;
 
@@ -155,6 +191,8 @@ export async function calcularCuotasPendientes(
       anioFin = feBaja.getFullYear();
       mesFin = feBaja.getMonth() + 1;
     }
+
+    ({ anio: anioFin, mes: mesFin } = limitarPeriodoAlTaller(taller, anioFin, mesFin));
 
     let mes = feInscripcion.getMonth() + 1;
     let anio = feInscripcion.getFullYear();

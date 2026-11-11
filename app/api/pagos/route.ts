@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import pool from '@/lib/db';
 import { parseFechaLocal } from '@/lib/date-utils';
+import { limitarPeriodoAlTaller } from '@/lib/cuotas-pendientes';
 
 // GET - Consultar pagos con filtros
 export async function GET(request: NextRequest) {
@@ -278,6 +279,7 @@ async function consultarPendientes(searchParams: URLSearchParams) {
         DATE_FORMAT(t.feInicioTaller, '%Y-%m-%d') as feInicioTaller,
         DATE_FORMAT(at.feInscripcion, '%Y-%m-%d') as feInscripcion,
         DATE_FORMAT(at.feBaja, '%Y-%m-%d') as feBaja,
+        DATE_FORMAT(CASE WHEN t.cdEstado = 2 THEN COALESCE(t.feInactivacion, t.feModificacion) END, '%Y-%m-%d') as feInactivacion,
         at.cdEstado as cdEstadoTaller
       FROM TD_ALUMNOS a
       INNER JOIN TR_ALUMNO_TALLER at ON a.cdAlumno = at.cdAlumno
@@ -382,6 +384,13 @@ async function consultarPendientes(searchParams: URLSearchParams) {
         mesFin = fechaBaja.getMonth() + 1;
         anioFin = fechaBaja.getFullYear();
       }
+
+      // Un taller inactivo no genera deuda después del mes en que pasó a Inactivo
+      ({ anio: anioFin, mes: mesFin } = limitarPeriodoAlTaller(
+        { nuAnioTaller: at.nuAnioTaller, feInactivacion: at.feInactivacion },
+        anioFin,
+        mesFin
+      ));
       
       // Si consultamos un período específico (solo un mes)
       if (consultarPeriodoEspecifico) {

@@ -268,9 +268,10 @@ export async function verificarDeudasPendientes(
   try {
     // Obtener fecha de inscripción en el taller
     const inscripcionQuery = `
-      SELECT feInscripcion, feBaja
-      FROM TR_ALUMNO_TALLER
-      WHERE cdAlumno = ? AND cdTaller = ?
+      SELECT at.feInscripcion, at.feBaja, t.feInicioTaller
+      FROM TR_ALUMNO_TALLER at
+      INNER JOIN TD_TALLERES t ON at.cdTaller = t.cdTaller
+      WHERE at.cdAlumno = ? AND at.cdTaller = ?
     `;
     
     const inscripciones = await executeQuery<RowDataPacket>(inscripcionQuery, [cdAlumno, cdTaller]);
@@ -279,7 +280,12 @@ export async function verificarDeudasPendientes(
       return { tieneDeudas: false, cantidadMeses: 0, montoTotal: 0, detalles: [] };
     }
     
-    const feInscripcion = new Date(inscripciones[0].feInscripcion);
+    // Se debe desde el inicio del taller o la inscripción, lo que ocurra último
+    let feInscripcion = new Date(inscripciones[0].feInscripcion);
+    if (inscripciones[0].feInicioTaller) {
+      const feInicioTaller = new Date(inscripciones[0].feInicioTaller);
+      if (feInicioTaller > feInscripcion) feInscripcion = feInicioTaller;
+    }
     // Prioridad: fecha indicada manualmente por el usuario > feBaja ya registrada > hoy
     // feBajaOverride llega como string 'YYYY-MM-DD' desde el selector de fecha del frontend;
     // se parsea con parseFechaLocal para no correrse de mes en zonas horarias como Argentina.

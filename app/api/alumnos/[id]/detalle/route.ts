@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import pool from '@/lib/db';
+import { limitarPeriodoAlTaller } from '@/lib/cuotas-pendientes';
 
 // GET - Obtener detalle completo del alumno
 export async function GET(
@@ -281,6 +282,9 @@ export async function GET(
           LIMIT 1
         ) as precio,
         MIN(at.feInscripcion) as feInscripcion,
+        t.feInicioTaller,
+        DATE_FORMAT(MAX(at.feFinalizacion), '%Y-%m-%d') as feFinalizacion,
+        DATE_FORMAT(MAX(CASE WHEN t.cdEstado = 2 THEN COALESCE(t.feInactivacion, t.feModificacion) END), '%Y-%m-%d') as feInactivacion,
         at.feBaja
       FROM TR_ALUMNO_TALLER at
       INNER JOIN TD_ALUMNOS a ON at.cdAlumno = a.cdAlumno
@@ -296,15 +300,15 @@ export async function GET(
           WHERE cdAlumno = ?
         )
       )
-      AND at.cdEstado IN (1, 5)
-      AND t.cdEstado = 1
+      AND at.cdEstado IN (1, 4, 5)
+      AND t.cdEstado IN (1, 2, 4)
       AND a.cdEstado IN (1, 2)
       GROUP BY a.cdAlumno, t.cdTaller, tt.cdTipoTaller, tt.dsNombreTaller, t.nuAnioTaller, p.dsNombreCompleto,
                t.snDomingo, t.snLunes, t.snMartes, t.snMiercoles, t.snJueves, t.snViernes, t.snSabado, t.dsDescripcionHorarios,
                t.dsDomingoHoraDesde, t.dsDomingoHoraHasta, t.dsLunesHoraDesde, t.dsLunesHoraHasta,
                t.dsMartesHoraDesde, t.dsMartesHoraHasta, t.dsMiercolesHoraDesde, t.dsMiercolesHoraHasta,
                t.dsJuevesHoraDesde, t.dsJuevesHoraHasta, t.dsViernesHoraDesde, t.dsViernesHoraHasta,
-               t.dsSabadoHoraDesde, t.dsSabadoHoraHasta, at.feBaja`,
+               t.dsSabadoHoraDesde, t.dsSabadoHoraHasta, t.feInicioTaller, at.feBaja`,
       [cdAlumno, cdAlumno]
     );
 
@@ -344,12 +348,24 @@ export async function GET(
                           'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
     for (const inscripcion of inscripciones) {
-      const fechaInscripcion = new Date(inscripcion.feInscripcion);
+      let fechaInscripcion = new Date(inscripcion.feInscripcion);
+      // Se debe desde el inicio del taller o la inscripción, lo que ocurra último
+      if (inscripcion.feInicioTaller) {
+        const fechaInicioTaller = new Date(inscripcion.feInicioTaller);
+        if (fechaInicioTaller > fechaInscripcion) fechaInscripcion = fechaInicioTaller;
+      }
       const hoy = new Date();
       
       // Si hay fecha de baja, generar pendientes solo hasta esa fecha
       // Si no hay fecha de baja, generar hasta hoy
-      const fechaLimite = inscripcion.feBaja ? new Date(inscripcion.feBaja) : hoy;
+      const fechaLimiteBase = inscripcion.feBaja ? new Date(inscripcion.feBaja) : hoy;
+      // Además, el taller no genera cuotas después de su finalización ni de diciembre de su año
+      const limite = limitarPeriodoAlTaller(
+        inscripcion,
+        fechaLimiteBase.getFullYear(),
+        fechaLimiteBase.getMonth() + 1
+      );
+      const fechaLimite = new Date(limite.anio, limite.mes - 1, 28, 23, 59, 59);
       
       let fecha = new Date(fechaInscripcion.getFullYear(), fechaInscripcion.getMonth(), 1);
       

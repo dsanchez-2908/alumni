@@ -39,6 +39,10 @@ export async function GET(
         t.dsViernesHoraDesde, t.dsViernesHoraHasta,
         t.dsSabadoHoraDesde, t.dsSabadoHoraHasta,
         DATE_FORMAT(at.feInscripcion, '%Y-%m-%d') as feInscripcion,
+        DATE_FORMAT(t.feInicioTaller, '%Y-%m-%d') as feInicioTaller,
+        DATE_FORMAT(at.feFinalizacion, '%Y-%m-%d') as feFinalizacion,
+        DATE_FORMAT(CASE WHEN t.cdEstado = 2 THEN COALESCE(t.feInactivacion, t.feModificacion) END, '%Y-%m-%d') as feInactivacion,
+        t.cdEstado as cdEstadoTaller,
         DATE_FORMAT(at.feBaja, '%Y-%m-%d') as feBaja
       FROM TR_ALUMNO_GRUPO_FAMILIAR agf
       INNER JOIN TD_ALUMNOS a ON agf.cdAlumno = a.cdAlumno
@@ -48,7 +52,7 @@ export async function GET(
       INNER JOIN TD_PERSONAL p ON t.cdPersonal = p.cdPersonal
       WHERE agf.cdGrupoFamiliar = ?
         AND (at.feBaja IS NULL OR at.cdEstado = 5)
-        AND t.cdEstado IN (1, 2)
+        AND t.cdEstado IN (1, 2, 4)
       ORDER BY a.dsApellido, a.dsNombre, tt.dsNombreTaller`,
       [cdGrupoFamiliar]
     );
@@ -86,7 +90,7 @@ export async function GET(
     return NextResponse.json({
       grupoFamiliar: cdGrupoFamiliar,
       items,
-      cantidadTalleres: talleres.length, // Total de talleres del grupo (para la regla de "único taller")
+      cantidadTalleres: talleres.filter((t: any) => t.cdEstadoTaller !== 4).length, // Talleres vigentes del grupo (para la regla de "único taller")
       resumenPorPeriodo, // Conteo de pagos completos/descuento por "anio-mes", para el descuento familiar
     });
   } catch (error: any) {
