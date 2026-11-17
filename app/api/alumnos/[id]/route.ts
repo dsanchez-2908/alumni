@@ -5,7 +5,7 @@ import pool from '@/lib/db';
 import { executeQuery, executeTransaction, actualizarEstadoAlumno, verificarDeudasAlumnoInactivo } from '@/lib/db-utils';
 import { registrarTraza } from '@/lib/db-utils';
 import { verificarCupoInscripcion } from '@/lib/cupos';
-import { validarCamposAdicionales } from '@/lib/alumno-campos';
+import { validarCamposAdicionales, normalizarSexo } from '@/lib/alumno-campos';
 import { sincronizarInscripcionesDeAlumno } from '@/lib/seguimiento-inscripciones';
 
 export async function GET(
@@ -170,12 +170,13 @@ export async function PUT(
     }
 
     // Validaciones
-    if (!dsNombre || !dsApellido || !dsDNI || !dsSexo || !feNacimiento) {
+    if (!dsNombre || !dsApellido || !dsDNI || !feNacimiento) {
       return NextResponse.json(
-        { error: 'Nombre, apellido, DNI, sexo y fecha de nacimiento son obligatorios' },
+        { error: 'Nombre, apellido, DNI y fecha de nacimiento son obligatorios' },
         { status: 400 }
       );
     }
+    const sexo = normalizarSexo(dsSexo);
 
     // Validar que el DNI no esté duplicado (excepto este alumno)
     const existeDNI = await executeQuery(
@@ -264,7 +265,7 @@ export async function PUT(
           dsNombre,
           dsApellido,
           dsDNI,
-          dsSexo,
+          sexo,
           dsNombreLlamar || null,
           feNacimiento,
           dsDomicilio || null,

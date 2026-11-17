@@ -110,7 +110,7 @@ export default function NuevoAlumnoPage() {
     dsNombre: '',
     dsApellido: '',
     dsDNI: '',
-    dsSexo: '',
+    dsSexo: 'Sin Indicar',
     dsNombreLlamar: '',
     feNacimiento: '',
     dsDomicilio: '',
@@ -319,18 +319,18 @@ export default function NuevoAlumnoPage() {
             </div>
 
             <div>
-              <Label htmlFor="dsSexo">Sexo *</Label>
+              <Label htmlFor="dsSexo">Sexo</Label>
               <Select
                 value={formData.dsSexo}
                 onValueChange={(value) => handleChange('dsSexo', value)}
-                required
               >
                 <SelectTrigger id="dsSexo">
-                  <SelectValue placeholder="Seleccionar..." />
+                  <SelectValue placeholder="Sin Indicar" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Masculino">Masculino</SelectItem>
                   <SelectItem value="Femenino">Femenino</SelectItem>
+                  <SelectItem value="Sin Indicar">Sin Indicar</SelectItem>
                 </SelectContent>
               </Select>
             </div>

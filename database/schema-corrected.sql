@@ -155,7 +155,7 @@ CREATE TABLE `TD_ALUMNOS` (
   `dsNombre` VARCHAR(100) NOT NULL,
   `dsApellido` VARCHAR(100) NOT NULL,
   `dsDNI` VARCHAR(20) NOT NULL,
-  `dsSexo` ENUM('Masculino', 'Femenino') NOT NULL,
+  `dsSexo` ENUM('Masculino', 'Femenino', 'Sin Indicar') NULL DEFAULT 'Sin Indicar',
   `dsNombreLlamar` VARCHAR(100) DEFAULT NULL,
   `snDiscapacidad` ENUM('SI', 'NO') NOT NULL DEFAULT 'NO',
   `dsObservacionesDiscapacidad` TEXT,

@@ -1,6 +1,13 @@
 // Reglas compartidas (cliente y servidor) de los campos adicionales del alumno.
 
 export const TURNOS_ESCUELA = ['Mañana', 'Tarde', 'Jornada completa'] as const;
+export const SEXOS = ['Masculino', 'Femenino', 'Sin Indicar'] as const;
+export const SEXO_SIN_INDICAR = 'Sin Indicar';
+
+/** El sexo es opcional: si no viene o no es válido se guarda "Sin Indicar". */
+export function normalizarSexo(valor: unknown): (typeof SEXOS)[number] {
+  return (SEXOS as readonly string[]).includes(valor as string) ? (valor as (typeof SEXOS)[number]) : SEXO_SIN_INDICAR;
+}
 export const EDAD_MAYORIA = 18;
 
 /** Edad en años cumplidos a hoy para una fecha 'YYYY-MM-DD' (null si la fecha no es válida). */

@@ -395,7 +395,7 @@ export default function AlumnoDetallePage({ params }: { params: { id: string } }
                   </div>
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Sexo</label>
-                    <p className="text-base">{alumno.dsSexo}</p>
+                    <p className="text-base">{alumno.dsSexo || 'Sin Indicar'}</p>
                   </div>
                   {alumno.dsNombreLlamar && (
                     <div>

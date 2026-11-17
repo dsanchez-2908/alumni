@@ -53,6 +53,8 @@ import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/use-permissions';
 import * as XLSX from 'xlsx';
 
+type SexoAlumno = 'Masculino' | 'Femenino' | 'Sin Indicar';
+
 interface Alumno {
   cdAlumno: number;
   dsNombreCompleto: string;
@@ -206,7 +208,7 @@ export default function AlumnosPage() {
     dsNombre: '',
     dsApellido: '',
     dsDNI: '',
-    dsSexo: 'Masculino' as 'Masculino' | 'Femenino',
+    dsSexo: 'Sin Indicar' as SexoAlumno,
     feNacimiento: '',
     dsNombreLlamar: '',
     dsDomicilio: '',
@@ -382,7 +384,7 @@ export default function AlumnosPage() {
           dsNombre: alumno.dsNombre,
           dsApellido: alumno.dsApellido,
           dsDNI: alumno.dsDNI,
-          dsSexo: alumno.dsSexo as 'Masculino' | 'Femenino',
+          dsSexo: (alumno.dsSexo || 'Sin Indicar') as SexoAlumno,
           feNacimiento: alumno.feNacimiento.split('T')[0],
           dsNombreLlamar: data.alumno.dsNombreLlamar || '',
           dsDomicilio: alumno.dsDomicilio || '',
@@ -426,7 +428,7 @@ export default function AlumnosPage() {
         dsNombre: '',
         dsApellido: '',
         dsDNI: '',
-        dsSexo: 'Masculino',
+        dsSexo: 'Sin Indicar',
         feNacimiento: '',
         dsNombreLlamar: '',
         dsDomicilio: '',
@@ -717,6 +719,7 @@ export default function AlumnosPage() {
                         <SelectItem value="todos">Todos</SelectItem>
                         <SelectItem value="Femenino">Femenino</SelectItem>
                         <SelectItem value="Masculino">Masculino</SelectItem>
+                        <SelectItem value="Sin Indicar">Sin Indicar</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1254,10 +1257,10 @@ export default function AlumnosPage() {
                   </div>
 
                   <div className="grid gap-2">
-                    <Label htmlFor="dsSexo">Sexo *</Label>
+                    <Label htmlFor="dsSexo">Sexo</Label>
                     <Select
                       value={formData.dsSexo}
-                      onValueChange={(value: 'Masculino' | 'Femenino') =>
+                      onValueChange={(value: SexoAlumno) =>
                         setFormData({ ...formData, dsSexo: value })
                       }
                     >
@@ -1267,6 +1270,7 @@ export default function AlumnosPage() {
                       <SelectContent>
                         <SelectItem value="Masculino">Masculino</SelectItem>
                         <SelectItem value="Femenino">Femenino</SelectItem>
+                        <SelectItem value="Sin Indicar">Sin Indicar</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

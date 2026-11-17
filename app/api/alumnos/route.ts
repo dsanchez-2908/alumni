@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth-config';
 import pool from '@/lib/db';
 import { registrarTraza, actualizarEstadoAlumno } from '@/lib/db-utils';
 import { verificarCupoInscripcion } from '@/lib/cupos';
-import { validarCamposAdicionales } from '@/lib/alumno-campos';
+import { validarCamposAdicionales, normalizarSexo } from '@/lib/alumno-campos';
 import { formatearHorario } from '@/lib/cuotas-pendientes';
 
 interface Alumno {
@@ -389,12 +389,13 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // Validaciones
-    if (!dsNombre || !dsApellido || !dsDNI || !dsSexo || !feNacimiento) {
+    if (!dsNombre || !dsApellido || !dsDNI || !feNacimiento) {
       return NextResponse.json(
-        { error: 'Nombre, apellido, DNI, sexo y fecha de nacimiento son obligatorios' },
+        { error: 'Nombre, apellido, DNI y fecha de nacimiento son obligatorios' },
         { status: 400 }
       );
     }
+    const sexo = normalizarSexo(dsSexo);
 
     const adicionales = validarCamposAdicionales(body, feNacimiento);
     if (adicionales.error) {
@@ -477,7 +478,7 @@ export async function POST(request: NextRequest) {
         dsNombre,
         dsApellido,
         dsDNI,
-        dsSexo,
+        sexo,
         dsNombreLlamar || null,
         feNacimiento,
         dsDomicilio || null,

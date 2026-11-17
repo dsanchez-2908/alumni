@@ -263,7 +263,7 @@ export async function verificarDni(
 export async function getDatosAlumno(db: Db, cdAlumno: number) {
   const [rows] = await db.execute(
     `SELECT
-       cdAlumno, dsNombre, dsApellido, dsDNI, dsSexo, dsNombreLlamar,
+       cdAlumno, dsNombre, dsApellido, dsDNI, dsNombreLlamar,
        DATE_FORMAT(feNacimiento, '%Y-%m-%d') as feNacimiento,
        TIMESTAMPDIFF(YEAR, feNacimiento, CURDATE()) as edad,
        dsDomicilio, dsCiudad, dsComoNosConocio, dsEscuela, dsTurnoEscuela,

@@ -385,7 +385,6 @@ export default function FormularioInscripcionPage() {
         <Seccion titulo="Datos del alumno" descripcion="Estos datos no se pueden modificar desde el formulario.">
           <SoloLectura etiqueta="Nombre y apellido" valor={`${alumno.dsNombre} ${alumno.dsApellido}`} />
           <SoloLectura etiqueta="DNI" valor={alumno.dsDNI} />
-          <SoloLectura etiqueta="Sexo" valor={alumno.dsSexo} />
           <SoloLectura etiqueta="Fecha de nacimiento" valor={`${formatearFecha(alumno.feNacimiento)} (${alumno.edad} años)`} />
           {alumno.dsNombreLlamar && <SoloLectura etiqueta="Nombre a llamar" valor={alumno.dsNombreLlamar} />}
         </Seccion>
