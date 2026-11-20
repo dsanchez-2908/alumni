@@ -397,7 +397,7 @@ export async function POST(request: NextRequest) {
     }
     const sexo = normalizarSexo(dsSexo);
 
-    const adicionales = validarCamposAdicionales(body, feNacimiento);
+    const adicionales = validarCamposAdicionales(body, feNacimiento, { usoImagenObligatorio: false });
     if (adicionales.error) {
       return NextResponse.json({ error: adicionales.error }, { status: 400 });
     }

@@ -48,13 +48,15 @@ const siNo = (valor: unknown): 'SI' | 'NO' | null => (valor === 'SI' || valor ==
 
 /**
  * Normaliza y valida los campos adicionales.
- * - Permiso de Uso de Imagen: obligatorio siempre.
+ * - Permiso de Uso de Imagen: obligatorio por defecto (formulario digital); las pantallas del sistema lo piden como opcional.
  * - Permiso de Retiro Solo, Escuela y Turno: aplican solo a menores (el retiro es obligatorio); en adultos se descartan.
  */
 export function validarCamposAdicionales(
   datos: Record<string, any>,
-  feNacimiento: string | null | undefined
+  feNacimiento: string | null | undefined,
+  opciones: { usoImagenObligatorio?: boolean } = {}
 ): { valores: CamposAdicionales; error?: string } {
+  const { usoImagenObligatorio = true } = opciones;
   const menor = esMenorDeEdad(feNacimiento);
 
   const valores: CamposAdicionales = {
@@ -73,7 +75,7 @@ export function validarCamposAdicionales(
     valores.dsTurnoEscuela = datos.dsTurnoEscuela;
   }
 
-  if (!valores.snPermisoUsoImagen) {
+  if (usoImagenObligatorio && !valores.snPermisoUsoImagen) {
     return { valores, error: 'El Permiso de Uso de Imagen es obligatorio (SI/NO)' };
   }
   if (menor && !valores.snPermisoRetiroSolo) {

@@ -28,6 +28,8 @@ interface Props {
   idPrefijo?: string;
   // Permite mostrar solo una de las dos secciones
   secciones?: 'escuela' | 'permisos' | 'ambas';
+  // El permiso de uso de imagen es obligatorio salvo que se indique lo contrario (alta/edición desde el sistema)
+  usoImagenObligatorio?: boolean;
 }
 
 function Bloque({
@@ -90,6 +92,7 @@ export function DatosEscuelaPermisos({
   variante = 'section',
   idPrefijo = '',
   secciones = 'ambas',
+  usoImagenObligatorio = true,
 }: Props) {
   const verEscuela = secciones !== 'permisos';
   const verPermisos = secciones !== 'escuela';
@@ -135,7 +138,9 @@ export function DatosEscuelaPermisos({
       {verPermisos && (
       <Bloque variante={variante} titulo="Permisos">
         <div>
-          <Label htmlFor={`${idPrefijo}snPermisoUsoImagen`}>Permiso de Uso de Imagen *</Label>
+          <Label htmlFor={`${idPrefijo}snPermisoUsoImagen`}>
+            Permiso de Uso de Imagen{usoImagenObligatorio ? ' *' : ''}
+          </Label>
           <SiNo
             id={`${idPrefijo}snPermisoUsoImagen`}
             valor={valores.snPermisoUsoImagen}

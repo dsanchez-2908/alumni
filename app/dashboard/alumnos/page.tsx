@@ -471,10 +471,6 @@ export default function AlumnosPage() {
     e.preventDefault();
     setMessage(null);
 
-    if (!formData.snPermisoUsoImagen) {
-      mostrarError('El Permiso de Uso de Imagen es obligatorio');
-      return;
-    }
     if (esMenorDeEdad(formData.feNacimiento) && !formData.snPermisoRetiroSolo) {
       mostrarError('El Permiso de Retiro Solo es obligatorio para menores de edad');
       return;
@@ -1484,6 +1480,7 @@ export default function AlumnosPage() {
 
               <DatosEscuelaPermisos
                 idPrefijo="dlg-"
+                usoImagenObligatorio={false}
                 valores={formData}
                 esMenor={esMenorDeEdad(formData.feNacimiento)}
                 onChange={(campo, valor) => setFormData({ ...formData, [campo]: valor })}

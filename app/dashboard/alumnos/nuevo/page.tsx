@@ -247,10 +247,6 @@ export default function NuevoAlumnoPage() {
     e.preventDefault();
 
     const menor = esMenorDeEdad(formData.feNacimiento);
-    if (!formData.snPermisoUsoImagen) {
-      error('El Permiso de Uso de Imagen es obligatorio');
-      return;
-    }
     if (menor && !formData.snPermisoRetiroSolo) {
       error('El Permiso de Retiro Solo es obligatorio para menores de edad');
       return;
@@ -700,6 +696,7 @@ export default function NuevoAlumnoPage() {
         {/* Talleres */}
         <DatosEscuelaPermisos
           variante="card"
+          usoImagenObligatorio={false}
           valores={formData}
           esMenor={esMenorDeEdad(formData.feNacimiento)}
           onChange={(campo, valor) => handleChange(campo, valor)}
