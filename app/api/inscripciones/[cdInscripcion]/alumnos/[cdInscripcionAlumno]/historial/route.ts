@@ -5,16 +5,18 @@ import pool from '@/lib/db';
 import { registrarTraza } from '@/lib/db-utils';
 import {
   cambiarEstado,
+  ESTADO_INSCRIPCION,
   ESTADOS_MANUALES,
   ETIQUETA_ESTADO_INSCRIPCION,
+  tieneTallerDelAnio,
 } from '@/lib/seguimiento-inscripciones';
-import { getEstadoUltimoLink } from '@/lib/formulario-inscripcion';
+import { ESTADO_FORMULARIO, getEstadoUltimoLink } from '@/lib/formulario-inscripcion';
 
 const ROLES_PERMITIDOS = ['Administrador', 'Supervisor', 'Operador'];
 
 async function getMiembro(cdInscripcion: number, cdInscripcionAlumno: number) {
   const [rows] = await pool.execute<any[]>(
-    `SELECT ia.cdInscripcionAlumno, ia.cdEstadoInscripcion, i.nuAnio, i.cdEstado as cdEstadoInscripcionAnio,
+    `SELECT ia.cdInscripcionAlumno, ia.cdAlumno, ia.cdEstadoInscripcion, i.nuAnio, i.cdEstado as cdEstadoInscripcionAnio,
             CONCAT(a.dsApellido, ', ', a.dsNombre) as nombre
      FROM TD_INSCRIPCIONES_ALUMNOS ia
      INNER JOIN TD_INSCRIPCIONES i ON ia.cdInscripcion = i.cdInscripcion
@@ -125,8 +127,19 @@ export async function POST(
         return NextResponse.json(
           {
             error:
-              'Solo se puede mover manualmente entre "Pendiente de Enviar Formulario", "Pendiente de Completar Formulario" y "Pendiente de Inscripción". ' +
-              'El pago y la inscripción a un taller actualizan el estado automáticamente.',
+              'El estado "Pendiente pagar Inscripción" se actualiza solo al registrar el pago de la inscripción. ' +
+              'Una vez pagada, se puede mover manualmente entre los demás estados.',
+          },
+          { status: 400 }
+        );
+      }
+      if (
+        nuevoEstado === ESTADO_INSCRIPCION.INSCRIPTO &&
+        !(await tieneTallerDelAnio(pool, miembro.cdAlumno, miembro.nuAnio))
+      ) {
+        return NextResponse.json(
+          {
+            error: `Para dejarlo como Inscripto primero hay que inscribir al alumno en un taller ${miembro.nuAnio}.`,
           },
           { status: 400 }
         );
@@ -139,6 +152,17 @@ export async function POST(
         cdUsuario,
         comentario: texto || null,
       });
+
+      // Fuera de los pasos del formulario el link ya no corresponde: se anula para que no quede uno vigente que no se pueda usar
+      if (
+        nuevoEstado !== ESTADO_INSCRIPCION.PENDIENTE_ENVIAR_FORMULARIO &&
+        nuevoEstado !== ESTADO_INSCRIPCION.PENDIENTE_COMPLETAR_FORMULARIO
+      ) {
+        await pool.execute(
+          'UPDATE TD_INSCRIPCIONES_FORMULARIOS SET cdEstado = ? WHERE cdInscripcionAlumno = ? AND cdEstado = ?',
+          [ESTADO_FORMULARIO.ANULADO, miembro.cdInscripcionAlumno, ESTADO_FORMULARIO.VIGENTE]
+        );
+      }
     } else {
       await pool.execute(
         `INSERT INTO TD_INSCRIPCIONES_HISTORIAL (cdInscripcionAlumno, dsTipo, dsComentario, cdUsuario)

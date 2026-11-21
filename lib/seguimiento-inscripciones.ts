@@ -32,16 +32,24 @@ const PAGO_EN_ANIO_SQL = `EXISTS (
 const reemplazar = (sql: string, alumno: string, anio: string) =>
   sql.replace(/%ALUMNO%/g, alumno).replace(/%ANIO%/g, anio);
 
-/** Estado que le corresponde a un alumno según su pago y sus talleres del año. */
+/**
+ * Estado que le corresponde a un alumno según su pago y sus talleres del año.
+ * - Al pagar pasa a "Pendiente de Enviar Formulario" aunque ya esté inscripto en un taller: los datos que se
+ *   precargaron desde el sistema igual los tiene que completar el alumno con el formulario digital.
+ * - "Inscripto" se alcanza al completar el formulario, al inscribirlo en un taller cuando el formulario ya estaba
+ *   completo ("Pendiente de Inscripción") o cambiándolo a mano.
+ */
 export function derivarEstado(estadoActual: number, pagado: boolean, inscripto: boolean): number {
   if (estadoActual === ESTADO_INSCRIPCION.PENDIENTE_PAGO) {
-    if (!pagado) return estadoActual;
-    return inscripto ? ESTADO_INSCRIPCION.INSCRIPTO : ESTADO_INSCRIPCION.PENDIENTE_ENVIAR_FORMULARIO;
+    return pagado ? ESTADO_INSCRIPCION.PENDIENTE_ENVIAR_FORMULARIO : estadoActual;
   }
   if (estadoActual === ESTADO_INSCRIPCION.INSCRIPTO) {
     return inscripto ? estadoActual : ESTADO_INSCRIPCION.PENDIENTE_INSCRIPCION;
   }
-  return pagado && inscripto ? ESTADO_INSCRIPCION.INSCRIPTO : estadoActual;
+  if (estadoActual === ESTADO_INSCRIPCION.PENDIENTE_INSCRIPCION && pagado && inscripto) {
+    return ESTADO_INSCRIPCION.INSCRIPTO;
+  }
+  return estadoActual;
 }
 
 function motivoAutomatico(anterior: number, nuevo: number): string {
@@ -58,9 +66,14 @@ async function existe(db: Db, sql: string, params: any[]): Promise<boolean> {
 async function estadoActualDelAlumno(db: Db, cdAlumno: number, anio: number) {
   const [pagado, inscripto] = await Promise.all([
     existe(db, reemplazar(PAGO_EN_ANIO_SQL, '?', '?'), [cdAlumno, anio]),
-    existe(db, reemplazar(INSCRIPTO_EN_ANIO_SQL, '?', '?'), [cdAlumno, anio]),
+    tieneTallerDelAnio(db, cdAlumno, anio),
   ]);
   return { pagado, inscripto };
+}
+
+/** Si el alumno está inscripto en algún taller del año (vigente, sin baja). */
+export function tieneTallerDelAnio(db: Db, cdAlumno: number, anio: number): Promise<boolean> {
+  return existe(db, reemplazar(INSCRIPTO_EN_ANIO_SQL, '?', '?'), [cdAlumno, anio]);
 }
 
 export async function cambiarEstado(
@@ -217,9 +230,9 @@ export async function crearInscripcion(
   );
   const cdInscripcion = result.insertId;
 
+  // Quien ya pagó arranca en "Pendiente de Enviar Formulario" aunque ya esté inscripto en un taller: tiene que completar el formulario
   const estadoSql = `CASE
-    WHEN ${reemplazar(PAGO_EN_ANIO_SQL, 'a.cdAlumno', '?')} THEN
-      CASE WHEN ${reemplazar(INSCRIPTO_EN_ANIO_SQL, 'a.cdAlumno', '?')} THEN 5 ELSE 2 END
+    WHEN ${reemplazar(PAGO_EN_ANIO_SQL, 'a.cdAlumno', '?')} THEN 2
     ELSE 1
   END`;
 
@@ -229,7 +242,7 @@ export async function crearInscripcion(
      FROM TD_ALUMNOS a
      WHERE a.cdEstado = 1
         OR (a.cdEstado = 2 AND ${reemplazar(PAGO_EN_ANIO_SQL, 'a.cdAlumno', '?')})`,
-    [cdInscripcion, params.nuAnio, params.nuAnio, params.nuAnio]
+    [cdInscripcion, params.nuAnio, params.nuAnio]
   );
 
   // Los que ya venían con pago (o inscriptos) quedan explicados en su historial

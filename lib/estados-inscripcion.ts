@@ -16,5 +16,6 @@ export const ETIQUETA_ESTADO_INSCRIPCION: Record<number, string> = {
   5: 'Inscripto',
 };
 
-// El pago y la inscripción a un taller son automáticos; el usuario solo mueve los pasos del formulario
-export const ESTADOS_MANUALES = [2, 3, 4];
+// El pago de la inscripción es automático (pasa de 1 a 2). El resto de los estados el usuario los puede mover a mano,
+// por ejemplo para dejar "Inscripto" a quien se cargó todo desde el sistema sin usar el formulario digital.
+export const ESTADOS_MANUALES = [2, 3, 4, 5];

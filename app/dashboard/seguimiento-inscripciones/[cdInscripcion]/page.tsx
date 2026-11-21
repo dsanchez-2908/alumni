@@ -900,12 +900,15 @@ export default function DetalleInscripcionPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                    <p className="mt-2 text-xs text-gray-500">
+                      Al completar el formulario digital el alumno pasa solo a Inscripto. Si cargaste todos los datos
+                      desde el sistema, podés dejarlo como Inscripto a mano (requiere que ya esté inscripto en un
+                      taller {inscripcion.nuAnio}).
+                    </p>
                   </div>
                 ) : (
                   <p className="text-sm text-gray-600 rounded-md bg-gray-50 border p-3">
-                    {seguimiento.cdEstadoInscripcion === 1
-                      ? 'El estado avanza automáticamente cuando se registra el pago de la inscripción.'
-                      : 'El estado se actualiza automáticamente según los talleres en los que está inscripto.'}
+                    El estado avanza automáticamente cuando se registra el pago de la inscripción.
                   </p>
                 )}
                 <div>
@@ -941,7 +944,7 @@ export default function DetalleInscripcionPage() {
                     {estadoLink.estado === 'Vencido' && `el link venció el ${formatearFechaCorta(estadoLink.feVencimiento)} (genere uno nuevo desde el detalle del alumno)`}
                     {estadoLink.estado === 'Bloqueado' && 'link bloqueado por intentos fallidos de DNI (genere uno nuevo desde el detalle del alumno)'}
                     {estadoLink.estado === 'Completado' && `completado el ${estadoLink.feCompletado ? formatFechaHora(estadoLink.feCompletado) : ''}`}
-                    {estadoLink.estado === 'Anulado' && 'el último link fue reemplazado por uno nuevo'}
+                    {estadoLink.estado === 'Anulado' && 'el último link fue anulado (reemplazado por uno nuevo o por un cambio de estado)'}
                   </p>
                 )}
                 <h3 className="font-semibold text-sm mb-3">Historial</h3>

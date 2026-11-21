@@ -488,7 +488,7 @@ export default function FormularioInscripcionPage() {
           <CardHeader>
             <CardTitle className="text-lg">Inscripción a talleres {datos.nuAnio}</CardTitle>
             <CardDescription>
-              Elegí uno o más talleres. Los talleres sin lugar o que no corresponden a la edad del alumno no se pueden seleccionar.
+              Elegí uno o más talleres. Los talleres en los que ya estás inscripto aparecen marcados. Los talleres sin lugar o que no corresponden a la edad del alumno no se pueden seleccionar.
             </CardDescription>
           </CardHeader>
           <CardContent>
