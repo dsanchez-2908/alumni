@@ -299,12 +299,13 @@ function rangoEdadTexto(desde: number | null, hasta: number | null): string | nu
   return null;
 }
 
-// Se tolera un año menos que la edad mínima: un alumno que cumple la edad del taller poco después de que
-// empieza (o en el año del taller) puede inscribirse. El máximo se respeta estrictamente.
+// Se tolera un año de diferencia en ambos extremos del rango de edad del taller: un alumno que cumple la edad mínima
+// poco después de que empieza puede inscribirse, y uno que se pasó de la edad máxima puede continuar un año más.
 const TOLERANCIA_EDAD_MINIMA = 1;
+const TOLERANCIA_EDAD_MAXIMA = 1;
 
 const edadPermitida = (edad: number, desde: number | null, hasta: number | null) =>
-  (!desde || edad >= desde - TOLERANCIA_EDAD_MINIMA) && (!hasta || edad <= hasta);
+  (!desde || edad >= desde - TOLERANCIA_EDAD_MINIMA) && (!hasta || edad <= hasta + TOLERANCIA_EDAD_MAXIMA);
 
 /** Talleres activos del año de la inscripción, con su disponibilidad para este alumno. */
 export async function getTalleresFormulario(
